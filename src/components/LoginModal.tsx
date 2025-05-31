@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Brain, Users, Search, LogIn } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 interface LoginModalProps {
   open: boolean;
@@ -24,7 +24,6 @@ const LoginModal = ({ open, onOpenChange }: LoginModalProps) => {
   });
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
-  const navigate = useNavigate();
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -45,13 +44,7 @@ const LoginModal = ({ open, onOpenChange }: LoginModalProps) => {
       } else {
         toast.success("Successfully signed in!");
         onOpenChange(false);
-        
-        // Redirect based on the selected tab (user type)
-        if (activeTab === "recruiter") {
-          navigate("/recruiter/dashboard");
-        } else {
-          navigate("/candidate/profile");
-        }
+        // Let DashboardRedirect handle the routing based on user profile
       }
     } catch (error) {
       toast.error("An unexpected error occurred");
@@ -136,7 +129,7 @@ const LoginModal = ({ open, onOpenChange }: LoginModalProps) => {
                     className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                     disabled={loading}
                   >
-                    {loading ? "Signing in..." : "Sign In as Recruiter"}
+                    {loading ? "Signing in..." : "Sign In"}
                   </Button>
                 </form>
               </CardContent>
@@ -189,7 +182,7 @@ const LoginModal = ({ open, onOpenChange }: LoginModalProps) => {
                     className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
                     disabled={loading}
                   >
-                    {loading ? "Signing in..." : "Sign In as Candidate"}
+                    {loading ? "Signing in..." : "Sign In"}
                   </Button>
                 </form>
               </CardContent>

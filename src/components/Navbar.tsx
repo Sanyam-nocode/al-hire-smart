@@ -1,10 +1,13 @@
 
 import { useState } from "react";
-import { Menu, X, Users, Search, Brain } from "lucide-react";
+import { Menu, X, Users, Search, Brain, User, LogOut, Settings } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import SignupModal from "./SignupModal";
 import LoginModal from "./LoginModal";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -12,15 +15,12 @@ const Navbar = () => {
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, userProfile, signOut } = useAuth();
 
   const isActive = (path: string) => location.pathname === path;
 
   const handleMobileNavigation = (path: string) => {
     setIsOpen(false);
-    navigate(path);
-  };
-
-  const handleNavigation = (path: string) => {
     navigate(path);
   };
 
@@ -42,6 +42,35 @@ const Navbar = () => {
     setLoginModalOpen(true);
   };
 
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/');
+  };
+
+  const getUserDisplayName = () => {
+    if (userProfile?.first_name && userProfile?.last_name) {
+      return `${userProfile.first_name} ${userProfile.last_name}`;
+    }
+    return user?.email || 'User';
+  };
+
+  const getUserInitials = () => {
+    if (userProfile?.first_name && userProfile?.last_name) {
+      return `${userProfile.first_name[0]}${userProfile.last_name[0]}`;
+    }
+    if (user?.email) {
+      return user.email.substring(0, 2).toUpperCase();
+    }
+    return 'U';
+  };
+
+  const getDashboardPath = () => {
+    if (userProfile?.user_type === 'recruiter') {
+      return '/recruiter/dashboard';
+    }
+    return '/candidate/profile';
+  };
+
   return (
     <>
       <nav className="bg-white shadow-sm border-b sticky top-0 z-50">
@@ -60,51 +89,102 @@ const Navbar = () => {
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-8">
-              <Link
-                to="/features"
-                className={`text-sm font-medium transition-colors ${
-                  isActive("/features")
-                    ? "text-blue-600"
-                    : "text-gray-700 hover:text-blue-600"
-                }`}
-              >
-                Features
-              </Link>
-              <Link
-                to="/pricing"
-                className={`text-sm font-medium transition-colors ${
-                  isActive("/pricing")
-                    ? "text-blue-600"
-                    : "text-gray-700 hover:text-blue-600"
-                }`}
-              >
-                Pricing
-              </Link>
-              <Link
-                to="/about"
-                className={`text-sm font-medium transition-colors ${
-                  isActive("/about")
-                    ? "text-blue-600"
-                    : "text-gray-700 hover:text-blue-600"
-                }`}
-              >
-                About
-              </Link>
-              <div className="flex items-center space-x-4">
-                <Button 
-                  variant="ghost" 
-                  className="text-gray-700"
-                  onClick={handleSignIn}
-                >
-                  Sign In
-                </Button>
-                <Button 
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                  onClick={handleGetStarted}
-                >
-                  Get Started
-                </Button>
-              </div>
+              {!user ? (
+                <>
+                  <Link
+                    to="/features"
+                    className={`text-sm font-medium transition-colors ${
+                      isActive("/features")
+                        ? "text-blue-600"
+                        : "text-gray-700 hover:text-blue-600"
+                    }`}
+                  >
+                    Features
+                  </Link>
+                  <Link
+                    to="/pricing"
+                    className={`text-sm font-medium transition-colors ${
+                      isActive("/pricing")
+                        ? "text-blue-600"
+                        : "text-gray-700 hover:text-blue-600"
+                    }`}
+                  >
+                    Pricing
+                  </Link>
+                  <Link
+                    to="/about"
+                    className={`text-sm font-medium transition-colors ${
+                      isActive("/about")
+                        ? "text-blue-600"
+                        : "text-gray-700 hover:text-blue-600"
+                    }`}
+                  >
+                    About
+                  </Link>
+                  <div className="flex items-center space-x-4">
+                    <Button 
+                      variant="ghost" 
+                      className="text-gray-700"
+                      onClick={handleSignIn}
+                    >
+                      Sign In
+                    </Button>
+                    <Button 
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                      onClick={handleGetStarted}
+                    >
+                      Get Started
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Link
+                    to={getDashboardPath()}
+                    className={`text-sm font-medium transition-colors ${
+                      isActive(getDashboardPath())
+                        ? "text-blue-600"
+                        : "text-gray-700 hover:text-blue-600"
+                    }`}
+                  >
+                    Dashboard
+                  </Link>
+                  
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="flex items-center space-x-2 h-10">
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm">
+                            {getUserInitials()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-gray-700">{getUserDisplayName()}</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <div className="px-2 py-2">
+                        <p className="text-sm font-medium">{getUserDisplayName()}</p>
+                        <p className="text-xs text-gray-500">{user?.email}</p>
+                        <p className="text-xs text-blue-600 capitalize">{userProfile?.user_type || 'User'}</p>
+                      </div>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => navigate(getDashboardPath())}>
+                        <User className="h-4 w-4 mr-2" />
+                        {userProfile?.user_type === 'recruiter' ? 'Dashboard' : 'Profile'}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem>
+                        <Settings className="h-4 w-4 mr-2" />
+                        Settings
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleSignOut}>
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Sign Out
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </>
+              )}
             </div>
 
             {/* Mobile menu button */}
@@ -122,42 +202,92 @@ const Navbar = () => {
           {isOpen && (
             <div className="md:hidden py-4 border-t">
               <div className="flex flex-col space-y-4">
-                <Link
-                  to="/features"
-                  className="text-gray-700 hover:text-blue-600 px-2 py-1"
-                  onClick={() => setIsOpen(false)}
-                >
-                  Features
-                </Link>
-                <Link
-                  to="/pricing"
-                  className="text-gray-700 hover:text-blue-600 px-2 py-1"
-                  onClick={() => setIsOpen(false)}
-                >
-                  Pricing
-                </Link>
-                <Link
-                  to="/about"
-                  className="text-gray-700 hover:text-blue-600 px-2 py-1"
-                  onClick={() => setIsOpen(false)}
-                >
-                  About
-                </Link>
-                <div className="flex flex-col space-y-2 pt-4 border-t">
-                  <Button 
-                    variant="ghost" 
-                    className="w-full justify-start" 
-                    onClick={handleMobileSignIn}
-                  >
-                    Sign In
-                  </Button>
-                  <Button 
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600"
-                    onClick={handleMobileGetStarted}
-                  >
-                    Get Started
-                  </Button>
-                </div>
+                {!user ? (
+                  <>
+                    <Link
+                      to="/features"
+                      className="text-gray-700 hover:text-blue-600 px-2 py-1"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      Features
+                    </Link>
+                    <Link
+                      to="/pricing"
+                      className="text-gray-700 hover:text-blue-600 px-2 py-1"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      Pricing
+                    </Link>
+                    <Link
+                      to="/about"
+                      className="text-gray-700 hover:text-blue-600 px-2 py-1"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      About
+                    </Link>
+                    <div className="flex flex-col space-y-2 pt-4 border-t">
+                      <Button 
+                        variant="ghost" 
+                        className="w-full justify-start" 
+                        onClick={handleMobileSignIn}
+                      >
+                        Sign In
+                      </Button>
+                      <Button 
+                        className="w-full bg-gradient-to-r from-blue-600 to-purple-600"
+                        onClick={handleMobileGetStarted}
+                      >
+                        Get Started
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      to={getDashboardPath()}
+                      className="text-gray-700 hover:text-blue-600 px-2 py-1"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      Dashboard
+                    </Link>
+                    <div className="flex flex-col space-y-2 pt-4 border-t">
+                      <div className="px-2 py-2">
+                        <p className="text-sm font-medium">{getUserDisplayName()}</p>
+                        <p className="text-xs text-gray-500">{user?.email}</p>
+                        <p className="text-xs text-blue-600 capitalize">{userProfile?.user_type || 'User'}</p>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        className="w-full justify-start" 
+                        onClick={() => {
+                          setIsOpen(false);
+                          navigate(getDashboardPath());
+                        }}
+                      >
+                        <User className="h-4 w-4 mr-2" />
+                        {userProfile?.user_type === 'recruiter' ? 'Dashboard' : 'Profile'}
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        className="w-full justify-start"
+                      >
+                        <Settings className="h-4 w-4 mr-2" />
+                        Settings
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        className="w-full justify-start text-red-600"
+                        onClick={() => {
+                          setIsOpen(false);
+                          handleSignOut();
+                        }}
+                      >
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Sign Out
+                      </Button>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}
