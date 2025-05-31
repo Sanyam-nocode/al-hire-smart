@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,13 @@ const CandidateProfile = () => {
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Close settings modal when component unmounts
+  useEffect(() => {
+    return () => {
+      setSettingsOpen(false);
+    };
+  }, []);
 
   const handleSignOut = async () => {
     try {

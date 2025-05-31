@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Menu, X, Users, Search, Brain, User, LogOut, Settings as SettingsIcon } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,18 @@ const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, recruiterProfile, candidateProfile, signOut } = useAuth();
+
+  // Close settings modal when route changes
+  useEffect(() => {
+    setSettingsOpen(false);
+  }, [location.pathname]);
+
+  // Close settings modal when user changes (including logout)
+  useEffect(() => {
+    if (!user) {
+      setSettingsOpen(false);
+    }
+  }, [user]);
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -329,10 +341,13 @@ const Navbar = () => {
         onOpenChange={setLoginModalOpen} 
       />
 
-      <Settings
-        open={settingsOpen}
-        onOpenChange={setSettingsOpen}
-      />
+      {/* Only show Settings when user is authenticated */}
+      {user && (
+        <Settings
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+        />
+      )}
     </>
   );
 };
