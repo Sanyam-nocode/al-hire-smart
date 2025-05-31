@@ -19,6 +19,7 @@ interface CandidateProfile {
   github_url: string | null;
   portfolio_url: string | null;
   salary_expectation: number | null;
+  resume_content: string | null;
 }
 
 interface AISearchResult {
