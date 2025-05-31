@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Users, Calendar, Settings, BarChart3, Plus } from "lucide-react";
+import Navbar from "@/components/Navbar";
 
 const RecruiterDashboard = () => {
   const { user, userProfile } = useAuth();
@@ -12,6 +13,8 @@ const RecruiterDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Navbar />
+      
       {/* Header */}
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
