@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { Search, Users, Calendar, Settings, BarChart3, Plus, Brain, Filter, MapPin, Briefcase } from "lucide-react";
+import { Search, Users, Calendar, Settings, BarChart3, Plus, Brain, Filter, MapPin, Briefcase, Video } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import BookDemoForm from "@/components/BookDemoForm";
 
 const RecruiterDashboard = () => {
   const { user, userProfile } = useAuth();
@@ -83,7 +84,7 @@ const RecruiterDashboard = () => {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="overview" className="flex items-center space-x-2">
               <BarChart3 className="h-4 w-4" />
               <span>Overview</span>
@@ -103,6 +104,10 @@ const RecruiterDashboard = () => {
             <TabsTrigger value="schedule" className="flex items-center space-x-2">
               <Calendar className="h-4 w-4" />
               <span>Schedule</span>
+            </TabsTrigger>
+            <TabsTrigger value="book-demo" className="flex items-center space-x-2">
+              <Video className="h-4 w-4" />
+              <span>Book Demo</span>
             </TabsTrigger>
           </TabsList>
 
@@ -438,6 +443,10 @@ const RecruiterDashboard = () => {
                 <p className="text-gray-600">Interview scheduling features coming soon...</p>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="book-demo">
+            <BookDemoForm />
           </TabsContent>
         </Tabs>
       </main>
