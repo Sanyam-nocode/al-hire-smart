@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Menu, X, Users, Search, Brain, User, LogOut, Settings as SettingsIcon } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -9,6 +8,7 @@ import SignupModal from "./SignupModal";
 import LoginModal from "./LoginModal";
 import Settings from "./Settings";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);

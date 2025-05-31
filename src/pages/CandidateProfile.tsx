@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -30,10 +29,6 @@ const CandidateProfile = () => {
     } catch (error) {
       toast.error("Error signing out");
     }
-  };
-
-  const handleSettings = () => {
-    toast.info("Settings functionality coming soon!");
   };
 
   if (!user || !candidateProfile) {
@@ -87,7 +82,7 @@ const CandidateProfile = () => {
               Resume
             </TabsTrigger>
             <TabsTrigger value="preferences">
-              <Settings className="h-4 w-4 mr-2" />
+              <SettingsIcon className="h-4 w-4 mr-2" />
               Preferences
             </TabsTrigger>
           </TabsList>
