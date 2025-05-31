@@ -4,10 +4,12 @@ import { Menu, X, Users, Search, Brain } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import SignupModal from "./SignupModal";
+import LoginModal from "./LoginModal";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [signupModalOpen, setSignupModalOpen] = useState(false);
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -29,6 +31,15 @@ const Navbar = () => {
   const handleMobileGetStarted = () => {
     setIsOpen(false);
     setSignupModalOpen(true);
+  };
+
+  const handleSignIn = () => {
+    setLoginModalOpen(true);
+  };
+
+  const handleMobileSignIn = () => {
+    setIsOpen(false);
+    setLoginModalOpen(true);
   };
 
   return (
@@ -83,7 +94,7 @@ const Navbar = () => {
                 <Button 
                   variant="ghost" 
                   className="text-gray-700"
-                  onClick={() => handleNavigation('/login')}
+                  onClick={handleSignIn}
                 >
                   Sign In
                 </Button>
@@ -136,7 +147,7 @@ const Navbar = () => {
                   <Button 
                     variant="ghost" 
                     className="w-full justify-start" 
-                    onClick={() => handleMobileNavigation('/login')}
+                    onClick={handleMobileSignIn}
                   >
                     Sign In
                   </Button>
@@ -156,6 +167,11 @@ const Navbar = () => {
       <SignupModal 
         open={signupModalOpen} 
         onOpenChange={setSignupModalOpen} 
+      />
+      
+      <LoginModal 
+        open={loginModalOpen} 
+        onOpenChange={setLoginModalOpen} 
       />
     </>
   );
