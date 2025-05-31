@@ -12,10 +12,54 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Improved PDF text extraction with better content stream parsing
+// Improved PDF text extraction using pdf-parse library
 async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
   try {
-    console.log('Starting improved PDF text extraction, buffer size:', pdfBuffer.byteLength);
+    console.log('Starting PDF text extraction with pdf-parse, buffer size:', pdfBuffer.byteLength);
+    
+    // Use pdf-parse library for better text extraction
+    const pdfParse = await import('https://esm.sh/pdf-parse@1.1.1');
+    
+    const data = await pdfParse.default(new Uint8Array(pdfBuffer));
+    
+    console.log('PDF parsing completed');
+    console.log('Number of pages:', data.numpages);
+    console.log('Extracted text length:', data.text.length);
+    console.log('PDF info:', JSON.stringify(data.info, null, 2));
+    
+    let extractedText = data.text;
+    
+    // Clean up the extracted text
+    extractedText = extractedText
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .replace(/\n{3,}/g, '\n\n') // Replace multiple newlines with double newlines
+      .replace(/\s{3,}/g, ' ') // Replace multiple spaces with single space
+      .trim();
+    
+    console.log('Cleaned extracted text length:', extractedText.length);
+    console.log('Extracted text sample (first 500 chars):', extractedText.substring(0, 500));
+    
+    // If we still don't have much text, log more details
+    if (extractedText.length < 100) {
+      console.log('WARNING: Very little text extracted. Full text:', extractedText);
+      console.log('PDF metadata:', JSON.stringify(data.metadata, null, 2));
+    }
+    
+    return extractedText;
+  } catch (error) {
+    console.error('Error extracting text from PDF with pdf-parse:', error);
+    
+    // Fallback to basic extraction if pdf-parse fails
+    console.log('Falling back to basic text extraction...');
+    return await basicPDFTextExtraction(pdfBuffer);
+  }
+}
+
+// Fallback basic PDF text extraction
+async function basicPDFTextExtraction(pdfBuffer: ArrayBuffer): Promise<string> {
+  try {
+    console.log('Using fallback basic PDF text extraction');
     
     const uint8Array = new Uint8Array(pdfBuffer);
     let extractedText = '';
@@ -23,9 +67,7 @@ async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
     // Convert to string with better encoding handling
     const pdfString = new TextDecoder('latin1').decode(uint8Array);
     
-    console.log('PDF string length:', pdfString.length);
-    
-    // Strategy 1: Extract text from content streams
+    // Extract text from content streams
     const streamMatches = pdfString.matchAll(/stream\s*(.*?)\s*endstream/gs);
     for (const match of streamMatches) {
       const streamContent = match[1];
@@ -33,13 +75,9 @@ async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
         
         // Look for text operations in the stream
         const textOperations = [
-          // Text showing operations
           /\((.*?)\)\s*Tj/g,
           /\((.*?)\)\s*TJ/g,
           /\[(.*?)\]\s*TJ/g,
-          // Text positioning with content
-          /\((.*?)\)\s*Td/g,
-          /\((.*?)\)\s*TD/g,
         ];
         
         for (const pattern of textOperations) {
@@ -58,7 +96,6 @@ async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
                 .replace(/\s+/g, ' ')
                 .trim();
               
-              // Only add if it contains meaningful content
               if (text.length > 2 && /[a-zA-Z]/.test(text)) {
                 extractedText += text + ' ';
               }
@@ -68,72 +105,15 @@ async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
       }
     }
     
-    // Strategy 2: Extract from annotation links (emails, URLs)
-    const annotationMatches = pdfString.matchAll(/\/URI\s*\((.*?)\)/g);
-    for (const match of annotationMatches) {
-      const uri = match[1];
-      if (uri && (uri.includes('@') || uri.includes('http'))) {
-        extractedText += uri + ' ';
-      }
-    }
-    
-    // Strategy 3: Look for metadata and document info
-    const infoMatches = pdfString.matchAll(/\/Title\s*\((.*?)\)|\/Author\s*\((.*?)\)|\/Subject\s*\((.*?)\)/g);
-    for (const match of infoMatches) {
-      const info = match[1] || match[2] || match[3];
-      if (info && info.length > 2) {
-        extractedText += info + ' ';
-      }
-    }
-    
-    // Strategy 4: Extract text from font encodings if available
-    const fontMatches = pdfString.matchAll(/\/Differences\s*\[(.*?)\]/g);
-    for (const match of fontMatches) {
-      const differences = match[1];
-      if (differences) {
-        // Look for readable text in font differences
-        const textInDiffs = differences.match(/\/[A-Za-z]+/g);
-        if (textInDiffs) {
-          for (const text of textInDiffs) {
-            const cleanText = text.replace('/', '');
-            if (cleanText.length > 2) {
-              extractedText += cleanText + ' ';
-            }
-          }
-        }
-      }
-    }
-    
     // Final cleanup
     extractedText = extractedText
       .replace(/\s+/g, ' ')
-      .replace(/(.)\1{3,}/g, '$1') // Remove excessive character repetition
       .trim();
     
-    console.log('Final extracted text length:', extractedText.length);
-    console.log('Extracted text sample (first 500 chars):', extractedText.substring(0, 500));
-    
-    // If we still don't have much text, try a fallback method
-    if (extractedText.length < 100) {
-      console.log('Primary extraction failed, trying fallback method...');
-      
-      // Fallback: look for any sequence of readable characters
-      const fallbackPattern = /[A-Za-z][A-Za-z0-9\s@.\-_]{4,}/g;
-      const fallbackMatches = pdfString.match(fallbackPattern);
-      
-      if (fallbackMatches) {
-        const cleanedMatches = fallbackMatches
-          .filter(match => match.length > 4 && /[A-Za-z]/.test(match))
-          .slice(0, 50); // Limit to prevent too much noise
-        
-        extractedText = cleanedMatches.join(' ');
-        console.log('Fallback extraction result length:', extractedText.length);
-      }
-    }
-    
+    console.log('Fallback extraction completed, length:', extractedText.length);
     return extractedText;
   } catch (error) {
-    console.error('Error extracting text from PDF:', error);
+    console.error('Error in fallback PDF extraction:', error);
     return 'Unable to extract text from PDF due to format limitations.';
   }
 }
@@ -209,61 +189,58 @@ serve(async (req) => {
       });
     }
 
-    // Extract text from PDF
-    console.log('=== EXTRACTING TEXT ===');
+    // Extract text from PDF using proper library
+    console.log('=== EXTRACTING TEXT WITH PDF-PARSE ===');
     const pdfBuffer = await fileData.arrayBuffer();
     const resumeText = await extractTextFromPDF(pdfBuffer);
     
-    console.log('Extracted text length:', resumeText.length);
+    console.log('Final extracted text length:', resumeText.length);
+    console.log('Text sample:', resumeText.substring(0, 300));
 
-    if (!resumeText || resumeText.length < 20) {
+    if (!resumeText || resumeText.length < 50) {
       console.error('Insufficient text extracted from PDF');
       return new Response(JSON.stringify({ 
-        error: 'Could not extract sufficient readable text from PDF. The PDF might be image-based or have formatting issues.',
-        success: false 
+        error: 'Could not extract sufficient readable text from PDF. The PDF might be image-based, password-protected, or corrupted.',
+        success: false,
+        debugInfo: {
+          extractedTextLength: resumeText.length,
+          extractedTextSample: resumeText.substring(0, 200)
+        }
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Improved OpenAI prompt with strict validation
+    // Enhanced OpenAI prompt with better instructions
     console.log('=== CALLING OPENAI ===');
-    const prompt = `You are a professional resume parser. Analyze the following text extracted from a resume PDF and extract information ONLY if it clearly exists in the text.
+    const prompt = `You are an expert resume parser. Extract information from this resume text with high accuracy.
 
-RESUME TEXT TO ANALYZE:
+RESUME TEXT:
 "${resumeText}"
 
-CRITICAL INSTRUCTIONS:
-- ONLY extract information that is CLEARLY VISIBLE in the provided text
-- If the text appears garbled or unreadable, return null values
-- DO NOT make assumptions or infer information not explicitly stated
-- If you cannot find specific information, use null instead of guessing
-- Skills should ONLY be those explicitly mentioned in the text
-- Experience years should be calculated from actual dates mentioned
-- Education should be exactly as written in the text
+Extract the following information ONLY if clearly present in the text. If information is not found or unclear, use null.
 
-Return ONLY this JSON structure (no markdown, no explanations):
+IMPORTANT RULES:
+- Only extract information that is explicitly stated in the resume
+- Skills should be technical skills, programming languages, frameworks, tools, or professional competencies
+- Calculate experience years from actual job dates mentioned
+- Use exact text from the resume, don't rephrase or interpret
+- If text seems corrupted or unreadable, return mostly null values
+
+Respond with ONLY this JSON (no markdown formatting):
 {
   "skills": ["skill1", "skill2"] or null,
   "experience_years": number or null,
-  "title": "exact job title from resume" or null,
-  "summary": "brief summary based on actual content" or null,
-  "education": "exact education from resume" or null,
-  "location": "exact location mentioned" or null,
-  "phone": "exact phone number" or null,
-  "linkedin_url": "exact LinkedIn URL" or null,
-  "github_url": "exact GitHub URL" or null,
-  "portfolio_url": "exact portfolio URL" or null
-}
-
-VALIDATION RULES:
-- If the extracted text contains mostly symbols, numbers, or garbled characters, return all null values
-- Only include skills that are explicitly mentioned as skills or technologies
-- Only include education if degree/institution names are clearly readable
-- Only include experience years if you can identify actual work periods with dates
-
-RESPOND WITH JSON ONLY:`;
+  "title": "job title from resume" or null,
+  "summary": "brief professional summary" or null,
+  "education": "degree and institution" or null,
+  "location": "location mentioned" or null,
+  "phone": "phone number" or null,
+  "linkedin_url": "LinkedIn URL" or null,
+  "github_url": "GitHub URL" or null,
+  "portfolio_url": "portfolio URL" or null
+}`;
 
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -276,15 +253,15 @@ RESPOND WITH JSON ONLY:`;
         messages: [
           { 
             role: 'system', 
-            content: 'You are an expert resume parser that ONLY extracts information that clearly exists in the provided text. If text is garbled or unreadable, you return null values. You never make assumptions or generate fictional data.'
+            content: 'You are an expert resume parser that extracts accurate information from resume text. You only extract information that is clearly visible and never make assumptions or generate fictional data.'
           },
           { 
             role: 'user', 
             content: prompt
           }
         ],
-        temperature: 0,
-        max_tokens: 800,
+        temperature: 0.1,
+        max_tokens: 1000,
       }),
     });
 
@@ -320,10 +297,9 @@ RESPOND WITH JSON ONLY:`;
     let extractedData;
     try {
       let content = openAIData.choices[0].message.content.trim();
-      console.log('Raw AI content length:', content.length);
-      console.log('Raw AI content preview:', content.substring(0, 300));
+      console.log('Raw AI content:', content);
       
-      // Remove markdown code blocks if present
+      // Remove any markdown formatting
       content = content.replace(/```json\s*|\s*```/g, '');
       content = content.replace(/```\s*|\s*```/g, '');
       
@@ -335,27 +311,6 @@ RESPOND WITH JSON ONLY:`;
       
       extractedData = JSON.parse(content);
       console.log('Successfully parsed extracted data:', JSON.stringify(extractedData, null, 2));
-      
-      // Validate that we got meaningful data
-      const hasValidData = extractedData.skills?.length > 0 || 
-                          extractedData.title || 
-                          extractedData.education || 
-                          extractedData.experience_years;
-      
-      if (!hasValidData) {
-        console.log('No meaningful data extracted, PDF might be unreadable');
-        return new Response(JSON.stringify({ 
-          error: 'Could not extract meaningful information from the resume. The PDF might be image-based, corrupted, or in an unsupported format.',
-          success: false,
-          debugInfo: {
-            extractedTextLength: resumeText.length,
-            extractedTextSample: resumeText.substring(0, 200)
-          }
-        }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
       
     } catch (parseError) {
       console.error('JSON parse error:', parseError);
@@ -374,42 +329,37 @@ RESPOND WITH JSON ONLY:`;
       });
     }
 
-    // Prepare database update with stricter validation
+    // Prepare database update with validation
     console.log('=== PREPARING DATABASE UPDATE ===');
     const updateData: any = {
       resume_content: JSON.stringify(extractedData),
       updated_at: new Date().toISOString(),
     };
 
-    // Only add fields if they contain meaningful data
+    // Add validated fields
     if (extractedData.skills && Array.isArray(extractedData.skills) && extractedData.skills.length > 0) {
       const validSkills = extractedData.skills
         .filter(skill => skill && typeof skill === 'string' && skill.trim().length > 1)
         .map(skill => skill.trim());
       if (validSkills.length > 0) {
         updateData.skills = validSkills;
-        console.log('Skills to update:', validSkills);
       }
     }
     
-    if (extractedData.experience_years && typeof extractedData.experience_years === 'number' && extractedData.experience_years > 0 && extractedData.experience_years <= 50) {
+    if (extractedData.experience_years && typeof extractedData.experience_years === 'number' && extractedData.experience_years > 0) {
       updateData.experience_years = extractedData.experience_years;
-      console.log('Experience years to update:', extractedData.experience_years);
     }
     
     if (extractedData.title && typeof extractedData.title === 'string' && extractedData.title.trim().length > 2) {
       updateData.title = extractedData.title.trim();
-      console.log('Title to update:', updateData.title);
     }
     
     if (extractedData.summary && typeof extractedData.summary === 'string' && extractedData.summary.trim().length > 10) {
       updateData.summary = extractedData.summary.trim();
-      console.log('Summary to update:', updateData.summary.substring(0, 100) + '...');
     }
     
     if (extractedData.education && typeof extractedData.education === 'string' && extractedData.education.trim().length > 5) {
       updateData.education = extractedData.education.trim();
-      console.log('Education to update:', updateData.education);
     }
     
     if (extractedData.location && typeof extractedData.location === 'string' && extractedData.location.trim().length > 2) {
@@ -432,7 +382,7 @@ RESPOND WITH JSON ONLY:`;
       updateData.portfolio_url = extractedData.portfolio_url.trim();
     }
 
-    console.log('Final update data prepared:', JSON.stringify(updateData, null, 2));
+    console.log('Final update data:', JSON.stringify(updateData, null, 2));
 
     // Update candidate profile
     console.log('=== UPDATING DATABASE ===');
@@ -465,7 +415,7 @@ RESPOND WITH JSON ONLY:`;
       message: 'Resume data extracted and profile updated successfully',
       debugInfo: {
         extractedTextLength: resumeText.length,
-        extractedTextSample: resumeText.substring(0, 200)
+        extractedTextSample: resumeText.substring(0, 300)
       }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
