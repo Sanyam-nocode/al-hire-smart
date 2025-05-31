@@ -2,11 +2,17 @@
 import { Play, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
 const Demo = () => {
+  const navigate = useNavigate();
+
+  const handleWatchDemo = () => {
+    navigate('/dashboard?tab=book-demo');
+  };
+
   return (
     <div className="min-h-screen bg-white">
       <Navbar />
@@ -43,7 +49,10 @@ const Demo = () => {
                 <p className="text-gray-600 mb-6">
                   See a 5-minute walkthrough of Hire Al's key features and how they can transform your hiring process.
                 </p>
-                <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                <Button 
+                  onClick={handleWatchDemo}
+                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                >
                   Watch Now
                 </Button>
               </CardContent>
@@ -60,7 +69,11 @@ const Demo = () => {
                 <p className="text-gray-600 mb-6">
                   Schedule a 30-minute personalized demo with our team to see how Hire Al fits your specific needs.
                 </p>
-                <Button variant="outline" className="w-full">
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={handleWatchDemo}
+                >
                   Schedule Demo
                 </Button>
               </CardContent>

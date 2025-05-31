@@ -1,18 +1,29 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Search, Users, Calendar, Settings, BarChart3, Plus, Brain, Filter, MapPin, Briefcase, Video } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import BookDemoForm from "@/components/BookDemoForm";
 
 const RecruiterDashboard = () => {
   const { user, userProfile } = useAuth();
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("overview");
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+
+  // Check for tab parameter in URL
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
 
   const handleTalentSearch = async () => {
     if (!searchQuery.trim()) return;
