@@ -12,6 +12,7 @@ import Features from "./pages/Features";
 import Pricing from "./pages/Pricing";
 import About from "./pages/About";
 import Demo from "./pages/Demo";
+import BookDemo from "./pages/BookDemo";
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import RecruiterDashboard from "./pages/RecruiterDashboard";
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/about" element={<About />} />
             <Route path="/demo" element={<Demo />} />
+            <Route path="/book-demo" element={<BookDemo />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/login" element={<Login />} />
             <Route 
