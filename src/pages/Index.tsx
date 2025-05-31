@@ -1,4 +1,3 @@
-
 import { ArrowRight, Search, Users, Zap, Brain, CheckCircle, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -7,12 +6,11 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import DashboardRedirect from "@/components/DashboardRedirect";
 import { useAuth } from "@/contexts/AuthContext";
-
 const Index = () => {
-  const { user } = useAuth();
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+  const {
+    user
+  } = useAuth();
+  return <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       {/* Header with Navbar - contains logo, name, features, about, pricing, sign in & get started */}
       <Navbar />
       
@@ -194,9 +192,7 @@ const Index = () => {
             <Card className="border-0 shadow-lg">
               <CardContent className="p-6">
                 <div className="flex items-center mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />
-                  ))}
+                  {[...Array(5)].map((_, i) => <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />)}
                 </div>
                 <p className="text-gray-600 mb-4">
                   "Hire Al transformed our hiring process. We're finding better candidates 3x faster than before."
@@ -216,9 +212,7 @@ const Index = () => {
             <Card className="border-0 shadow-lg">
               <CardContent className="p-6">
                 <div className="flex items-center mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />
-                  ))}
+                  {[...Array(5)].map((_, i) => <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />)}
                 </div>
                 <p className="text-gray-600 mb-4">
                   "The natural language search is incredible. I can finally search exactly how I think about candidates."
@@ -238,9 +232,7 @@ const Index = () => {
             <Card className="border-0 shadow-lg">
               <CardContent className="p-6">
                 <div className="flex items-center mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />
-                  ))}
+                  {[...Array(5)].map((_, i) => <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />)}
                 </div>
                 <p className="text-gray-600 mb-4">
                   "Our outreach response rate doubled with AI-generated personalized messages. Game changer!"
@@ -277,7 +269,7 @@ const Index = () => {
               </Button>
             </Link>
             <Link to="/demo">
-              <Button size="lg" variant="outline" className="px-8 py-4 text-lg border-white text-white hover:bg-white hover:text-blue-600">
+              <Button size="lg" variant="outline" className="px-8 py-4 text-lg border-white hover:bg-white text-[#344e88]">
                 Schedule Demo
               </Button>
             </Link>
@@ -286,8 +278,6 @@ const Index = () => {
       </section>
 
       <Footer />
-    </div>
-  );
+    </div>;
 };
-
 export default Index;
