@@ -14,7 +14,13 @@ const DashboardRedirect = () => {
         navigate('/recruiter/dashboard');
       } else if (userProfile.user_type === 'candidate') {
         navigate('/candidate/profile');
+      } else {
+        // If user type is not set, redirect to signup to complete profile
+        navigate('/signup');
       }
+    } else if (!loading && !user) {
+      // If not logged in, redirect to login
+      navigate('/login');
     }
   }, [user, userProfile, loading, navigate]);
 

@@ -9,6 +9,72 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      candidate_profiles: {
+        Row: {
+          created_at: string
+          education: string | null
+          email: string
+          experience_years: number | null
+          first_name: string
+          github_url: string | null
+          id: string
+          is_dummy: boolean | null
+          last_name: string
+          linkedin_url: string | null
+          location: string | null
+          phone: string | null
+          portfolio_url: string | null
+          salary_expectation: number | null
+          skills: string[] | null
+          summary: string | null
+          title: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          education?: string | null
+          email: string
+          experience_years?: number | null
+          first_name: string
+          github_url?: string | null
+          id?: string
+          is_dummy?: boolean | null
+          last_name: string
+          linkedin_url?: string | null
+          location?: string | null
+          phone?: string | null
+          portfolio_url?: string | null
+          salary_expectation?: number | null
+          skills?: string[] | null
+          summary?: string | null
+          title?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          education?: string | null
+          email?: string
+          experience_years?: number | null
+          first_name?: string
+          github_url?: string | null
+          id?: string
+          is_dummy?: boolean | null
+          last_name?: string
+          linkedin_url?: string | null
+          location?: string | null
+          phone?: string | null
+          portfolio_url?: string | null
+          salary_expectation?: number | null
+          skills?: string[] | null
+          summary?: string | null
+          title?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           company: string | null
@@ -41,6 +107,95 @@ export type Database = {
           user_type?: string
         }
         Relationships: []
+      }
+      recruiter_profiles: {
+        Row: {
+          company: string
+          company_size: string | null
+          company_website: string | null
+          created_at: string
+          email: string
+          first_name: string
+          id: string
+          industry: string | null
+          job_title: string | null
+          last_name: string
+          linkedin_url: string | null
+          location: string | null
+          phone: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          company: string
+          company_size?: string | null
+          company_website?: string | null
+          created_at?: string
+          email: string
+          first_name: string
+          id?: string
+          industry?: string | null
+          job_title?: string | null
+          last_name: string
+          linkedin_url?: string | null
+          location?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          company?: string
+          company_size?: string | null
+          company_website?: string | null
+          created_at?: string
+          email?: string
+          first_name?: string
+          id?: string
+          industry?: string | null
+          job_title?: string | null
+          last_name?: string
+          linkedin_url?: string | null
+          location?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      resumes: {
+        Row: {
+          candidate_profile_id: string | null
+          content: string
+          file_name: string | null
+          file_size: number | null
+          id: string
+          uploaded_at: string
+        }
+        Insert: {
+          candidate_profile_id?: string | null
+          content: string
+          file_name?: string | null
+          file_size?: number | null
+          id?: string
+          uploaded_at?: string
+        }
+        Update: {
+          candidate_profile_id?: string | null
+          content?: string
+          file_name?: string | null
+          file_size?: number | null
+          id?: string
+          uploaded_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resumes_candidate_profile_id_fkey"
+            columns: ["candidate_profile_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
