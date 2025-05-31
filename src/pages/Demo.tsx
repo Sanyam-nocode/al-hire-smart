@@ -2,14 +2,25 @@ import { Play, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
 const Demo = () => {
   const navigate = useNavigate();
+  const { user, userProfile } = useAuth();
 
   const handleScheduleDemo = () => {
-    navigate('/dashboard?tab=book-demo');
+    // If user is logged in and is a recruiter, go to recruiter dashboard with book-demo tab
+    if (user && userProfile?.user_type === 'recruiter') {
+      navigate('/recruiter/dashboard?tab=book-demo');
+    } else if (user && userProfile?.user_type === 'candidate') {
+      // If user is a candidate, still go to recruiter dashboard for demo booking
+      navigate('/recruiter/dashboard?tab=book-demo');
+    } else {
+      // If not logged in, redirect to signup with a return URL
+      navigate('/signup?returnTo=/recruiter/dashboard?tab=book-demo');
+    }
   };
 
   return (
