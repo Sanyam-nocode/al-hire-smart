@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Brain, Users, Search, LogIn } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 interface LoginModalProps {
   open: boolean;
@@ -24,6 +24,7 @@ const LoginModal = ({ open, onOpenChange }: LoginModalProps) => {
   });
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
+  const navigate = useNavigate();
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -44,6 +45,13 @@ const LoginModal = ({ open, onOpenChange }: LoginModalProps) => {
       } else {
         toast.success("Successfully signed in!");
         onOpenChange(false);
+        
+        // Redirect based on the selected tab (user type)
+        if (activeTab === "recruiter") {
+          navigate("/recruiter/dashboard");
+        } else {
+          navigate("/candidate/profile");
+        }
       }
     } catch (error) {
       toast.error("An unexpected error occurred");
