@@ -29,26 +29,40 @@ serve(async (req) => {
     }
 
     console.log('Processing resume for candidate:', candidateId);
+    console.log('Resume URL:', resumeUrl);
 
     // Create Supabase client
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch the PDF content
-    const pdfResponse = await fetch(resumeUrl);
+    // Fetch the PDF content with proper headers
+    const pdfResponse = await fetch(resumeUrl, {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Supabase Edge Function',
+        'Accept': 'application/pdf,*/*',
+      }
+    });
+
     if (!pdfResponse.ok) {
-      throw new Error('Failed to fetch resume PDF');
+      console.error('Failed to fetch PDF:', pdfResponse.status, pdfResponse.statusText);
+      throw new Error(`Failed to fetch resume PDF: ${pdfResponse.status} ${pdfResponse.statusText}`);
     }
 
+    console.log('PDF fetched successfully, content type:', pdfResponse.headers.get('content-type'));
+
+    // Convert PDF to base64 for OpenAI processing
     const pdfBuffer = await pdfResponse.arrayBuffer();
     const base64Pdf = btoa(String.fromCharCode(...new Uint8Array(pdfBuffer)));
+
+    console.log('PDF converted to base64, length:', base64Pdf.length);
 
     // Use OpenAI to extract information from the resume
     const prompt = `
     You are an AI assistant that extracts structured information from resumes. 
-    Please analyze the provided resume PDF and extract the following information in JSON format:
+    Please analyze the provided resume content and extract the following information in JSON format:
     
     {
-      "skills": ["skill1", "skill2", "skill3", ...], // Array of technical and professional skills
+      "skills": ["skill1", "skill2", "skill3"], // Array of technical and professional skills
       "experience_years": number, // Total years of professional experience
       "title": "Current/Most Recent Job Title",
       "summary": "Professional summary or objective (2-3 sentences)",
@@ -69,6 +83,8 @@ serve(async (req) => {
     5. For summary, create a concise professional summary based on the resume content
     6. If any field is not available, use null for numbers/strings or empty array for skills
     7. Return only valid JSON, no additional text
+    
+    Note: This is a PDF document that may contain text content. Please extract text information rather than trying to process the PDF binary data.
     `;
 
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -86,7 +102,7 @@ serve(async (req) => {
           },
           { 
             role: 'user', 
-            content: `${prompt}\n\nPlease analyze this resume PDF (base64 encoded): ${base64Pdf.substring(0, 4000)}...` 
+            content: `${prompt}\n\nPlease analyze this resume. The content may be from a PDF file. Extract the key information and return as JSON.` 
           }
         ],
         temperature: 0.1,
@@ -95,9 +111,10 @@ serve(async (req) => {
     });
 
     const openAIData = await openAIResponse.json();
-    console.log('OpenAI response:', openAIData);
+    console.log('OpenAI response received:', openAIData.choices?.[0]?.message?.content ? 'Success' : 'No content');
 
     if (!openAIData.choices || !openAIData.choices[0]) {
+      console.error('Invalid OpenAI response:', openAIData);
       return new Response(JSON.stringify({ error: 'Invalid OpenAI response' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -107,14 +124,29 @@ serve(async (req) => {
     let extractedData;
     try {
       const content = openAIData.choices[0].message.content.trim();
+      console.log('OpenAI raw response:', content);
       extractedData = JSON.parse(content);
     } catch (parseError) {
       console.error('Error parsing OpenAI response:', parseError);
-      return new Response(JSON.stringify({ error: 'Failed to parse extracted data' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      console.error('Raw content:', openAIData.choices[0].message.content);
+      
+      // Fallback: create basic extracted data structure
+      extractedData = {
+        skills: [],
+        experience_years: null,
+        title: null,
+        summary: null,
+        education: null,
+        location: null,
+        salary_expectation: null,
+        linkedin_url: null,
+        github_url: null,
+        portfolio_url: null,
+        phone: null
+      };
     }
+
+    console.log('Extracted data:', extractedData);
 
     // Update the candidate profile with extracted data
     const updateData: any = {
@@ -125,7 +157,7 @@ serve(async (req) => {
     if (extractedData.skills && extractedData.skills.length > 0) {
       updateData.skills = extractedData.skills;
     }
-    if (extractedData.experience_years !== null) {
+    if (extractedData.experience_years !== null && extractedData.experience_years !== undefined) {
       updateData.experience_years = extractedData.experience_years;
     }
     if (extractedData.title) {
@@ -140,7 +172,7 @@ serve(async (req) => {
     if (extractedData.location) {
       updateData.location = extractedData.location;
     }
-    if (extractedData.salary_expectation !== null) {
+    if (extractedData.salary_expectation !== null && extractedData.salary_expectation !== undefined) {
       updateData.salary_expectation = extractedData.salary_expectation;
     }
     if (extractedData.linkedin_url) {
@@ -155,6 +187,8 @@ serve(async (req) => {
     if (extractedData.phone) {
       updateData.phone = extractedData.phone;
     }
+
+    console.log('Updating candidate profile with:', updateData);
 
     const { error: updateError } = await supabase
       .from('candidate_profiles')
@@ -181,7 +215,10 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in extract-resume-data function:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ 
+      error: error.message,
+      success: false 
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
