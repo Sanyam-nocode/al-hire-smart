@@ -12,30 +12,30 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Enhanced PDF text extraction function
+// Improved PDF text extraction function
 async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
   try {
     console.log('Starting PDF text extraction, buffer size:', pdfBuffer.byteLength);
     
-    // Convert ArrayBuffer to Uint8Array for processing
     const uint8Array = new Uint8Array(pdfBuffer);
     let extractedText = '';
     
     // Convert to string for text extraction
     const pdfString = new TextDecoder('latin1').decode(uint8Array);
     
-    // Enhanced text extraction patterns for PDF structure
+    // More comprehensive text extraction patterns
     const textPatterns = [
-      // Text in parentheses - common PDF text format
-      /\(((?:[^()\\]|\\.).*?)\)/gs,
-      // Text in brackets
-      /\[(.*?)\]/gs,
+      // Text in parentheses - most common PDF text format
+      /\(((?:[^()\\]|\\[\\()nrtbf]|\\[0-7]{1,3})*)\)/g,
       // Text between BT (Begin Text) and ET (End Text) operators
-      /BT\s*(.*?)\s*ET/gs,
-      // Tj operators (show text)
-      /\((.*?)\)\s*Tj/gs,
-      // TJ operators (show text with individual glyph positioning)
-      /\[(.*?)\]\s*TJ/gs,
+      /BT\s+(.*?)\s+ET/gs,
+      // Tj and TJ operators (show text)
+      /\[(.*?)\]\s*TJ/g,
+      /\((.*?)\)\s*Tj/g,
+      // Text after font selection
+      /\/F\d+\s+\d+\s+Tf\s+(.*?)(?=\/F\d+|\n|$)/g,
+      // Direct text patterns (fallback)
+      /[A-Za-z]{3,}[A-Za-z\s.,;:!?-]+/g,
     ];
     
     // Extract text using all patterns
@@ -44,7 +44,7 @@ async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
       for (const match of matches) {
         if (match[1]) {
           let text = match[1];
-          // Clean up common PDF escape sequences
+          // Clean up PDF escape sequences and encoding
           text = text
             .replace(/\\n/g, ' ')
             .replace(/\\r/g, ' ')
@@ -52,25 +52,39 @@ async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
             .replace(/\\\(/g, '(')
             .replace(/\\\)/g, ')')
             .replace(/\\\\/g, '\\')
-            .replace(/\\[0-9]{3}/g, '') // Remove octal escape sequences
+            .replace(/\\[0-7]{1,3}/g, '') // Remove octal escape sequences
+            .replace(/\s+/g, ' ')
             .trim();
           
-          if (text && text.length > 1) {
+          if (text && text.length > 2 && /[a-zA-Z]/.test(text)) {
             extractedText += text + ' ';
           }
         }
       }
     }
     
-    // Additional cleanup
+    // Additional cleanup and formatting
     extractedText = extractedText
-      .replace(/\s+/g, ' ') // Replace multiple spaces
-      .replace(/[^\w\s\.\,\@\-\(\)\+\#\:\/]/g, ' ') // Keep only readable characters
-      .replace(/\b[A-Z]{2,}\b/g, match => match.charAt(0) + match.slice(1).toLowerCase()) // Fix all caps words
+      .replace(/\s+/g, ' ')
+      .replace(/[^\w\s\.\,\@\-\(\)\+\#\:\/\%\&]/g, ' ')
+      .replace(/\b[A-Z]{2,}\b/g, match => 
+        match.length > 3 ? match.charAt(0) + match.slice(1).toLowerCase() : match
+      )
       .trim();
     
     console.log('Extracted text length:', extractedText.length);
-    console.log('Sample text (first 300 chars):', extractedText.substring(0, 300));
+    console.log('Sample text (first 500 chars):', extractedText.substring(0, 500));
+    
+    // If we got very little text, try a simpler approach
+    if (extractedText.length < 100) {
+      console.log('Trying fallback text extraction...');
+      // Look for any readable text patterns
+      const fallbackText = pdfString.match(/[A-Za-z][A-Za-z\s.,;:!?-]{10,}/g);
+      if (fallbackText) {
+        extractedText = fallbackText.join(' ').replace(/\s+/g, ' ').trim();
+        console.log('Fallback extracted text length:', extractedText.length);
+      }
+    }
     
     return extractedText;
   } catch (error) {
@@ -112,7 +126,6 @@ serve(async (req) => {
     console.log('Fetching PDF from Supabase Storage...');
     
     // Extract the file path from the URL
-    // URL format: https://wpjbgvmwgammfbbgzdwi.supabase.co/storage/v1/object/public/resumes/...
     const urlParts = resumeUrl.split('/');
     const bucketIndex = urlParts.findIndex(part => part === 'resumes');
     if (bucketIndex === -1 || bucketIndex >= urlParts.length - 1) {
@@ -166,43 +179,48 @@ serve(async (req) => {
       console.log('Successfully extracted text, length:', resumeText.length);
       
       if (!resumeText || resumeText.length < 50) {
-        console.warn('Very little text extracted from PDF');
-        resumeText = 'Unable to extract sufficient text from PDF. PDF may be image-based or corrupted.';
+        console.warn('Very little text extracted from PDF, trying direct approach...');
+        // Try to extract any visible text
+        const decoder = new TextDecoder('utf-8', { fatal: false });
+        const textAttempt = decoder.decode(new Uint8Array(pdfBuffer));
+        const readableText = textAttempt.match(/[A-Za-z][A-Za-z\s.,;:!?-]{20,}/g);
+        resumeText = readableText ? readableText.join(' ') : 'Unable to extract sufficient text from PDF.';
       }
     } catch (error) {
       console.error('PDF text extraction failed:', error);
       resumeText = 'PDF content could not be extracted. Please ensure the PDF contains extractable text.';
     }
 
-    // Enhanced prompt for better data extraction
+    console.log('Final resume text for AI processing:', resumeText.substring(0, 300));
+
+    // Enhanced prompt specifically for candidate profile fields
     const prompt = `
-    You are an expert resume parser. Analyze the following resume text and extract structured information.
+    You are an expert resume parser. Extract structured information from the following resume text and return ONLY a valid JSON object.
 
     Resume Text:
     "${resumeText}"
 
-    Instructions:
-    - Extract ONLY information that is clearly present in the resume text
-    - For skills, include both technical and soft skills mentioned
-    - For experience_years, calculate from work history dates or stated experience
-    - For title, use the most recent or current position title
-    - Return ONLY valid JSON, no additional text or formatting
-    - If information is not available, use null for that field
+    Extract the following information and return as JSON:
 
-    Return a JSON object with these exact keys:
-    {
-      "skills": ["skill1", "skill2", "skill3"],
-      "experience_years": number_or_null,
-      "title": "job_title_or_null",
-      "summary": "professional_summary_or_null",
-      "education": "highest_degree_and_institution_or_null",
-      "location": "location_from_resume_or_null",
-      "salary_expectation": null,
-      "linkedin_url": "linkedin_url_if_found_or_null",
-      "github_url": "github_url_if_found_or_null",
-      "portfolio_url": "portfolio_url_if_found_or_null",
-      "phone": "phone_number_if_found_or_null"
-    }
+    REQUIRED FIELDS:
+    - skills: Array of technical and professional skills (programming languages, tools, frameworks, soft skills)
+    - experience_years: Number of years of work experience (calculate from dates or stated experience)
+    - title: Current or most recent job title
+    - summary: Professional summary or objective (2-3 sentences)
+    - education: Highest degree, field of study, and institution
+    - location: Current location or address
+    - phone: Phone number if present
+    - linkedin_url: LinkedIn profile URL if present
+    - github_url: GitHub profile URL if present
+    - portfolio_url: Portfolio or website URL if present
+
+    RULES:
+    1. Return ONLY valid JSON, no other text
+    2. Use null for missing information
+    3. For skills, include both technical (languages, frameworks) and soft skills
+    4. For experience_years, calculate total years from employment history
+    5. Extract qualifications and certifications into education field
+    6. Be comprehensive but accurate - only extract what's clearly stated
 
     JSON Response:`;
 
@@ -219,7 +237,7 @@ serve(async (req) => {
         messages: [
           { 
             role: 'system', 
-            content: 'You are an expert resume parser. Extract structured data from resumes and return ONLY valid JSON.' 
+            content: 'You are an expert resume parser. Extract structured data from resumes and return ONLY valid JSON with no additional formatting or text.' 
           },
           { 
             role: 'user', 
@@ -227,7 +245,7 @@ serve(async (req) => {
           }
         ],
         temperature: 0.1,
-        max_tokens: 1000,
+        max_tokens: 1500,
       }),
     });
 
@@ -264,7 +282,7 @@ serve(async (req) => {
       const content = openAIData.choices[0].message.content.trim();
       console.log('Raw OpenAI response:', content);
       
-      // Clean up JSON response
+      // Clean up the response to extract JSON
       let cleanContent = content;
       
       // Remove markdown code blocks if present
@@ -272,7 +290,7 @@ serve(async (req) => {
         cleanContent = content.replace(/```json\s*/, '').replace(/```\s*$/, '');
       }
       
-      // Extract JSON from the response
+      // Extract JSON object from the response
       const jsonMatch = cleanContent.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         cleanContent = jsonMatch[0];
@@ -285,59 +303,62 @@ serve(async (req) => {
       console.error('Error parsing OpenAI response:', parseError);
       console.error('Raw content that failed to parse:', openAIData.choices[0].message.content);
       
-      // Fallback data structure
-      extractedData = {
-        skills: ["Communication", "Problem Solving"],
-        experience_years: null,
-        title: null,
-        summary: "Professional with extracted resume data",
-        education: null,
-        location: null,
-        salary_expectation: null,
-        linkedin_url: null,
-        github_url: null,
-        portfolio_url: null,
-        phone: null
-      };
-      console.log('Using fallback data due to parsing error');
+      // Return error instead of fallback to ensure we know when parsing fails
+      return new Response(JSON.stringify({ 
+        error: 'Failed to parse AI response. Please try again.',
+        success: false,
+        rawResponse: openAIData.choices[0].message.content
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    // Prepare update data - only include non-null values
+    // Prepare update data with better validation
     const updateData: any = {
       resume_content: JSON.stringify(extractedData),
       updated_at: new Date().toISOString(),
     };
 
-    // Add extracted fields if they have valid values
+    // Map extracted fields with validation
     if (extractedData.skills && Array.isArray(extractedData.skills) && extractedData.skills.length > 0) {
-      updateData.skills = extractedData.skills;
+      updateData.skills = extractedData.skills.filter(skill => skill && typeof skill === 'string');
     }
+    
     if (extractedData.experience_years !== null && !isNaN(Number(extractedData.experience_years))) {
-      updateData.experience_years = Number(extractedData.experience_years);
+      updateData.experience_years = Math.max(0, Number(extractedData.experience_years));
     }
+    
     if (extractedData.title && typeof extractedData.title === 'string' && extractedData.title.trim()) {
       updateData.title = extractedData.title.trim();
     }
+    
     if (extractedData.summary && typeof extractedData.summary === 'string' && extractedData.summary.trim()) {
       updateData.summary = extractedData.summary.trim();
     }
+    
     if (extractedData.education && typeof extractedData.education === 'string' && extractedData.education.trim()) {
       updateData.education = extractedData.education.trim();
     }
+    
     if (extractedData.location && typeof extractedData.location === 'string' && extractedData.location.trim()) {
       updateData.location = extractedData.location.trim();
     }
+    
+    if (extractedData.phone && typeof extractedData.phone === 'string' && extractedData.phone.trim()) {
+      updateData.phone = extractedData.phone.trim();
+    }
+    
     if (extractedData.linkedin_url && typeof extractedData.linkedin_url === 'string' && extractedData.linkedin_url.trim()) {
       updateData.linkedin_url = extractedData.linkedin_url.trim();
     }
+    
     if (extractedData.github_url && typeof extractedData.github_url === 'string' && extractedData.github_url.trim()) {
       updateData.github_url = extractedData.github_url.trim();
     }
+    
     if (extractedData.portfolio_url && typeof extractedData.portfolio_url === 'string' && extractedData.portfolio_url.trim()) {
       updateData.portfolio_url = extractedData.portfolio_url.trim();
-    }
-    if (extractedData.phone && typeof extractedData.phone === 'string' && extractedData.phone.trim()) {
-      updateData.phone = extractedData.phone.trim();
     }
 
     console.log('Updating candidate profile with extracted data:', updateData);
@@ -369,7 +390,8 @@ serve(async (req) => {
       success: true,
       extractedData,
       updatedProfile,
-      message: 'Resume data extracted and profile updated successfully'
+      message: 'Resume data extracted and profile updated successfully',
+      extractedFields: Object.keys(updateData).filter(key => key !== 'resume_content' && key !== 'updated_at')
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
