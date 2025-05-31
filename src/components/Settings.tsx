@@ -11,6 +11,8 @@ import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { User, Bell, Shield, Palette, Globe, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface SettingsProps {
   open?: boolean;
@@ -20,16 +22,78 @@ interface SettingsProps {
 
 const Settings = ({ open, onOpenChange, trigger }: SettingsProps) => {
   const { user, recruiterProfile, candidateProfile } = useAuth();
+  const queryClient = useQueryClient();
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(false);
   const [marketingEmails, setMarketingEmails] = useState(false);
   const [profileVisibility, setProfileVisibility] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const userProfile = recruiterProfile || candidateProfile;
   const userType = recruiterProfile ? 'recruiter' : 'candidate';
 
-  const handleSaveProfile = () => {
-    toast.success("Profile settings saved successfully!");
+  const handleSaveProfile = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsUpdating(true);
+
+    try {
+      const formData = new FormData(event.currentTarget);
+      
+      if (userType === 'candidate' && candidateProfile) {
+        const updateData = {
+          first_name: formData.get('firstName') as string,
+          last_name: formData.get('lastName') as string,
+          email: formData.get('email') as string,
+          phone: formData.get('phone') as string,
+          location: formData.get('location') as string,
+          updated_at: new Date().toISOString(),
+        };
+
+        const { error } = await supabase
+          .from('candidate_profiles')
+          .update(updateData)
+          .eq('id', candidateProfile.id);
+
+        if (error) {
+          console.error('Error updating candidate profile:', error);
+          toast.error("Failed to update profile. Please try again.");
+          return;
+        }
+
+        // Invalidate and refetch auth context data
+        await queryClient.invalidateQueries({ queryKey: ['candidates'] });
+        
+        toast.success("Profile updated successfully!");
+      } else if (userType === 'recruiter' && recruiterProfile) {
+        const updateData = {
+          first_name: formData.get('firstName') as string,
+          last_name: formData.get('lastName') as string,
+          email: formData.get('email') as string,
+          phone: formData.get('phone') as string,
+          location: formData.get('location') as string,
+          company: formData.get('company') as string,
+          updated_at: new Date().toISOString(),
+        };
+
+        const { error } = await supabase
+          .from('recruiter_profiles')
+          .update(updateData)
+          .eq('id', recruiterProfile.id);
+
+        if (error) {
+          console.error('Error updating recruiter profile:', error);
+          toast.error("Failed to update profile. Please try again.");
+          return;
+        }
+
+        toast.success("Profile updated successfully!");
+      }
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      toast.error("Failed to update profile. Please try again.");
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const handleSaveNotifications = () => {
@@ -75,62 +139,74 @@ const Settings = ({ open, onOpenChange, trigger }: SettingsProps) => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name</Label>
-                  <Input 
-                    id="firstName" 
-                    defaultValue={userProfile?.first_name || ''}
-                    placeholder="Enter your first name"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name</Label>
-                  <Input 
-                    id="lastName" 
-                    defaultValue={userProfile?.last_name || ''}
-                    placeholder="Enter your last name"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input 
-                    id="email" 
-                    type="email"
-                    defaultValue={user?.email || ''}
-                    placeholder="Enter your email"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <Input 
-                    id="phone" 
-                    defaultValue={userProfile?.phone || ''}
-                    placeholder="Enter your phone number"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="location">Location</Label>
-                  <Input 
-                    id="location" 
-                    defaultValue={userProfile?.location || ''}
-                    placeholder="Enter your location"
-                  />
-                </div>
-                {userType === 'recruiter' && (
+              <form onSubmit={handleSaveProfile} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="company">Company</Label>
+                    <Label htmlFor="firstName">First Name</Label>
                     <Input 
-                      id="company" 
-                      defaultValue={recruiterProfile?.company || ''}
-                      placeholder="Enter your company"
+                      id="firstName" 
+                      name="firstName"
+                      defaultValue={userProfile?.first_name || ''}
+                      placeholder="Enter your first name"
+                      required
                     />
                   </div>
-                )}
-              </div>
-              <Button onClick={handleSaveProfile}>
-                Save Profile Changes
-              </Button>
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName">Last Name</Label>
+                    <Input 
+                      id="lastName" 
+                      name="lastName"
+                      defaultValue={userProfile?.last_name || ''}
+                      placeholder="Enter your last name"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email Address</Label>
+                    <Input 
+                      id="email" 
+                      name="email"
+                      type="email"
+                      defaultValue={user?.email || ''}
+                      placeholder="Enter your email"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input 
+                      id="phone" 
+                      name="phone"
+                      defaultValue={userProfile?.phone || ''}
+                      placeholder="Enter your phone number"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="location">Location</Label>
+                    <Input 
+                      id="location" 
+                      name="location"
+                      defaultValue={userProfile?.location || ''}
+                      placeholder="Enter your location"
+                    />
+                  </div>
+                  {userType === 'recruiter' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="company">Company</Label>
+                      <Input 
+                        id="company" 
+                        name="company"
+                        defaultValue={recruiterProfile?.company || ''}
+                        placeholder="Enter your company"
+                        required
+                      />
+                    </div>
+                  )}
+                </div>
+                <Button type="submit" disabled={isUpdating}>
+                  {isUpdating ? "Saving..." : "Save Profile Changes"}
+                </Button>
+              </form>
             </CardContent>
           </Card>
         </TabsContent>
