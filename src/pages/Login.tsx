@@ -21,7 +21,7 @@ const Login = () => {
 
   useEffect(() => {
     if (user) {
-      navigate('/');
+      navigate('/dashboard');
     }
   }, [user, navigate]);
 
@@ -36,7 +36,7 @@ const Login = () => {
         toast.error(error.message);
       } else {
         toast.success("Successfully signed in!");
-        navigate('/');
+        navigate('/dashboard');
       }
     } catch (error) {
       toast.error("An unexpected error occurred");
