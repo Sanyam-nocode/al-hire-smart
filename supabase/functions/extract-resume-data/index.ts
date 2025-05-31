@@ -12,67 +12,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Enhanced PDF text extraction with multiple parsing strategies
+// Improved PDF text extraction for Deno environment
 async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
   try {
-    console.log('Starting enhanced PDF text extraction, buffer size:', pdfBuffer.byteLength);
+    console.log('Starting PDF text extraction, buffer size:', pdfBuffer.byteLength);
     
-    // Strategy 1: Use pdf-parse library for better extraction
-    try {
-      const pdfParse = await import('https://esm.sh/pdf-parse@1.1.1');
-      const data = await pdfParse.default(new Uint8Array(pdfBuffer));
-      
-      console.log('PDF-parse extraction completed');
-      console.log('Number of pages:', data.numpages);
-      console.log('Extracted text length:', data.text.length);
-      
-      let extractedText = data.text;
-      
-      // Advanced text cleaning and normalization
-      extractedText = extractedText
-        // Normalize line breaks
-        .replace(/\r\n/g, '\n')
-        .replace(/\r/g, '\n')
-        // Remove excessive whitespace while preserving structure
-        .replace(/[ \t]+/g, ' ')
-        .replace(/\n{3,}/g, '\n\n')
-        // Fix common PDF extraction issues
-        .replace(/([a-z])([A-Z])/g, '$1 $2') // Add space between camelCase
-        .replace(/(\w)(\d)/g, '$1 $2') // Add space between word and number
-        .replace(/(\d)(\w)/g, '$1 $2') // Add space between number and word
-        // Remove random single characters on separate lines
-        .replace(/\n\s*[a-zA-Z]\s*\n/g, '\n')
-        // Clean up bullet points and formatting
-        .replace(/•/g, '- ')
-        .replace(/▪/g, '- ')
-        .replace(/◦/g, '- ')
-        .trim();
-      
-      console.log('Cleaned extracted text length:', extractedText.length);
-      console.log('Text sample (first 500 chars):', extractedText.substring(0, 500));
-      
-      if (extractedText.length > 100) {
-        return extractedText;
-      } else {
-        console.log('pdf-parse extracted insufficient text, trying alternative method');
-      }
-    } catch (pdfParseError) {
-      console.error('pdf-parse failed:', pdfParseError);
-    }
-
-    // Strategy 2: Enhanced manual extraction for difficult PDFs
-    console.log('Using enhanced manual PDF text extraction');
-    return await enhancedManualExtraction(pdfBuffer);
-    
-  } catch (error) {
-    console.error('All PDF extraction methods failed:', error);
-    return 'Unable to extract readable text from this PDF file. The file may be image-based, encrypted, or corrupted.';
-  }
-}
-
-// Enhanced manual extraction with better text operation parsing
-async function enhancedManualExtraction(pdfBuffer: ArrayBuffer): Promise<string> {
-  try {
     const uint8Array = new Uint8Array(pdfBuffer);
     let extractedText = '';
     
@@ -90,20 +34,20 @@ async function enhancedManualExtraction(pdfBuffer: ArrayBuffer): Promise<string>
     
     console.log('PDF string length:', pdfString.length);
     
-    // Extract text from various PDF text operations
+    // Enhanced text extraction patterns for PDF operations
     const textPatterns = [
       // Standard text operations
-      /\((.*?)\)\s*Tj/g,
-      /\((.*?)\)\s*TJ/g,
-      /\[(.*?)\]\s*TJ/g,
+      /\(((?:[^()\\]|\\.|\\[0-7]{1,3})*)\)\s*Tj/g,
+      /\(((?:[^()\\]|\\.|\\[0-7]{1,3})*)\)\s*TJ/g,
+      /\[((?:[^\[\]\\]|\\.|\\[0-7]{1,3})*)\]\s*TJ/g,
       // Text with positioning
-      /\((.*?)\)\s*\d+\.?\d*\s+\d+\.?\d*\s+Td/g,
-      /\((.*?)\)\s*\d+\.?\d*\s+\d+\.?\d*\s+TD/g,
-      // Text with font changes
-      /\/F\d+\s+\d+\.?\d*\s+Tf\s*\((.*?)\)\s*Tj/g,
+      /\(((?:[^()\\]|\\.|\\[0-7]{1,3})*)\)\s*[\d.-]+\s+[\d.-]+\s+Td/g,
+      /\(((?:[^()\\]|\\.|\\[0-7]{1,3})*)\)\s*[\d.-]+\s+[\d.-]+\s+TD/g,
       // Show text operations
-      /\((.*?)\)\s*'/g,
-      /\((.*?)\)\s*"/g,
+      /\(((?:[^()\\]|\\.|\\[0-7]{1,3})*)\)\s*'/g,
+      /\(((?:[^()\\]|\\.|\\[0-7]{1,3})*)\)\s*"/g,
+      // Text in arrays (for complex layouts)
+      /\[\s*\(((?:[^()\\]|\\.|\\[0-7]{1,3})*)\)\s*(?:[\d.-]+\s*)*\]\s*TJ/g,
     ];
     
     const foundTexts = new Set<string>();
@@ -112,7 +56,7 @@ async function enhancedManualExtraction(pdfBuffer: ArrayBuffer): Promise<string>
       const matches = pdfString.matchAll(pattern);
       for (const match of matches) {
         let text = match[1];
-        if (text && text.length > 1) {
+        if (text && text.length > 0) {
           // Decode PDF text encoding
           text = decodePDFText(text);
           
@@ -127,8 +71,8 @@ async function enhancedManualExtraction(pdfBuffer: ArrayBuffer): Promise<string>
             .replace(/\s+/g, ' ')
             .trim();
           
-          // Only add meaningful text (contains letters and reasonable length)
-          if (text.length > 2 && /[a-zA-Z]/.test(text) && !isGibberish(text)) {
+          // Only add meaningful text
+          if (text.length > 1 && /[a-zA-Z]/.test(text) && !isGibberish(text)) {
             foundTexts.add(text);
           }
         }
@@ -138,19 +82,39 @@ async function enhancedManualExtraction(pdfBuffer: ArrayBuffer): Promise<string>
     // Join all found text pieces
     extractedText = Array.from(foundTexts).join(' ');
     
-    // Additional cleanup
+    // Additional text extraction from stream objects
+    if (extractedText.length < 100) {
+      console.log('Trying stream-based extraction...');
+      const streamMatches = pdfString.matchAll(/stream\s*([\s\S]*?)\s*endstream/g);
+      for (const match of streamMatches) {
+        const streamContent = match[1];
+        // Look for readable text in streams
+        const readableText = streamContent.match(/[A-Za-z0-9\s.,!?;:'"()-]{10,}/g);
+        if (readableText) {
+          readableText.forEach(text => {
+            const cleanText = text.trim();
+            if (cleanText.length > 5 && !isGibberish(cleanText)) {
+              foundTexts.add(cleanText);
+            }
+          });
+        }
+      }
+      extractedText = Array.from(foundTexts).join(' ');
+    }
+    
+    // Final cleanup
     extractedText = extractedText
       .replace(/\s+/g, ' ')
       .replace(/([.!?])\s*([A-Z])/g, '$1 $2')
       .trim();
     
-    console.log('Enhanced manual extraction completed, length:', extractedText.length);
-    console.log('Sample text:', extractedText.substring(0, 300));
+    console.log('Final extraction completed, length:', extractedText.length);
+    console.log('Sample text (first 300 chars):', extractedText.substring(0, 300));
     
     return extractedText;
   } catch (error) {
-    console.error('Enhanced manual extraction failed:', error);
-    return 'PDF text extraction failed due to file format limitations.';
+    console.error('PDF extraction failed:', error);
+    return '';
   }
 }
 
@@ -161,7 +125,8 @@ function decodePDFText(text: string): string {
     text = text
       .replace(/\\u([0-9a-fA-F]{4})/g, (_, code) => String.fromCharCode(parseInt(code, 16)))
       .replace(/\\x([0-9a-fA-F]{2})/g, (_, code) => String.fromCharCode(parseInt(code, 16)))
-      .replace(/\\([0-7]{3})/g, (_, code) => String.fromCharCode(parseInt(code, 8)));
+      .replace(/\\([0-7]{3})/g, (_, code) => String.fromCharCode(parseInt(code, 8)))
+      .replace(/\\([0-7]{1,2})/g, (_, code) => String.fromCharCode(parseInt(code, 8)));
     
     return text;
   } catch {
@@ -173,14 +138,18 @@ function decodePDFText(text: string): string {
 function isGibberish(text: string): boolean {
   // Reject text that's mostly non-alphanumeric
   const alphanumericRatio = (text.match(/[a-zA-Z0-9]/g) || []).length / text.length;
-  if (alphanumericRatio < 0.5) return true;
+  if (alphanumericRatio < 0.4) return true;
   
   // Reject text with too many repeated characters
   const uniqueChars = new Set(text.toLowerCase()).size;
-  if (uniqueChars < Math.max(2, text.length / 4)) return true;
+  if (uniqueChars < Math.max(2, text.length / 6)) return true;
   
   // Reject very short fragments
-  if (text.length < 3) return true;
+  if (text.length < 2) return true;
+  
+  // Reject strings that are mostly numbers or symbols
+  const letterRatio = (text.match(/[a-zA-Z]/g) || []).length / text.length;
+  if (letterRatio < 0.3) return true;
   
   return false;
 }
@@ -192,7 +161,7 @@ serve(async (req) => {
 
   try {
     const { resumeUrl, candidateId } = await req.json();
-    console.log('=== ENHANCED RESUME EXTRACTION REQUEST ===');
+    console.log('=== RESUME EXTRACTION REQUEST ===');
     console.log('Resume URL:', resumeUrl);
     console.log('Candidate ID:', candidateId);
 
@@ -256,18 +225,17 @@ serve(async (req) => {
       });
     }
 
-    // Enhanced text extraction from PDF
-    console.log('=== EXTRACTING TEXT WITH ENHANCED METHODS ===');
+    // Extract text from PDF
+    console.log('=== EXTRACTING TEXT FROM PDF ===');
     const pdfBuffer = await fileData.arrayBuffer();
     const resumeText = await extractTextFromPDF(pdfBuffer);
     
-    console.log('Final extracted text length:', resumeText.length);
-    console.log('Text sample:', resumeText.substring(0, 300));
+    console.log('Extracted text length:', resumeText.length);
 
-    if (!resumeText || resumeText.length < 50) {
+    if (!resumeText || resumeText.length < 20) {
       console.error('Insufficient text extracted from PDF');
       return new Response(JSON.stringify({ 
-        error: 'Could not extract sufficient readable text from PDF. The PDF might be image-based, password-protected, or corrupted.',
+        error: 'Could not extract sufficient readable text from PDF. The PDF might be image-based, password-protected, or have an unusual format.',
         success: false,
         debugInfo: {
           extractedTextLength: resumeText.length,
@@ -279,34 +247,33 @@ serve(async (req) => {
       });
     }
 
-    // Enhanced OpenAI prompt for better extraction accuracy
-    console.log('=== CALLING OPENAI WITH ENHANCED PROMPT ===');
-    const prompt = `You are an expert resume parser with high accuracy in extracting structured information from resume text.
+    // Call OpenAI for data extraction
+    console.log('=== CALLING OPENAI FOR DATA EXTRACTION ===');
+    const prompt = `You are an expert resume parser. Extract structured information from this resume text with high accuracy.
 
 RESUME TEXT:
 "${resumeText}"
 
-Extract the following information with maximum accuracy. Only extract information that is explicitly stated in the resume text. Do not infer, assume, or generate any information.
+Extract the following information ONLY if explicitly stated in the resume. Do not infer or generate information.
 
-EXTRACTION RULES:
-1. Skills: Extract only technical skills, programming languages, frameworks, tools, or professional competencies that are explicitly mentioned
-2. Experience: Calculate years based on actual employment dates if mentioned, otherwise look for explicit experience statements
-3. Title: Use the most recent job title or the title the candidate is seeking
-4. Summary: Extract existing professional summary or objective statement (do not create one)
-5. Education: Include degree, field of study, and institution if mentioned
-6. Contact: Extract exactly as written in the resume
-7. URLs: Include only if explicitly mentioned and properly formatted
+RULES:
+- Skills: Only technical skills, programming languages, tools, frameworks explicitly mentioned
+- Experience: Calculate years from employment dates if present, otherwise look for "X years experience" statements
+- Title: Most recent job title or target position if clearly stated
+- Summary: Extract existing professional summary/objective (do not create one)
+- Education: Degree, field, institution if mentioned
+- Contact: Extract as written
 
-If information is not clearly present, use null. Do not make assumptions or create content.
+If information is not clearly present, use null.
 
-Respond with ONLY this JSON structure (no markdown formatting):
+Respond with ONLY this JSON format:
 {
   "skills": ["skill1", "skill2"] or null,
   "experience_years": number or null,
-  "title": "exact job title from resume" or null,
-  "summary": "existing summary from resume" or null,
-  "education": "degree and institution" or null,
-  "location": "location mentioned" or null,
+  "title": "job title" or null,
+  "summary": "professional summary" or null,
+  "education": "degree and school" or null,
+  "location": "location" or null,
   "phone": "phone number" or null,
   "linkedin_url": "LinkedIn URL" or null,
   "github_url": "GitHub URL" or null,
@@ -324,7 +291,7 @@ Respond with ONLY this JSON structure (no markdown formatting):
         messages: [
           { 
             role: 'system', 
-            content: 'You are an expert resume parser that extracts accurate information from resume text. You are precise, only extract information that is clearly visible, and never make assumptions or generate fictional data. You always respond with valid JSON.'
+            content: 'You are an expert resume parser that extracts accurate information. You only extract clearly visible information and never make assumptions. Always respond with valid JSON.'
           },
           { 
             role: 'user', 
@@ -332,7 +299,7 @@ Respond with ONLY this JSON structure (no markdown formatting):
           }
         ],
         temperature: 0.1,
-        max_tokens: 1500,
+        max_tokens: 1000,
       }),
     });
 
@@ -363,18 +330,18 @@ Respond with ONLY this JSON structure (no markdown formatting):
       });
     }
 
-    // Parse AI response with enhanced validation
+    // Parse AI response
     console.log('=== PARSING AI RESPONSE ===');
     let extractedData;
     try {
       let content = openAIData.choices[0].message.content.trim();
       console.log('Raw AI content:', content);
       
-      // Remove any markdown formatting
+      // Clean markdown formatting
       content = content.replace(/```json\s*|\s*```/g, '');
       content = content.replace(/```\s*|\s*```/g, '');
       
-      // Try to find and extract JSON object
+      // Extract JSON object
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         content = jsonMatch[0];
@@ -400,19 +367,19 @@ Respond with ONLY this JSON structure (no markdown formatting):
       });
     }
 
-    // Enhanced data validation and preparation
+    // Prepare database update
     console.log('=== PREPARING DATABASE UPDATE ===');
     const updateData: any = {
       resume_content: JSON.stringify(extractedData),
       updated_at: new Date().toISOString(),
     };
 
-    // Add validated fields with enhanced validation
+    // Validate and add fields
     if (extractedData.skills && Array.isArray(extractedData.skills) && extractedData.skills.length > 0) {
       const validSkills = extractedData.skills
         .filter(skill => skill && typeof skill === 'string' && skill.trim().length > 1)
         .map(skill => skill.trim())
-        .filter((skill, index, arr) => arr.indexOf(skill) === index); // Remove duplicates
+        .slice(0, 50); // Limit to 50 skills
       if (validSkills.length > 0) {
         updateData.skills = validSkills;
       }
@@ -423,38 +390,38 @@ Respond with ONLY this JSON structure (no markdown formatting):
     }
     
     if (extractedData.title && typeof extractedData.title === 'string' && extractedData.title.trim().length > 2) {
-      updateData.title = extractedData.title.trim();
+      updateData.title = extractedData.title.trim().substring(0, 200);
     }
     
     if (extractedData.summary && typeof extractedData.summary === 'string' && extractedData.summary.trim().length > 10) {
-      updateData.summary = extractedData.summary.trim();
+      updateData.summary = extractedData.summary.trim().substring(0, 1000);
     }
     
     if (extractedData.education && typeof extractedData.education === 'string' && extractedData.education.trim().length > 5) {
-      updateData.education = extractedData.education.trim();
+      updateData.education = extractedData.education.trim().substring(0, 500);
     }
     
     if (extractedData.location && typeof extractedData.location === 'string' && extractedData.location.trim().length > 2) {
-      updateData.location = extractedData.location.trim();
+      updateData.location = extractedData.location.trim().substring(0, 200);
     }
     
     if (extractedData.phone && typeof extractedData.phone === 'string' && extractedData.phone.trim().length > 5) {
       const cleanPhone = extractedData.phone.trim().replace(/[^\d+\-\s\(\)]/g, '');
       if (cleanPhone.length >= 7) {
-        updateData.phone = cleanPhone;
+        updateData.phone = cleanPhone.substring(0, 20);
       }
     }
     
     if (extractedData.linkedin_url && typeof extractedData.linkedin_url === 'string' && extractedData.linkedin_url.includes('linkedin')) {
-      updateData.linkedin_url = extractedData.linkedin_url.trim();
+      updateData.linkedin_url = extractedData.linkedin_url.trim().substring(0, 500);
     }
     
     if (extractedData.github_url && typeof extractedData.github_url === 'string' && extractedData.github_url.includes('github')) {
-      updateData.github_url = extractedData.github_url.trim();
+      updateData.github_url = extractedData.github_url.trim().substring(0, 500);
     }
     
     if (extractedData.portfolio_url && typeof extractedData.portfolio_url === 'string' && extractedData.portfolio_url.includes('http')) {
-      updateData.portfolio_url = extractedData.portfolio_url.trim();
+      updateData.portfolio_url = extractedData.portfolio_url.trim().substring(0, 500);
     }
 
     console.log('Final update data:', JSON.stringify(updateData, null, 2));
@@ -481,18 +448,13 @@ Respond with ONLY this JSON structure (no markdown formatting):
     }
 
     console.log('=== SUCCESS ===');
-    console.log('Updated profile successfully with enhanced extraction');
+    console.log('Profile updated successfully');
 
     return new Response(JSON.stringify({ 
       success: true,
       extractedData,
       updatedProfile,
-      message: 'Resume data extracted with enhanced accuracy and profile updated successfully',
-      debugInfo: {
-        extractedTextLength: resumeText.length,
-        extractedTextSample: resumeText.substring(0, 300),
-        extractionMethod: 'Enhanced PDF parsing with multiple strategies'
-      }
+      message: 'Resume data extracted and profile updated successfully'
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
