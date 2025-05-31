@@ -88,28 +88,35 @@ serve(async (req) => {
     // Create Supabase client with service role key
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log('Fetching PDF from URL...');
+    console.log('Fetching PDF from Supabase Storage...');
     
-    // Fetch the PDF content with proper headers
-    const pdfResponse = await fetch(resumeUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${supabaseServiceKey}`,
-        'User-Agent': 'Supabase Edge Function',
-        'Accept': 'application/pdf,*/*',
-      }
-    });
-
-    console.log('PDF fetch response status:', pdfResponse.status);
-    console.log('PDF fetch response headers:', Object.fromEntries(pdfResponse.headers.entries()));
-
-    if (!pdfResponse.ok) {
-      console.error('Failed to fetch PDF:', pdfResponse.status, pdfResponse.statusText);
-      const errorText = await pdfResponse.text();
-      console.error('Error response body:', errorText);
-      
+    // Extract the file path from the URL
+    // URL format: https://wpjbgvmwgammfbbgzdwi.supabase.co/storage/v1/object/public/resumes/...
+    const urlParts = resumeUrl.split('/');
+    const bucketIndex = urlParts.indexOf('resumes');
+    if (bucketIndex === -1) {
+      console.error('Invalid resume URL format:', resumeUrl);
       return new Response(JSON.stringify({ 
-        error: `Failed to fetch resume PDF: ${pdfResponse.status} ${pdfResponse.statusText}`,
+        error: 'Invalid resume URL format',
+        success: false 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
+    const filePath = urlParts.slice(bucketIndex + 1).join('/');
+    console.log('Extracted file path:', filePath);
+
+    // Download the file from Supabase Storage
+    const { data: fileData, error: downloadError } = await supabase.storage
+      .from('resumes')
+      .download(filePath);
+
+    if (downloadError) {
+      console.error('Failed to download resume from storage:', downloadError);
+      return new Response(JSON.stringify({ 
+        error: `Failed to download resume: ${downloadError.message}`,
         success: false 
       }), {
         status: 500,
@@ -117,8 +124,19 @@ serve(async (req) => {
       });
     }
 
-    // Get PDF as ArrayBuffer and extract text
-    const pdfBuffer = await pdfResponse.arrayBuffer();
+    if (!fileData) {
+      console.error('No file data received from storage');
+      return new Response(JSON.stringify({ 
+        error: 'No file data received from storage',
+        success: false 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Convert Blob to ArrayBuffer for text extraction
+    const pdfBuffer = await fileData.arrayBuffer();
     console.log('PDF buffer size:', pdfBuffer.byteLength);
 
     let resumeText;
