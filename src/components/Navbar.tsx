@@ -16,6 +16,10 @@ const Navbar = () => {
     navigate(path);
   };
 
+  const handleNavigation = (path: string) => {
+    navigate(path);
+  };
+
   return (
     <nav className="bg-white shadow-sm border-b sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -64,11 +68,18 @@ const Navbar = () => {
               About
             </Link>
             <div className="flex items-center space-x-4">
-              <Button variant="ghost" className="text-gray-700" asChild>
-                <Link to="/login">Sign In</Link>
+              <Button 
+                variant="ghost" 
+                className="text-gray-700"
+                onClick={() => handleNavigation('/login')}
+              >
+                Sign In
               </Button>
-              <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700" asChild>
-                <Link to="/signup">Get Started</Link>
+              <Button 
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                onClick={() => handleNavigation('/signup')}
+              >
+                Get Started
               </Button>
             </div>
           </div>
