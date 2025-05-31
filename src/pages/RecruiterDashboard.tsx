@@ -6,15 +6,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Users, UserCheck, LogOut, Settings, Bell } from "lucide-react";
+import { Search, Users, UserCheck, LogOut, Settings as SettingsIcon, Bell } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import Settings from "@/components/Settings";
 
 const RecruiterDashboard = () => {
   const { user, recruiterProfile, signOut } = useAuth();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Fetch candidate profiles
   const { data: candidates, isLoading } = useQuery({
@@ -43,10 +45,6 @@ const RecruiterDashboard = () => {
     } catch (error) {
       toast.error("Error signing out");
     }
-  };
-
-  const handleSettings = () => {
-    toast.info("Settings functionality coming soon!");
   };
 
   const handleNotifications = () => {
@@ -91,9 +89,15 @@ const RecruiterDashboard = () => {
               <Button variant="outline" size="sm" onClick={handleNotifications}>
                 <Bell className="h-4 w-4" />
               </Button>
-              <Button variant="outline" size="sm" onClick={handleSettings}>
-                <Settings className="h-4 w-4" />
-              </Button>
+              <Settings
+                open={settingsOpen}
+                onOpenChange={setSettingsOpen}
+                trigger={
+                  <Button variant="outline" size="sm">
+                    <SettingsIcon className="h-4 w-4" />
+                  </Button>
+                }
+              />
               <Button variant="outline" size="sm" onClick={handleSignOut}>
                 <LogOut className="h-4 w-4" />
               </Button>

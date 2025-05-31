@@ -1,19 +1,20 @@
 
 import { useState } from "react";
-import { Menu, X, Users, Search, Brain, User, LogOut, Settings } from "lucide-react";
+import { Menu, X, Users, Search, Brain, User, LogOut, Settings as SettingsIcon } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import SignupModal from "./SignupModal";
 import LoginModal from "./LoginModal";
+import Settings from "./Settings";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [signupModalOpen, setSignupModalOpen] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, recruiterProfile, candidateProfile, signOut } = useAuth();
@@ -189,8 +190,8 @@ const Navbar = () => {
                         <User className="h-4 w-4 mr-2" />
                         {recruiterProfile ? 'Dashboard' : 'Profile'}
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleSettings}>
-                        <Settings className="h-4 w-4 mr-2" />
+                      <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
+                        <SettingsIcon className="h-4 w-4 mr-2" />
                         Settings
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
@@ -289,10 +290,10 @@ const Navbar = () => {
                         className="w-full justify-start"
                         onClick={() => {
                           setIsOpen(false);
-                          handleSettings();
+                          setSettingsOpen(true);
                         }}
                       >
-                        <Settings className="h-4 w-4 mr-2" />
+                        <SettingsIcon className="h-4 w-4 mr-2" />
                         Settings
                       </Button>
                       <Button 
@@ -323,6 +324,11 @@ const Navbar = () => {
       <LoginModal 
         open={loginModalOpen} 
         onOpenChange={setLoginModalOpen} 
+      />
+
+      <Settings
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
       />
     </>
   );

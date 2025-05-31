@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -8,13 +9,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { User, FileText, Settings, LogOut, Upload } from "lucide-react";
+import { User, FileText, Settings as SettingsIcon, LogOut, Upload } from "lucide-react";
 import { toast } from "sonner";
+import Settings from "@/components/Settings";
 
 const CandidateProfile = () => {
   const { user, candidateProfile, signOut } = useAuth();
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const handleSignOut = async () => {
     try {
@@ -55,9 +58,15 @@ const CandidateProfile = () => {
               <span className="text-sm text-gray-600">
                 Welcome, {candidateProfile.first_name}
               </span>
-              <Button variant="outline" size="sm" onClick={handleSettings}>
-                <Settings className="h-4 w-4" />
-              </Button>
+              <Settings
+                open={settingsOpen}
+                onOpenChange={setSettingsOpen}
+                trigger={
+                  <Button variant="outline" size="sm">
+                    <SettingsIcon className="h-4 w-4" />
+                  </Button>
+                }
+              />
               <Button variant="outline" size="sm" onClick={handleSignOut}>
                 <LogOut className="h-4 w-4" />
               </Button>
