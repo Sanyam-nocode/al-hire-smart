@@ -1,3 +1,4 @@
+
 import { ArrowRight, Search, Users, Zap, Brain, CheckCircle, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,9 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      {/* Header with Navbar - contains logo, name, features, about, pricing, sign in & get started */}
+      <Navbar />
+      
       {user && <DashboardRedirect />}
       
       {/* Hero Section */}
