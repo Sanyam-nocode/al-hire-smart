@@ -1,16 +1,67 @@
-
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Brain, Users, Search, CheckCircle } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
 
 const Signup = () => {
   const [activeTab, setActiveTab] = useState("recruiter");
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    company: "",
+    location: "",
+    password: ""
+  });
+  const [loading, setLoading] = useState(false);
+  const { signUp, user } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const userData = {
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        company: activeTab === "recruiter" ? formData.company : null,
+        user_type: activeTab
+      };
+
+      const { error } = await signUp(formData.email, formData.password, userData);
+      
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success("Account created successfully! Please check your email to confirm your account.");
+      }
+    } catch (error) {
+      toast.error("An unexpected error occurred");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -145,42 +196,79 @@ const Signup = () => {
                         Start finding top tech talent with AI-powered search
                       </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="firstName">First Name</Label>
-                          <Input id="firstName" placeholder="John" />
+                    <CardContent>
+                      <form onSubmit={handleSubmit} className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="firstName">First Name</Label>
+                            <Input 
+                              id="firstName" 
+                              placeholder="John"
+                              value={formData.firstName}
+                              onChange={(e) => handleInputChange("firstName", e.target.value)}
+                              required
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="lastName">Last Name</Label>
+                            <Input 
+                              id="lastName" 
+                              placeholder="Doe"
+                              value={formData.lastName}
+                              onChange={(e) => handleInputChange("lastName", e.target.value)}
+                              required
+                            />
+                          </div>
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="lastName">Last Name</Label>
-                          <Input id="lastName" placeholder="Doe" />
+                          <Label htmlFor="email">Work Email</Label>
+                          <Input 
+                            id="email" 
+                            type="email" 
+                            placeholder="john@company.com"
+                            value={formData.email}
+                            onChange={(e) => handleInputChange("email", e.target.value)}
+                            required
+                          />
                         </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="email">Work Email</Label>
-                        <Input id="email" type="email" placeholder="john@company.com" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="company">Company</Label>
-                        <Input id="company" placeholder="Company Name" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="password">Password</Label>
-                        <Input id="password" type="password" />
-                      </div>
-                      <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-                        Create Recruiter Account
-                      </Button>
-                      <p className="text-xs text-gray-500 text-center">
-                        By signing up, you agree to our{" "}
-                        <Link to="/terms" className="text-blue-600 hover:underline">
-                          Terms of Service
-                        </Link>{" "}
-                        and{" "}
-                        <Link to="/privacy" className="text-blue-600 hover:underline">
-                          Privacy Policy
-                        </Link>
-                      </p>
+                        <div className="space-y-2">
+                          <Label htmlFor="company">Company</Label>
+                          <Input 
+                            id="company" 
+                            placeholder="Company Name"
+                            value={formData.company}
+                            onChange={(e) => handleInputChange("company", e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="password">Password</Label>
+                          <Input 
+                            id="password" 
+                            type="password"
+                            value={formData.password}
+                            onChange={(e) => handleInputChange("password", e.target.value)}
+                            required
+                          />
+                        </div>
+                        <Button 
+                          type="submit"
+                          className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                          disabled={loading}
+                        >
+                          {loading ? "Creating Account..." : "Create Recruiter Account"}
+                        </Button>
+                        <p className="text-xs text-gray-500 text-center">
+                          By signing up, you agree to our{" "}
+                          <Link to="/terms" className="text-blue-600 hover:underline">
+                            Terms of Service
+                          </Link>{" "}
+                          and{" "}
+                          <Link to="/privacy" className="text-blue-600 hover:underline">
+                            Privacy Policy
+                          </Link>
+                        </p>
+                      </form>
                     </CardContent>
                   </Card>
                 </TabsContent>
@@ -193,42 +281,78 @@ const Signup = () => {
                         Get discovered by top tech recruiters and companies
                       </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="candidateFirstName">First Name</Label>
-                          <Input id="candidateFirstName" placeholder="Jane" />
+                    <CardContent>
+                      <form onSubmit={handleSubmit} className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="candidateFirstName">First Name</Label>
+                            <Input 
+                              id="candidateFirstName" 
+                              placeholder="Jane"
+                              value={formData.firstName}
+                              onChange={(e) => handleInputChange("firstName", e.target.value)}
+                              required
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="candidateLastName">Last Name</Label>
+                            <Input 
+                              id="candidateLastName" 
+                              placeholder="Smith"
+                              value={formData.lastName}
+                              onChange={(e) => handleInputChange("lastName", e.target.value)}
+                              required
+                            />
+                          </div>
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="candidateLastName">Last Name</Label>
-                          <Input id="candidateLastName" placeholder="Smith" />
+                          <Label htmlFor="candidateEmail">Email</Label>
+                          <Input 
+                            id="candidateEmail" 
+                            type="email" 
+                            placeholder="jane@email.com"
+                            value={formData.email}
+                            onChange={(e) => handleInputChange("email", e.target.value)}
+                            required
+                          />
                         </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="candidateEmail">Email</Label>
-                        <Input id="candidateEmail" type="email" placeholder="jane@email.com" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="candidateLocation">Location</Label>
-                        <Input id="candidateLocation" placeholder="San Francisco, CA" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="candidatePassword">Password</Label>
-                        <Input id="candidatePassword" type="password" />
-                      </div>
-                      <Button className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
-                        Create Candidate Profile
-                      </Button>
-                      <p className="text-xs text-gray-500 text-center">
-                        By signing up, you agree to our{" "}
-                        <Link to="/terms" className="text-blue-600 hover:underline">
-                          Terms of Service
-                        </Link>{" "}
-                        and{" "}
-                        <Link to="/privacy" className="text-blue-600 hover:underline">
-                          Privacy Policy
-                        </Link>
-                      </p>
+                        <div className="space-y-2">
+                          <Label htmlFor="candidateLocation">Location</Label>
+                          <Input 
+                            id="candidateLocation" 
+                            placeholder="San Francisco, CA"
+                            value={formData.location}
+                            onChange={(e) => handleInputChange("location", e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="candidatePassword">Password</Label>
+                          <Input 
+                            id="candidatePassword" 
+                            type="password"
+                            value={formData.password}
+                            onChange={(e) => handleInputChange("password", e.target.value)}
+                            required
+                          />
+                        </div>
+                        <Button 
+                          type="submit"
+                          className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                          disabled={loading}
+                        >
+                          {loading ? "Creating Profile..." : "Create Candidate Profile"}
+                        </Button>
+                        <p className="text-xs text-gray-500 text-center">
+                          By signing up, you agree to our{" "}
+                          <Link to="/terms" className="text-blue-600 hover:underline">
+                            Terms of Service
+                          </Link>{" "}
+                          and{" "}
+                          <Link to="/privacy" className="text-blue-600 hover:underline">
+                            Privacy Policy
+                          </Link>
+                        </p>
+                      </form>
                     </CardContent>
                   </Card>
                 </TabsContent>

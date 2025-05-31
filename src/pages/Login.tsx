@@ -1,16 +1,49 @@
 
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Brain, Search, Users } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
 
 const Login = () => {
   const [activeTab, setActiveTab] = useState("recruiter");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { signIn, user } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const { error } = await signIn(email, password);
+      
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success("Successfully signed in!");
+        navigate('/');
+      }
+    } catch (error) {
+      toast.error("An unexpected error occurred");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -51,23 +84,42 @@ const Login = () => {
                     Access your recruitment dashboard
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="recruiterEmail">Work Email</Label>
-                    <Input id="recruiterEmail" type="email" placeholder="john@company.com" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="recruiterPassword">Password</Label>
-                    <Input id="recruiterPassword" type="password" />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Link to="/forgot-password" className="text-sm text-blue-600 hover:underline">
-                      Forgot password?
-                    </Link>
-                  </div>
-                  <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-                    Sign In as Recruiter
-                  </Button>
+                <CardContent>
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Work Email</Label>
+                      <Input 
+                        id="email" 
+                        type="email" 
+                        placeholder="john@company.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="password">Password</Label>
+                      <Input 
+                        id="password" 
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Link to="/forgot-password" className="text-sm text-blue-600 hover:underline">
+                        Forgot password?
+                      </Link>
+                    </div>
+                    <Button 
+                      type="submit"
+                      className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                      disabled={loading}
+                    >
+                      {loading ? "Signing in..." : "Sign In as Recruiter"}
+                    </Button>
+                  </form>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -80,23 +132,42 @@ const Login = () => {
                     Access your profile and opportunities
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="candidateEmail">Email</Label>
-                    <Input id="candidateEmail" type="email" placeholder="jane@email.com" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="candidatePassword">Password</Label>
-                    <Input id="candidatePassword" type="password" />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Link to="/forgot-password" className="text-sm text-blue-600 hover:underline">
-                      Forgot password?
-                    </Link>
-                  </div>
-                  <Button className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
-                    Sign In as Candidate
-                  </Button>
+                <CardContent>
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="candidateEmail">Email</Label>
+                      <Input 
+                        id="candidateEmail" 
+                        type="email" 
+                        placeholder="jane@email.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="candidatePassword">Password</Label>
+                      <Input 
+                        id="candidatePassword" 
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Link to="/forgot-password" className="text-sm text-blue-600 hover:underline">
+                        Forgot password?
+                      </Link>
+                    </div>
+                    <Button 
+                      type="submit"
+                      className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                      disabled={loading}
+                    >
+                      {loading ? "Signing in..." : "Sign In as Candidate"}
+                    </Button>
+                  </form>
                 </CardContent>
               </Card>
             </TabsContent>
