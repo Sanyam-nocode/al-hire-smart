@@ -58,16 +58,12 @@ const Navbar = () => {
               About
             </Link>
             <div className="flex items-center space-x-4">
-              <Link to="/login">
-                <Button variant="ghost" className="text-gray-700">
-                  Sign In
-                </Button>
-              </Link>
-              <Link to="/signup">
-                <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-                  Get Started
-                </Button>
-              </Link>
+              <Button variant="ghost" className="text-gray-700" asChild>
+                <Link to="/login">Sign In</Link>
+              </Button>
+              <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700" asChild>
+                <Link to="/signup">Get Started</Link>
+              </Button>
             </div>
           </div>
 
@@ -108,16 +104,12 @@ const Navbar = () => {
                 About
               </Link>
               <div className="flex flex-col space-y-2 pt-4 border-t">
-                <Link to="/login" onClick={() => setIsOpen(false)}>
-                  <Button variant="ghost" className="w-full justify-start">
-                    Sign In
-                  </Button>
-                </Link>
-                <Link to="/signup" onClick={() => setIsOpen(false)}>
-                  <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600">
-                    Get Started
-                  </Button>
-                </Link>
+                <Button variant="ghost" className="w-full justify-start" asChild>
+                  <Link to="/login" onClick={() => setIsOpen(false)}>Sign In</Link>
+                </Button>
+                <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600" asChild>
+                  <Link to="/signup" onClick={() => setIsOpen(false)}>Get Started</Link>
+                </Button>
               </div>
             </div>
           </div>
