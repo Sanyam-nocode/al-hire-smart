@@ -3,9 +3,9 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Search, Sparkles, Loader2 } from 'lucide-react';
 import { useAISearch } from '@/hooks/useAISearch';
+import EnhancedCandidateCard from './EnhancedCandidateCard';
 
 const AISearchComponent = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -38,7 +38,7 @@ const AISearchComponent = () => {
             AI-Powered Candidate Search
           </CardTitle>
           <CardDescription>
-            Use natural language to find the perfect candidates. Describe what you're looking for, and AI will match candidates based on skills, experience, location, and more.
+            Use natural language to find the perfect candidates. Describe what you're looking for, and AI will match candidates based on skills, experience, location, and more. Enhanced profiles show AI-extracted resume data.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -99,42 +99,7 @@ const AISearchComponent = () => {
       {searchResults.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {searchResults.map((candidate) => (
-            <Card key={candidate.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-4">
-                <h3 className="font-semibold text-lg mb-2">
-                  {candidate.first_name} {candidate.last_name}
-                </h3>
-                <p className="text-gray-600 mb-2">{candidate.title}</p>
-                <p className="text-sm text-gray-500 mb-3">{candidate.location}</p>
-                {candidate.experience_years && (
-                  <p className="text-sm text-gray-600 mb-3">
-                    {candidate.experience_years} years experience
-                  </p>
-                )}
-                {candidate.skills && candidate.skills.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {candidate.skills.slice(0, 3).map((skill, index) => (
-                      <Badge key={index} variant="secondary" className="text-xs">
-                        {skill}
-                      </Badge>
-                    ))}
-                    {candidate.skills.length > 3 && (
-                      <Badge variant="outline" className="text-xs">
-                        +{candidate.skills.length - 3} more
-                      </Badge>
-                    )}
-                  </div>
-                )}
-                {candidate.summary && (
-                  <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-                    {candidate.summary}
-                  </p>
-                )}
-                <Button size="sm" className="w-full">
-                  View Profile
-                </Button>
-              </CardContent>
-            </Card>
+            <EnhancedCandidateCard key={candidate.id} candidate={candidate} />
           ))}
         </div>
       )}

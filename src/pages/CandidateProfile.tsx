@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -10,10 +9,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { User, FileText, Settings as SettingsIcon, LogOut, Upload, X, File, Download } from "lucide-react";
+import { User, FileText, Settings as SettingsIcon, LogOut, Upload, X, File, Download, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import Settings from "@/components/Settings";
+import { useResumeExtraction } from "@/hooks/useResumeExtraction";
 
 const CandidateProfile = () => {
   const { user, candidateProfile, signOut } = useAuth();
@@ -23,6 +23,7 @@ const CandidateProfile = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const { isExtracting, extractResumeData } = useResumeExtraction();
 
   // Close settings modal when component unmounts
   useEffect(() => {
@@ -97,7 +98,7 @@ const CandidateProfile = () => {
       setUploadProgress(75);
 
       // Update candidate profile with resume information
-      const { error: updateError } = await supabase
+      const { data: updateData, error: updateError } = await supabase
         .from('candidate_profiles')
         .update({
           resume_url: urlData.publicUrl,
@@ -105,7 +106,9 @@ const CandidateProfile = () => {
           resume_file_size: file.size,
           resume_uploaded_at: new Date().toISOString()
         })
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .select()
+        .single();
 
       if (updateError) {
         console.error('Update error:', updateError);
@@ -113,20 +116,31 @@ const CandidateProfile = () => {
         return;
       }
 
-      setUploadProgress(100);
-      toast.success("Resume uploaded successfully!");
+      setUploadProgress(90);
 
-      // Refresh the page to show updated data
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+      // Extract resume data using AI
+      if (updateData && updateData.id) {
+        toast.success("Resume uploaded successfully! Extracting information...");
+        const extractionSuccess = await extractResumeData(urlData.publicUrl, updateData.id);
+        
+        if (extractionSuccess) {
+          setUploadProgress(100);
+          // Refresh the page to show updated data
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+        } else {
+          setUploadProgress(100);
+          toast.info("Resume uploaded but data extraction failed. You can manually update your profile.");
+        }
+      }
 
     } catch (error) {
       console.error('Error uploading resume:', error);
       toast.error("Failed to upload resume");
     } finally {
       setIsUploading(false);
-      setTimeout(() => setUploadProgress(0), 2000);
+      setTimeout(() => setUploadProgress(0), 3000);
     }
   };
 
@@ -154,7 +168,8 @@ const CandidateProfile = () => {
           resume_url: null,
           resume_file_name: null,
           resume_file_size: null,
-          resume_uploaded_at: null
+          resume_uploaded_at: null,
+          resume_content: null
         })
         .eq('user_id', user.id);
 
@@ -276,6 +291,23 @@ const CandidateProfile = () => {
           </TabsList>
 
           <TabsContent value="profile" className="space-y-6">
+            {/* AI-extracted data notice */}
+            {candidateProfile.resume_content && (
+              <Card className="bg-blue-50 border-blue-200">
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-2">
+                    <Sparkles className="h-5 w-5 text-blue-600" />
+                    <p className="text-blue-800 font-medium">
+                      AI-Enhanced Profile
+                    </p>
+                  </div>
+                  <p className="text-blue-700 text-sm mt-1">
+                    Some information below has been automatically extracted from your resume using AI.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardHeader>
                 <div className="flex justify-between items-center">
@@ -431,7 +463,7 @@ const CandidateProfile = () => {
               <CardHeader>
                 <CardTitle>Resume Management</CardTitle>
                 <CardDescription>
-                  Upload and manage your resume to enhance your profile
+                  Upload and manage your resume to enhance your profile. AI will automatically extract information to improve your profile.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -449,6 +481,12 @@ const CandidateProfile = () => {
                             {candidateProfile.resume_file_size && formatFileSize(candidateProfile.resume_file_size)} • 
                             Uploaded {candidateProfile.resume_uploaded_at && new Date(candidateProfile.resume_uploaded_at).toLocaleDateString()}
                           </p>
+                          {candidateProfile.resume_content && (
+                            <div className="flex items-center space-x-1 mt-1">
+                              <Sparkles className="h-3 w-3 text-green-600" />
+                              <span className="text-xs text-green-600">AI-processed</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="flex space-x-2">
@@ -479,8 +517,12 @@ const CandidateProfile = () => {
                       >
                         <Upload className="h-12 w-12 mx-auto text-gray-400 mb-4" />
                         <h3 className="text-lg font-medium text-gray-900 mb-2">Replace your resume</h3>
-                        <p className="text-sm text-gray-600 mb-4">
+                        <p className="text-sm text-gray-600 mb-2">
                           PDF files up to 10MB
+                        </p>
+                        <p className="text-xs text-blue-600 mb-4">
+                          <Sparkles className="h-3 w-3 inline mr-1" />
+                          AI will automatically extract and update your profile information
                         </p>
                         <input
                           type="file"
@@ -488,13 +530,13 @@ const CandidateProfile = () => {
                           onChange={handleFileSelect}
                           className="hidden"
                           id="resume-upload-replace"
-                          disabled={isUploading}
+                          disabled={isUploading || isExtracting}
                         />
                         <label htmlFor="resume-upload-replace">
-                          <Button asChild disabled={isUploading}>
+                          <Button asChild disabled={isUploading || isExtracting}>
                             <span>
                               <Upload className="h-4 w-4 mr-2" />
-                              {isUploading ? 'Uploading...' : 'Choose File'}
+                              {isUploading ? 'Uploading...' : isExtracting ? 'Processing...' : 'Choose File'}
                             </span>
                           </Button>
                         </label>
@@ -516,8 +558,12 @@ const CandidateProfile = () => {
                   >
                     <Upload className="h-12 w-12 mx-auto text-gray-400 mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">Upload your resume</h3>
-                    <p className="text-sm text-gray-600 mb-4">
+                    <p className="text-sm text-gray-600 mb-2">
                       PDF files up to 10MB
+                    </p>
+                    <p className="text-xs text-blue-600 mb-4">
+                      <Sparkles className="h-3 w-3 inline mr-1" />
+                      AI will automatically extract and update your profile information
                     </p>
                     <input
                       type="file"
@@ -525,27 +571,36 @@ const CandidateProfile = () => {
                       onChange={handleFileSelect}
                       className="hidden"
                       id="resume-upload"
-                      disabled={isUploading}
+                      disabled={isUploading || isExtracting}
                     />
                     <label htmlFor="resume-upload">
-                      <Button asChild disabled={isUploading}>
+                      <Button asChild disabled={isUploading || isExtracting}>
                         <span>
                           <Upload className="h-4 w-4 mr-2" />
-                          {isUploading ? 'Uploading...' : 'Choose File'}
+                          {isUploading ? 'Uploading...' : isExtracting ? 'Processing...' : 'Choose File'}
                         </span>
                       </Button>
                     </label>
                   </div>
                 )}
 
-                {/* Upload Progress */}
-                {isUploading && (
+                {/* Upload/Processing Progress */}
+                {(isUploading || isExtracting) && (
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span>Uploading...</span>
+                      <span>
+                        {isUploading && 'Uploading...'}
+                        {isExtracting && 'Processing with AI...'}
+                      </span>
                       <span>{uploadProgress}%</span>
                     </div>
                     <Progress value={uploadProgress} className="w-full" />
+                    {isExtracting && (
+                      <p className="text-xs text-blue-600 text-center">
+                        <Sparkles className="h-3 w-3 inline mr-1" />
+                        Extracting information from your resume...
+                      </p>
+                    )}
                   </div>
                 )}
               </CardContent>

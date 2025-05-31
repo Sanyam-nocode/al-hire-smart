@@ -25,6 +25,9 @@ ip_version = "ipv4"
 [functions.ai-candidate-search]
 verify_jwt = false
 
+[functions.extract-resume-data]
+verify_jwt = false
+
 [studio]
 enabled = true
 port = 54323

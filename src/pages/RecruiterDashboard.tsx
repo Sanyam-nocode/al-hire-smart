@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -12,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import Settings from "@/components/Settings";
 import AISearchComponent from "@/components/AISearchComponent";
+import EnhancedCandidateCard from "@/components/EnhancedCandidateCard";
 
 const RecruiterDashboard = () => {
   const { user, recruiterProfile, signOut } = useAuth();
@@ -61,9 +63,14 @@ const RecruiterDashboard = () => {
       candidate.last_name?.toLowerCase().includes(query) ||
       candidate.title?.toLowerCase().includes(query) ||
       candidate.location?.toLowerCase().includes(query) ||
-      candidate.skills?.some(skill => skill.toLowerCase().includes(query))
+      candidate.skills?.some(skill => skill.toLowerCase().includes(query)) ||
+      candidate.summary?.toLowerCase().includes(query)
     );
   });
+
+  // Separate AI-enhanced candidates
+  const aiEnhancedCandidates = filteredCandidates?.filter(c => c.resume_content !== null) || [];
+  const regularCandidates = filteredCandidates?.filter(c => c.resume_content === null) || [];
 
   if (!user || !recruiterProfile) {
     return (
@@ -133,7 +140,7 @@ const RecruiterDashboard = () => {
               <CardHeader>
                 <CardTitle>Find Top Tech Talent</CardTitle>
                 <CardDescription>
-                  Search through our database of qualified candidates using AI-powered matching
+                  Search through our database of qualified candidates. AI-enhanced profiles show extracted resume data.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -156,40 +163,46 @@ const RecruiterDashboard = () => {
                     <p className="text-gray-600 mt-2">Loading candidates...</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {filteredCandidates?.map((candidate) => (
-                      <Card key={candidate.id} className="hover:shadow-md transition-shadow">
-                        <CardContent className="p-4">
-                          <h3 className="font-semibold text-lg mb-2">
-                            {candidate.first_name} {candidate.last_name}
+                  <div className="space-y-6">
+                    {/* AI-Enhanced Candidates */}
+                    {aiEnhancedCandidates.length > 0 && (
+                      <div>
+                        <div className="flex items-center space-x-2 mb-4">
+                          <Sparkles className="h-5 w-5 text-blue-600" />
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            AI-Enhanced Profiles ({aiEnhancedCandidates.length})
                           </h3>
-                          <p className="text-gray-600 mb-2">{candidate.title}</p>
-                          <p className="text-sm text-gray-500 mb-3">{candidate.location}</p>
-                          {candidate.experience_years && (
-                            <p className="text-sm text-gray-600 mb-3">
-                              {candidate.experience_years} years experience
-                            </p>
-                          )}
-                          {candidate.skills && candidate.skills.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mb-3">
-                              {candidate.skills.slice(0, 3).map((skill, index) => (
-                                <Badge key={index} variant="secondary" className="text-xs">
-                                  {skill}
-                                </Badge>
-                              ))}
-                              {candidate.skills.length > 3 && (
-                                <Badge variant="outline" className="text-xs">
-                                  +{candidate.skills.length - 3} more
-                                </Badge>
-                              )}
-                            </div>
-                          )}
-                          <Button size="sm" className="w-full">
-                            View Profile
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    ))}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {aiEnhancedCandidates.map((candidate) => (
+                            <EnhancedCandidateCard key={candidate.id} candidate={candidate} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Regular Candidates */}
+                    {regularCandidates.length > 0 && (
+                      <div>
+                        <div className="flex items-center space-x-2 mb-4">
+                          <Users className="h-5 w-5 text-gray-600" />
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            Other Candidates ({regularCandidates.length})
+                          </h3>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {regularCandidates.map((candidate) => (
+                            <EnhancedCandidateCard key={candidate.id} candidate={candidate} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {filteredCandidates?.length === 0 && (
+                      <div className="text-center py-8">
+                        <p className="text-gray-600">No candidates found matching your search criteria.</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
