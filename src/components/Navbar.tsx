@@ -1,14 +1,20 @@
 
 import { useState } from "react";
 import { Menu, X, Users, Search, Brain } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const isActive = (path: string) => location.pathname === path;
+
+  const handleMobileNavigation = (path: string) => {
+    setIsOpen(false);
+    navigate(path);
+  };
 
   return (
     <nav className="bg-white shadow-sm border-b sticky top-0 z-50">
@@ -104,11 +110,18 @@ const Navbar = () => {
                 About
               </Link>
               <div className="flex flex-col space-y-2 pt-4 border-t">
-                <Button variant="ghost" className="w-full justify-start" asChild>
-                  <Link to="/login" onClick={() => setIsOpen(false)}>Sign In</Link>
+                <Button 
+                  variant="ghost" 
+                  className="w-full justify-start" 
+                  onClick={() => handleMobileNavigation('/login')}
+                >
+                  Sign In
                 </Button>
-                <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600" asChild>
-                  <Link to="/signup" onClick={() => setIsOpen(false)}>Get Started</Link>
+                <Button 
+                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600"
+                  onClick={() => handleMobileNavigation('/signup')}
+                >
+                  Get Started
                 </Button>
               </div>
             </div>
