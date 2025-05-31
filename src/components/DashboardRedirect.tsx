@@ -4,25 +4,25 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
 const DashboardRedirect = () => {
-  const { user, userProfile, loading } = useAuth();
+  const { user, recruiterProfile, candidateProfile, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && user && userProfile) {
-      // Redirect based on user type from their profile
-      if (userProfile.user_type === 'recruiter') {
+    if (!loading && user) {
+      // Check which profile exists to determine user type
+      if (recruiterProfile) {
         navigate('/recruiter/dashboard');
-      } else if (userProfile.user_type === 'candidate') {
+      } else if (candidateProfile) {
         navigate('/candidate/profile');
       } else {
-        // If user type is not set, redirect to signup to complete profile
+        // If no profile exists yet, redirect to signup to complete profile
         navigate('/signup');
       }
     } else if (!loading && !user) {
       // If not logged in, redirect to login
       navigate('/login');
     }
-  }, [user, userProfile, loading, navigate]);
+  }, [user, recruiterProfile, candidateProfile, loading, navigate]);
 
   if (loading) {
     return (

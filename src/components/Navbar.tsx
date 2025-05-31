@@ -15,7 +15,7 @@ const Navbar = () => {
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, userProfile, signOut } = useAuth();
+  const { user, recruiterProfile, candidateProfile, signOut } = useAuth();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -48,15 +48,21 @@ const Navbar = () => {
   };
 
   const getUserDisplayName = () => {
-    if (userProfile?.first_name && userProfile?.last_name) {
-      return `${userProfile.first_name} ${userProfile.last_name}`;
+    if (recruiterProfile) {
+      return `${recruiterProfile.first_name} ${recruiterProfile.last_name}`;
+    }
+    if (candidateProfile) {
+      return `${candidateProfile.first_name} ${candidateProfile.last_name}`;
     }
     return user?.email || 'User';
   };
 
   const getUserInitials = () => {
-    if (userProfile?.first_name && userProfile?.last_name) {
-      return `${userProfile.first_name[0]}${userProfile.last_name[0]}`;
+    if (recruiterProfile) {
+      return `${recruiterProfile.first_name[0]}${recruiterProfile.last_name[0]}`;
+    }
+    if (candidateProfile) {
+      return `${candidateProfile.first_name[0]}${candidateProfile.last_name[0]}`;
     }
     if (user?.email) {
       return user.email.substring(0, 2).toUpperCase();
@@ -64,8 +70,14 @@ const Navbar = () => {
     return 'U';
   };
 
+  const getUserType = () => {
+    if (recruiterProfile) return 'recruiter';
+    if (candidateProfile) return 'candidate';
+    return 'user';
+  };
+
   const getDashboardPath = () => {
-    if (userProfile?.user_type === 'recruiter') {
+    if (recruiterProfile) {
       return '/recruiter/dashboard';
     }
     return '/candidate/profile';
@@ -165,12 +177,12 @@ const Navbar = () => {
                       <div className="px-2 py-2">
                         <p className="text-sm font-medium">{getUserDisplayName()}</p>
                         <p className="text-xs text-gray-500">{user?.email}</p>
-                        <p className="text-xs text-blue-600 capitalize">{userProfile?.user_type || 'User'}</p>
+                        <p className="text-xs text-blue-600 capitalize">{getUserType()}</p>
                       </div>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => navigate(getDashboardPath())}>
                         <User className="h-4 w-4 mr-2" />
-                        {userProfile?.user_type === 'recruiter' ? 'Dashboard' : 'Profile'}
+                        {recruiterProfile ? 'Dashboard' : 'Profile'}
                       </DropdownMenuItem>
                       <DropdownMenuItem>
                         <Settings className="h-4 w-4 mr-2" />
@@ -254,7 +266,7 @@ const Navbar = () => {
                       <div className="px-2 py-2">
                         <p className="text-sm font-medium">{getUserDisplayName()}</p>
                         <p className="text-xs text-gray-500">{user?.email}</p>
-                        <p className="text-xs text-blue-600 capitalize">{userProfile?.user_type || 'User'}</p>
+                        <p className="text-xs text-blue-600 capitalize">{getUserType()}</p>
                       </div>
                       <Button 
                         variant="ghost" 
@@ -265,7 +277,7 @@ const Navbar = () => {
                         }}
                       >
                         <User className="h-4 w-4 mr-2" />
-                        {userProfile?.user_type === 'recruiter' ? 'Dashboard' : 'Profile'}
+                        {recruiterProfile ? 'Dashboard' : 'Profile'}
                       </Button>
                       <Button 
                         variant="ghost" 

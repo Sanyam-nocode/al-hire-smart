@@ -24,6 +24,10 @@ export type Database = {
           location: string | null
           phone: string | null
           portfolio_url: string | null
+          resume_content: string | null
+          resume_file_name: string | null
+          resume_file_size: number | null
+          resume_uploaded_at: string | null
           salary_expectation: number | null
           skills: string[] | null
           summary: string | null
@@ -45,6 +49,10 @@ export type Database = {
           location?: string | null
           phone?: string | null
           portfolio_url?: string | null
+          resume_content?: string | null
+          resume_file_name?: string | null
+          resume_file_size?: number | null
+          resume_uploaded_at?: string | null
           salary_expectation?: number | null
           skills?: string[] | null
           summary?: string | null
@@ -66,45 +74,16 @@ export type Database = {
           location?: string | null
           phone?: string | null
           portfolio_url?: string | null
+          resume_content?: string | null
+          resume_file_name?: string | null
+          resume_file_size?: number | null
+          resume_uploaded_at?: string | null
           salary_expectation?: number | null
           skills?: string[] | null
           summary?: string | null
           title?: string | null
           updated_at?: string
           user_id?: string | null
-        }
-        Relationships: []
-      }
-      profiles: {
-        Row: {
-          company: string | null
-          created_at: string
-          email: string
-          first_name: string | null
-          id: string
-          last_name: string | null
-          updated_at: string
-          user_type: string
-        }
-        Insert: {
-          company?: string | null
-          created_at?: string
-          email: string
-          first_name?: string | null
-          id: string
-          last_name?: string | null
-          updated_at?: string
-          user_type: string
-        }
-        Update: {
-          company?: string | null
-          created_at?: string
-          email?: string
-          first_name?: string | null
-          id?: string
-          last_name?: string | null
-          updated_at?: string
-          user_type?: string
         }
         Relationships: []
       }
@@ -161,41 +140,6 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
-      }
-      resumes: {
-        Row: {
-          candidate_profile_id: string | null
-          content: string
-          file_name: string | null
-          file_size: number | null
-          id: string
-          uploaded_at: string
-        }
-        Insert: {
-          candidate_profile_id?: string | null
-          content: string
-          file_name?: string | null
-          file_size?: number | null
-          id?: string
-          uploaded_at?: string
-        }
-        Update: {
-          candidate_profile_id?: string | null
-          content?: string
-          file_name?: string | null
-          file_size?: number | null
-          id?: string
-          uploaded_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "resumes_candidate_profile_id_fkey"
-            columns: ["candidate_profile_id"]
-            isOneToOne: false
-            referencedRelation: "candidate_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
       }
     }
     Views: {
