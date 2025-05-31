@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import SignupModal from "./SignupModal";
 import LoginModal from "./LoginModal";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -45,6 +46,10 @@ const Navbar = () => {
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
+  };
+
+  const handleSettings = () => {
+    toast.info("Settings functionality coming soon!");
   };
 
   const getUserDisplayName = () => {
@@ -184,7 +189,7 @@ const Navbar = () => {
                         <User className="h-4 w-4 mr-2" />
                         {recruiterProfile ? 'Dashboard' : 'Profile'}
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleSettings}>
                         <Settings className="h-4 w-4 mr-2" />
                         Settings
                       </DropdownMenuItem>
@@ -282,6 +287,10 @@ const Navbar = () => {
                       <Button 
                         variant="ghost" 
                         className="w-full justify-start"
+                        onClick={() => {
+                          setIsOpen(false);
+                          handleSettings();
+                        }}
                       >
                         <Settings className="h-4 w-4 mr-2" />
                         Settings

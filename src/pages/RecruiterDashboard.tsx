@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -46,6 +45,14 @@ const RecruiterDashboard = () => {
     }
   };
 
+  const handleSettings = () => {
+    toast.info("Settings functionality coming soon!");
+  };
+
+  const handleNotifications = () => {
+    toast.info("Notifications functionality coming soon!");
+  };
+
   const filteredCandidates = candidates?.filter(candidate => {
     if (!searchQuery) return true;
     
@@ -81,10 +88,10 @@ const RecruiterDashboard = () => {
               <span className="text-sm text-gray-600">
                 Welcome, {recruiterProfile.first_name}
               </span>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={handleNotifications}>
                 <Bell className="h-4 w-4" />
               </Button>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={handleSettings}>
                 <Settings className="h-4 w-4" />
               </Button>
               <Button variant="outline" size="sm" onClick={handleSignOut}>
