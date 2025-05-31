@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -20,6 +21,8 @@ const CandidateProfile = () => {
 
   const handleSignOut = async () => {
     try {
+      // Close settings modal before signing out
+      setSettingsOpen(false);
       const { error } = await signOut();
       if (error) {
         toast.error("Error signing out");

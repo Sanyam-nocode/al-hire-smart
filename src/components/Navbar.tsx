@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Menu, X, Users, Search, Brain, User, LogOut, Settings as SettingsIcon } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -45,6 +46,8 @@ const Navbar = () => {
   };
 
   const handleSignOut = async () => {
+    // Close settings modal before signing out
+    setSettingsOpen(false);
     await signOut();
     navigate('/');
   };
