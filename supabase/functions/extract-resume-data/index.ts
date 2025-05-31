@@ -12,31 +12,46 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Simple PDF text extraction function
+// Enhanced PDF text extraction function
 async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
   try {
-    // Convert ArrayBuffer to string and look for text patterns
-    const uint8Array = new Uint8Array(pdfBuffer);
-    let text = '';
+    console.log('Starting PDF text extraction, buffer size:', pdfBuffer.byteLength);
     
-    // Simple text extraction - look for readable text between PDF tokens
-    for (let i = 0; i < uint8Array.length - 1; i++) {
-      const char = uint8Array[i];
-      // Check if it's a printable ASCII character
-      if (char >= 32 && char <= 126) {
-        text += String.fromCharCode(char);
-      } else if (char === 10 || char === 13) {
-        text += ' ';
+    // Convert ArrayBuffer to Uint8Array for processing
+    const uint8Array = new Uint8Array(pdfBuffer);
+    let extractedText = '';
+    
+    // Look for text objects in PDF structure
+    // PDF text is usually stored between "BT" (Begin Text) and "ET" (End Text) operators
+    const pdfString = new TextDecoder('latin1').decode(uint8Array);
+    
+    // Extract text using regex patterns for PDF text objects
+    const textPatterns = [
+      /\[(.*?)\]/g,  // Text in brackets
+      /\((.*?)\)/g,  // Text in parentheses
+      /BT\s*(.*?)\s*ET/gs, // Text between BT and ET operators
+    ];
+    
+    for (const pattern of textPatterns) {
+      const matches = pdfString.matchAll(pattern);
+      for (const match of matches) {
+        if (match[1]) {
+          extractedText += match[1] + ' ';
+        }
       }
     }
     
-    // Clean up the extracted text
-    text = text
-      .replace(/[^\w\s\.\,\@\-\(\)\+]/g, ' ') // Keep only alphanumeric, spaces, and common punctuation
-      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+    // Clean up extracted text
+    extractedText = extractedText
+      .replace(/\\[rn]/g, ' ') // Replace escape sequences
+      .replace(/\s+/g, ' ') // Replace multiple spaces
+      .replace(/[^\w\s\.\,\@\-\(\)\+\#]/g, ' ') // Keep only readable characters
       .trim();
     
-    return text;
+    console.log('Extracted text length:', extractedText.length);
+    console.log('Sample text:', extractedText.substring(0, 200));
+    
+    return extractedText;
   } catch (error) {
     console.error('Error extracting text from PDF:', error);
     throw new Error('Failed to extract text from PDF');
@@ -51,6 +66,9 @@ serve(async (req) => {
 
   try {
     const { resumeUrl, candidateId } = await req.json();
+    console.log('Processing resume extraction request');
+    console.log('Resume URL:', resumeUrl);
+    console.log('Candidate ID:', candidateId);
 
     if (!resumeUrl || !candidateId) {
       return new Response(JSON.stringify({ error: 'Resume URL and candidate ID are required' }), {
@@ -67,27 +85,37 @@ serve(async (req) => {
       });
     }
 
-    console.log('Processing resume for candidate:', candidateId);
-    console.log('Resume URL:', resumeUrl);
-
-    // Create Supabase client
+    // Create Supabase client with service role key
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch the PDF content
+    console.log('Fetching PDF from URL...');
+    
+    // Fetch the PDF content with proper headers
     const pdfResponse = await fetch(resumeUrl, {
       method: 'GET',
       headers: {
+        'Authorization': `Bearer ${supabaseServiceKey}`,
         'User-Agent': 'Supabase Edge Function',
         'Accept': 'application/pdf,*/*',
       }
     });
 
+    console.log('PDF fetch response status:', pdfResponse.status);
+    console.log('PDF fetch response headers:', Object.fromEntries(pdfResponse.headers.entries()));
+
     if (!pdfResponse.ok) {
       console.error('Failed to fetch PDF:', pdfResponse.status, pdfResponse.statusText);
-      throw new Error(`Failed to fetch resume PDF: ${pdfResponse.status} ${pdfResponse.statusText}`);
+      const errorText = await pdfResponse.text();
+      console.error('Error response body:', errorText);
+      
+      return new Response(JSON.stringify({ 
+        error: `Failed to fetch resume PDF: ${pdfResponse.status} ${pdfResponse.statusText}`,
+        success: false 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
-
-    console.log('PDF fetched successfully, content type:', pdfResponse.headers.get('content-type'));
 
     // Get PDF as ArrayBuffer and extract text
     const pdfBuffer = await pdfResponse.arrayBuffer();
@@ -96,46 +124,46 @@ serve(async (req) => {
     let resumeText;
     try {
       resumeText = await extractTextFromPDF(pdfBuffer);
-      console.log('Extracted text length:', resumeText.length);
-      console.log('Sample extracted text:', resumeText.substring(0, 500));
+      console.log('Successfully extracted text, length:', resumeText.length);
+      
+      if (!resumeText || resumeText.length < 50) {
+        console.warn('Very little text extracted from PDF, using fallback');
+        resumeText = 'Unable to extract readable text from PDF. Please provide a text-based PDF or manually enter candidate information.';
+      }
     } catch (error) {
       console.error('PDF text extraction failed:', error);
-      // Fallback: use a generic prompt if PDF extraction fails
-      resumeText = 'PDF content could not be extracted. Please provide sample candidate data.';
+      resumeText = 'PDF content could not be extracted. Using fallback data extraction.';
     }
 
     // Enhanced prompt for better data extraction
     const prompt = `
-    You are an expert resume parser. Analyze the following resume text and extract structured information in JSON format.
+    You are an expert resume parser. Analyze the following resume text and extract structured information.
 
     Resume Text:
     "${resumeText}"
 
-    Extract the following information and return ONLY a valid JSON object with these exact keys:
-    {
-      "skills": ["skill1", "skill2", "skill3"], 
-      "experience_years": number, 
-      "title": "Current/Most Recent Job Title",
-      "summary": "Professional summary (2-3 sentences)",
-      "education": "Highest degree and institution",
-      "location": "Location from resume",
-      "salary_expectation": null,
-      "linkedin_url": "LinkedIn URL if found",
-      "github_url": "GitHub URL if found", 
-      "portfolio_url": "Portfolio URL if found",
-      "phone": "Phone number if found"
-    }
+    Instructions:
+    - Extract ONLY information that is clearly present in the resume text
+    - For skills, include both technical and soft skills mentioned
+    - For experience_years, calculate from work history dates or stated experience
+    - For title, use the most recent or current position title
+    - Return ONLY valid JSON, no additional text or formatting
+    - If information is not available, use null for that field
 
-    Rules:
-    1. Extract only information that is clearly present in the resume text
-    2. For skills, include both technical and soft skills mentioned
-    3. For experience_years, calculate from work history or education dates
-    4. For title, use the most recent or current position
-    5. For summary, create based on objective/summary section or work experience
-    6. Set null for any field not found in the resume
-    7. Return ONLY valid JSON, no additional text
-    8. Ensure all strings are properly escaped
-    9. If resume text is not extractable, return reasonable defaults based on a software developer profile
+    Return a JSON object with these exact keys:
+    {
+      "skills": ["skill1", "skill2", "skill3"],
+      "experience_years": number_or_null,
+      "title": "job_title_or_null",
+      "summary": "professional_summary_or_null",
+      "education": "highest_degree_and_institution_or_null",
+      "location": "location_from_resume_or_null",
+      "salary_expectation": null,
+      "linkedin_url": "linkedin_url_if_found_or_null",
+      "github_url": "github_url_if_found_or_null",
+      "portfolio_url": "portfolio_url_if_found_or_null",
+      "phone": "phone_number_if_found_or_null"
+    }
 
     JSON Response:`;
 
@@ -152,7 +180,7 @@ serve(async (req) => {
         messages: [
           { 
             role: 'system', 
-            content: 'You are an expert resume parser that extracts structured data from resumes. Always respond with valid JSON only.' 
+            content: 'You are an expert resume parser. Extract structured data from resumes and return ONLY valid JSON.' 
           },
           { 
             role: 'user', 
@@ -160,7 +188,7 @@ serve(async (req) => {
           }
         ],
         temperature: 0.1,
-        max_tokens: 1500,
+        max_tokens: 1000,
       }),
     });
 
@@ -168,15 +196,25 @@ serve(async (req) => {
       console.error('OpenAI API error:', openAIResponse.status, openAIResponse.statusText);
       const errorText = await openAIResponse.text();
       console.error('OpenAI error details:', errorText);
-      throw new Error(`OpenAI API error: ${openAIResponse.status}`);
+      
+      return new Response(JSON.stringify({ 
+        error: `OpenAI API error: ${openAIResponse.status}`,
+        success: false 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const openAIData = await openAIResponse.json();
-    console.log('OpenAI response received:', openAIData.choices?.[0]?.message?.content ? 'Success' : 'No content');
+    console.log('OpenAI response received');
 
     if (!openAIData.choices || !openAIData.choices[0]) {
-      console.error('Invalid OpenAI response:', openAIData);
-      return new Response(JSON.stringify({ error: 'Invalid OpenAI response' }), {
+      console.error('Invalid OpenAI response structure:', openAIData);
+      return new Response(JSON.stringify({ 
+        error: 'Invalid OpenAI response structure',
+        success: false 
+      }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -185,21 +223,20 @@ serve(async (req) => {
     let extractedData;
     try {
       const content = openAIData.choices[0].message.content.trim();
-      console.log('OpenAI raw response:', content);
+      console.log('Raw OpenAI response:', content);
       
-      // Clean up the response to ensure it's valid JSON
+      // Clean up JSON response
       let cleanContent = content;
-      if (content.startsWith('```json')) {
-        cleanContent = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-      } else if (content.startsWith('```')) {
-        cleanContent = content.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      
+      // Remove markdown code blocks if present
+      if (content.includes('```')) {
+        cleanContent = content.replace(/```json\s*/, '').replace(/```\s*$/, '');
       }
       
-      // Remove any text before the first { or after the last }
-      const firstBrace = cleanContent.indexOf('{');
-      const lastBrace = cleanContent.lastIndexOf('}');
-      if (firstBrace !== -1 && lastBrace !== -1) {
-        cleanContent = cleanContent.substring(firstBrace, lastBrace + 1);
+      // Extract JSON from the response
+      const jsonMatch = cleanContent.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        cleanContent = jsonMatch[0];
       }
       
       extractedData = JSON.parse(cleanContent);
@@ -207,15 +244,15 @@ serve(async (req) => {
       
     } catch (parseError) {
       console.error('Error parsing OpenAI response:', parseError);
-      console.error('Raw content:', openAIData.choices[0].message.content);
+      console.error('Raw content that failed to parse:', openAIData.choices[0].message.content);
       
-      // Fallback: create sample extracted data structure
+      // Fallback data structure
       extractedData = {
-        skills: ["Communication", "Problem Solving", "Teamwork"],
-        experience_years: 2,
-        title: "Professional",
-        summary: "Experienced professional with strong analytical and communication skills.",
-        education: "Bachelor's Degree",
+        skills: ["Communication", "Problem Solving"],
+        experience_years: null,
+        title: null,
+        summary: "Professional with extracted resume data",
+        education: null,
         location: null,
         salary_expectation: null,
         linkedin_url: null,
@@ -226,51 +263,47 @@ serve(async (req) => {
       console.log('Using fallback data due to parsing error');
     }
 
-    console.log('Final extracted data:', extractedData);
-
-    // Update the candidate profile with extracted data
+    // Prepare update data - only include non-null values
     const updateData: any = {
       resume_content: JSON.stringify(extractedData),
       updated_at: new Date().toISOString(),
     };
 
-    // Only update fields that have actual values and are not null/undefined
+    // Add extracted fields if they have valid values
     if (extractedData.skills && Array.isArray(extractedData.skills) && extractedData.skills.length > 0) {
       updateData.skills = extractedData.skills;
     }
-    if (extractedData.experience_years !== null && extractedData.experience_years !== undefined && !isNaN(extractedData.experience_years)) {
-      updateData.experience_years = extractedData.experience_years;
+    if (extractedData.experience_years !== null && !isNaN(Number(extractedData.experience_years))) {
+      updateData.experience_years = Number(extractedData.experience_years);
     }
-    if (extractedData.title && extractedData.title.trim()) {
+    if (extractedData.title && typeof extractedData.title === 'string' && extractedData.title.trim()) {
       updateData.title = extractedData.title.trim();
     }
-    if (extractedData.summary && extractedData.summary.trim()) {
+    if (extractedData.summary && typeof extractedData.summary === 'string' && extractedData.summary.trim()) {
       updateData.summary = extractedData.summary.trim();
     }
-    if (extractedData.education && extractedData.education.trim()) {
+    if (extractedData.education && typeof extractedData.education === 'string' && extractedData.education.trim()) {
       updateData.education = extractedData.education.trim();
     }
-    if (extractedData.location && extractedData.location.trim()) {
+    if (extractedData.location && typeof extractedData.location === 'string' && extractedData.location.trim()) {
       updateData.location = extractedData.location.trim();
     }
-    if (extractedData.salary_expectation !== null && extractedData.salary_expectation !== undefined && !isNaN(extractedData.salary_expectation)) {
-      updateData.salary_expectation = extractedData.salary_expectation;
-    }
-    if (extractedData.linkedin_url && extractedData.linkedin_url.trim()) {
+    if (extractedData.linkedin_url && typeof extractedData.linkedin_url === 'string' && extractedData.linkedin_url.trim()) {
       updateData.linkedin_url = extractedData.linkedin_url.trim();
     }
-    if (extractedData.github_url && extractedData.github_url.trim()) {
+    if (extractedData.github_url && typeof extractedData.github_url === 'string' && extractedData.github_url.trim()) {
       updateData.github_url = extractedData.github_url.trim();
     }
-    if (extractedData.portfolio_url && extractedData.portfolio_url.trim()) {
+    if (extractedData.portfolio_url && typeof extractedData.portfolio_url === 'string' && extractedData.portfolio_url.trim()) {
       updateData.portfolio_url = extractedData.portfolio_url.trim();
     }
-    if (extractedData.phone && extractedData.phone.trim()) {
+    if (extractedData.phone && typeof extractedData.phone === 'string' && extractedData.phone.trim()) {
       updateData.phone = extractedData.phone.trim();
     }
 
-    console.log('Updating candidate profile with:', updateData);
+    console.log('Updating candidate profile with extracted data:', updateData);
 
+    // Update the candidate profile
     const { data: updatedProfile, error: updateError } = await supabase
       .from('candidate_profiles')
       .update(updateData)
@@ -290,8 +323,8 @@ serve(async (req) => {
       });
     }
 
-    console.log('Successfully extracted and stored resume data for candidate:', candidateId);
-    console.log('Updated profile:', updatedProfile);
+    console.log('Successfully updated candidate profile');
+    console.log('Updated profile data:', updatedProfile);
 
     return new Response(JSON.stringify({ 
       success: true,
