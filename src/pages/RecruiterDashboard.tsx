@@ -6,11 +6,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Users, UserCheck, LogOut, Settings as SettingsIcon, Bell } from "lucide-react";
+import { Search, Users, UserCheck, LogOut, Settings as SettingsIcon, Bell, Sparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import Settings from "@/components/Settings";
+import AISearchComponent from "@/components/AISearchComponent";
 
 const RecruiterDashboard = () => {
   const { user, recruiterProfile, signOut } = useAuth();
@@ -108,10 +109,14 @@ const RecruiterDashboard = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue="search" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="search">
               <Search className="h-4 w-4 mr-2" />
               Candidate Search
+            </TabsTrigger>
+            <TabsTrigger value="ai-search">
+              <Sparkles className="h-4 w-4 mr-2" />
+              AI Search
             </TabsTrigger>
             <TabsTrigger value="saved">
               <UserCheck className="h-4 w-4 mr-2" />
@@ -189,6 +194,10 @@ const RecruiterDashboard = () => {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="ai-search" className="space-y-6">
+            <AISearchComponent />
           </TabsContent>
 
           <TabsContent value="saved">

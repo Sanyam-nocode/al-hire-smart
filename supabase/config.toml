@@ -1,1 +1,30 @@
+
 project_id = "wpjbgvmwgammfbbgzdwi"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[auth]
+enabled = true
+port = 54324
+external_url = "http://127.0.0.1:3000"
+email_double_confirm_changes = true
+enable_signup = true
+
+[db]
+port = 54322
+
+[edge_runtime]
+enabled = true
+ip_version = "ipv4"
+
+[functions.ai-candidate-search]
+verify_jwt = false
+
+[studio]
+enabled = true
+port = 54323
