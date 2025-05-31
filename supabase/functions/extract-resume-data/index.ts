@@ -21,35 +21,56 @@ async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
     const uint8Array = new Uint8Array(pdfBuffer);
     let extractedText = '';
     
-    // Look for text objects in PDF structure
-    // PDF text is usually stored between "BT" (Begin Text) and "ET" (End Text) operators
+    // Convert to string for text extraction
     const pdfString = new TextDecoder('latin1').decode(uint8Array);
     
-    // Extract text using regex patterns for PDF text objects
+    // Enhanced text extraction patterns for PDF structure
     const textPatterns = [
-      /\[(.*?)\]/g,  // Text in brackets
-      /\((.*?)\)/g,  // Text in parentheses
-      /BT\s*(.*?)\s*ET/gs, // Text between BT and ET operators
+      // Text in parentheses - common PDF text format
+      /\(((?:[^()\\]|\\.).*?)\)/gs,
+      // Text in brackets
+      /\[(.*?)\]/gs,
+      // Text between BT (Begin Text) and ET (End Text) operators
+      /BT\s*(.*?)\s*ET/gs,
+      // Tj operators (show text)
+      /\((.*?)\)\s*Tj/gs,
+      // TJ operators (show text with individual glyph positioning)
+      /\[(.*?)\]\s*TJ/gs,
     ];
     
+    // Extract text using all patterns
     for (const pattern of textPatterns) {
       const matches = pdfString.matchAll(pattern);
       for (const match of matches) {
         if (match[1]) {
-          extractedText += match[1] + ' ';
+          let text = match[1];
+          // Clean up common PDF escape sequences
+          text = text
+            .replace(/\\n/g, ' ')
+            .replace(/\\r/g, ' ')
+            .replace(/\\t/g, ' ')
+            .replace(/\\\(/g, '(')
+            .replace(/\\\)/g, ')')
+            .replace(/\\\\/g, '\\')
+            .replace(/\\[0-9]{3}/g, '') // Remove octal escape sequences
+            .trim();
+          
+          if (text && text.length > 1) {
+            extractedText += text + ' ';
+          }
         }
       }
     }
     
-    // Clean up extracted text
+    // Additional cleanup
     extractedText = extractedText
-      .replace(/\\[rn]/g, ' ') // Replace escape sequences
       .replace(/\s+/g, ' ') // Replace multiple spaces
-      .replace(/[^\w\s\.\,\@\-\(\)\+\#]/g, ' ') // Keep only readable characters
+      .replace(/[^\w\s\.\,\@\-\(\)\+\#\:\/]/g, ' ') // Keep only readable characters
+      .replace(/\b[A-Z]{2,}\b/g, match => match.charAt(0) + match.slice(1).toLowerCase()) // Fix all caps words
       .trim();
     
     console.log('Extracted text length:', extractedText.length);
-    console.log('Sample text:', extractedText.substring(0, 200));
+    console.log('Sample text (first 300 chars):', extractedText.substring(0, 300));
     
     return extractedText;
   } catch (error) {
@@ -93,8 +114,8 @@ serve(async (req) => {
     // Extract the file path from the URL
     // URL format: https://wpjbgvmwgammfbbgzdwi.supabase.co/storage/v1/object/public/resumes/...
     const urlParts = resumeUrl.split('/');
-    const bucketIndex = urlParts.indexOf('resumes');
-    if (bucketIndex === -1) {
+    const bucketIndex = urlParts.findIndex(part => part === 'resumes');
+    if (bucketIndex === -1 || bucketIndex >= urlParts.length - 1) {
       console.error('Invalid resume URL format:', resumeUrl);
       return new Response(JSON.stringify({ 
         error: 'Invalid resume URL format',
@@ -145,12 +166,12 @@ serve(async (req) => {
       console.log('Successfully extracted text, length:', resumeText.length);
       
       if (!resumeText || resumeText.length < 50) {
-        console.warn('Very little text extracted from PDF, using fallback');
-        resumeText = 'Unable to extract readable text from PDF. Please provide a text-based PDF or manually enter candidate information.';
+        console.warn('Very little text extracted from PDF');
+        resumeText = 'Unable to extract sufficient text from PDF. PDF may be image-based or corrupted.';
       }
     } catch (error) {
       console.error('PDF text extraction failed:', error);
-      resumeText = 'PDF content could not be extracted. Using fallback data extraction.';
+      resumeText = 'PDF content could not be extracted. Please ensure the PDF contains extractable text.';
     }
 
     // Enhanced prompt for better data extraction

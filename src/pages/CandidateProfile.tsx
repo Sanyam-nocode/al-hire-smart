@@ -150,8 +150,16 @@ const CandidateProfile = () => {
     try {
       // Extract file path from URL
       const urlParts = candidateProfile.resume_url.split('/');
-      const fileName = `${user.id}/${urlParts[urlParts.length - 1]}`;
-
+      const bucketIndex = urlParts.findIndex(part => part === 'resumes');
+      
+      if (bucketIndex === -1 || bucketIndex >= urlParts.length - 1) {
+        console.error('Invalid resume URL format:', candidateProfile.resume_url);
+        toast.error("Invalid resume URL format");
+        return;
+      }
+      
+      const fileName = urlParts.slice(bucketIndex + 1).join('/');
+      
       // Delete from storage
       const { error: deleteError } = await supabase.storage
         .from('resumes')
@@ -228,9 +236,53 @@ const CandidateProfile = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const downloadResume = () => {
-    if (candidateProfile?.resume_url) {
-      window.open(candidateProfile.resume_url, '_blank');
+  const downloadResume = async () => {
+    if (!candidateProfile?.resume_url || !user) return;
+
+    try {
+      console.log('Attempting to download resume from:', candidateProfile.resume_url);
+      
+      // Extract file path from URL
+      const urlParts = candidateProfile.resume_url.split('/');
+      const bucketIndex = urlParts.findIndex(part => part === 'resumes');
+      
+      if (bucketIndex === -1 || bucketIndex >= urlParts.length - 1) {
+        console.error('Invalid resume URL format:', candidateProfile.resume_url);
+        toast.error("Invalid resume URL format");
+        return;
+      }
+      
+      const filePath = urlParts.slice(bucketIndex + 1).join('/');
+      console.log('Extracted file path:', filePath);
+
+      // Download the file from Supabase Storage
+      const { data: fileData, error: downloadError } = await supabase.storage
+        .from('resumes')
+        .download(filePath);
+
+      if (downloadError) {
+        console.error('Download error:', downloadError);
+        toast.error("Failed to download resume");
+        return;
+      }
+
+      if (!fileData) {
+        console.error('No file data received');
+        toast.error("No file data received");
+        return;
+      }
+
+      // Create blob URL and open in new tab
+      const blob = new Blob([fileData], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      
+      // Clean up the blob URL after a delay
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      
+    } catch (error) {
+      console.error('Error downloading resume:', error);
+      toast.error("Failed to open resume");
     }
   };
 
