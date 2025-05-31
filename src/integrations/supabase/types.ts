@@ -28,6 +28,7 @@ export type Database = {
           resume_file_name: string | null
           resume_file_size: number | null
           resume_uploaded_at: string | null
+          resume_url: string | null
           salary_expectation: number | null
           skills: string[] | null
           summary: string | null
@@ -53,6 +54,7 @@ export type Database = {
           resume_file_name?: string | null
           resume_file_size?: number | null
           resume_uploaded_at?: string | null
+          resume_url?: string | null
           salary_expectation?: number | null
           skills?: string[] | null
           summary?: string | null
@@ -78,6 +80,7 @@ export type Database = {
           resume_file_name?: string | null
           resume_file_size?: number | null
           resume_uploaded_at?: string | null
+          resume_url?: string | null
           salary_expectation?: number | null
           skills?: string[] | null
           summary?: string | null
