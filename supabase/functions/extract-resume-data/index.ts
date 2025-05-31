@@ -12,110 +12,177 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Improved PDF text extraction using pdf-parse library
+// Enhanced PDF text extraction with multiple parsing strategies
 async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
   try {
-    console.log('Starting PDF text extraction with pdf-parse, buffer size:', pdfBuffer.byteLength);
+    console.log('Starting enhanced PDF text extraction, buffer size:', pdfBuffer.byteLength);
     
-    // Use pdf-parse library for better text extraction
-    const pdfParse = await import('https://esm.sh/pdf-parse@1.1.1');
-    
-    const data = await pdfParse.default(new Uint8Array(pdfBuffer));
-    
-    console.log('PDF parsing completed');
-    console.log('Number of pages:', data.numpages);
-    console.log('Extracted text length:', data.text.length);
-    console.log('PDF info:', JSON.stringify(data.info, null, 2));
-    
-    let extractedText = data.text;
-    
-    // Clean up the extracted text
-    extractedText = extractedText
-      .replace(/\r\n/g, '\n')
-      .replace(/\r/g, '\n')
-      .replace(/\n{3,}/g, '\n\n') // Replace multiple newlines with double newlines
-      .replace(/\s{3,}/g, ' ') // Replace multiple spaces with single space
-      .trim();
-    
-    console.log('Cleaned extracted text length:', extractedText.length);
-    console.log('Extracted text sample (first 500 chars):', extractedText.substring(0, 500));
-    
-    // If we still don't have much text, log more details
-    if (extractedText.length < 100) {
-      console.log('WARNING: Very little text extracted. Full text:', extractedText);
-      console.log('PDF metadata:', JSON.stringify(data.metadata, null, 2));
+    // Strategy 1: Use pdf-parse library for better extraction
+    try {
+      const pdfParse = await import('https://esm.sh/pdf-parse@1.1.1');
+      const data = await pdfParse.default(new Uint8Array(pdfBuffer));
+      
+      console.log('PDF-parse extraction completed');
+      console.log('Number of pages:', data.numpages);
+      console.log('Extracted text length:', data.text.length);
+      
+      let extractedText = data.text;
+      
+      // Advanced text cleaning and normalization
+      extractedText = extractedText
+        // Normalize line breaks
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        // Remove excessive whitespace while preserving structure
+        .replace(/[ \t]+/g, ' ')
+        .replace(/\n{3,}/g, '\n\n')
+        // Fix common PDF extraction issues
+        .replace(/([a-z])([A-Z])/g, '$1 $2') // Add space between camelCase
+        .replace(/(\w)(\d)/g, '$1 $2') // Add space between word and number
+        .replace(/(\d)(\w)/g, '$1 $2') // Add space between number and word
+        // Remove random single characters on separate lines
+        .replace(/\n\s*[a-zA-Z]\s*\n/g, '\n')
+        // Clean up bullet points and formatting
+        .replace(/•/g, '- ')
+        .replace(/▪/g, '- ')
+        .replace(/◦/g, '- ')
+        .trim();
+      
+      console.log('Cleaned extracted text length:', extractedText.length);
+      console.log('Text sample (first 500 chars):', extractedText.substring(0, 500));
+      
+      if (extractedText.length > 100) {
+        return extractedText;
+      } else {
+        console.log('pdf-parse extracted insufficient text, trying alternative method');
+      }
+    } catch (pdfParseError) {
+      console.error('pdf-parse failed:', pdfParseError);
     }
+
+    // Strategy 2: Enhanced manual extraction for difficult PDFs
+    console.log('Using enhanced manual PDF text extraction');
+    return await enhancedManualExtraction(pdfBuffer);
     
-    return extractedText;
   } catch (error) {
-    console.error('Error extracting text from PDF with pdf-parse:', error);
-    
-    // Fallback to basic extraction if pdf-parse fails
-    console.log('Falling back to basic text extraction...');
-    return await basicPDFTextExtraction(pdfBuffer);
+    console.error('All PDF extraction methods failed:', error);
+    return 'Unable to extract readable text from this PDF file. The file may be image-based, encrypted, or corrupted.';
   }
 }
 
-// Fallback basic PDF text extraction
-async function basicPDFTextExtraction(pdfBuffer: ArrayBuffer): Promise<string> {
+// Enhanced manual extraction with better text operation parsing
+async function enhancedManualExtraction(pdfBuffer: ArrayBuffer): Promise<string> {
   try {
-    console.log('Using fallback basic PDF text extraction');
-    
     const uint8Array = new Uint8Array(pdfBuffer);
     let extractedText = '';
     
-    // Convert to string with better encoding handling
-    const pdfString = new TextDecoder('latin1').decode(uint8Array);
+    // Convert PDF buffer to string with multiple encoding attempts
+    let pdfString = '';
+    try {
+      pdfString = new TextDecoder('utf-8').decode(uint8Array);
+    } catch {
+      try {
+        pdfString = new TextDecoder('latin1').decode(uint8Array);
+      } catch {
+        pdfString = new TextDecoder('windows-1252').decode(uint8Array);
+      }
+    }
     
-    // Extract text from content streams
-    const streamMatches = pdfString.matchAll(/stream\s*(.*?)\s*endstream/gs);
-    for (const match of streamMatches) {
-      const streamContent = match[1];
-      if (streamContent && streamContent.length > 10) {
-        
-        // Look for text operations in the stream
-        const textOperations = [
-          /\((.*?)\)\s*Tj/g,
-          /\((.*?)\)\s*TJ/g,
-          /\[(.*?)\]\s*TJ/g,
-        ];
-        
-        for (const pattern of textOperations) {
-          const matches = streamContent.matchAll(pattern);
-          for (const textMatch of matches) {
-            let text = textMatch[1];
-            if (text && text.length > 1) {
-              // Clean up the extracted text
-              text = text
-                .replace(/\\n/g, ' ')
-                .replace(/\\r/g, ' ')
-                .replace(/\\t/g, ' ')
-                .replace(/\\\(/g, '(')
-                .replace(/\\\)/g, ')')
-                .replace(/\\\\/g, '\\')
-                .replace(/\s+/g, ' ')
-                .trim();
-              
-              if (text.length > 2 && /[a-zA-Z]/.test(text)) {
-                extractedText += text + ' ';
-              }
-            }
+    console.log('PDF string length:', pdfString.length);
+    
+    // Extract text from various PDF text operations
+    const textPatterns = [
+      // Standard text operations
+      /\((.*?)\)\s*Tj/g,
+      /\((.*?)\)\s*TJ/g,
+      /\[(.*?)\]\s*TJ/g,
+      // Text with positioning
+      /\((.*?)\)\s*\d+\.?\d*\s+\d+\.?\d*\s+Td/g,
+      /\((.*?)\)\s*\d+\.?\d*\s+\d+\.?\d*\s+TD/g,
+      // Text with font changes
+      /\/F\d+\s+\d+\.?\d*\s+Tf\s*\((.*?)\)\s*Tj/g,
+      // Show text operations
+      /\((.*?)\)\s*'/g,
+      /\((.*?)\)\s*"/g,
+    ];
+    
+    const foundTexts = new Set<string>();
+    
+    for (const pattern of textPatterns) {
+      const matches = pdfString.matchAll(pattern);
+      for (const match of matches) {
+        let text = match[1];
+        if (text && text.length > 1) {
+          // Decode PDF text encoding
+          text = decodePDFText(text);
+          
+          // Clean and validate text
+          text = text
+            .replace(/\\n/g, ' ')
+            .replace(/\\r/g, ' ')
+            .replace(/\\t/g, ' ')
+            .replace(/\\\(/g, '(')
+            .replace(/\\\)/g, ')')
+            .replace(/\\\\/g, '\\')
+            .replace(/\s+/g, ' ')
+            .trim();
+          
+          // Only add meaningful text (contains letters and reasonable length)
+          if (text.length > 2 && /[a-zA-Z]/.test(text) && !isGibberish(text)) {
+            foundTexts.add(text);
           }
         }
       }
     }
     
-    // Final cleanup
+    // Join all found text pieces
+    extractedText = Array.from(foundTexts).join(' ');
+    
+    // Additional cleanup
     extractedText = extractedText
       .replace(/\s+/g, ' ')
+      .replace(/([.!?])\s*([A-Z])/g, '$1 $2')
       .trim();
     
-    console.log('Fallback extraction completed, length:', extractedText.length);
+    console.log('Enhanced manual extraction completed, length:', extractedText.length);
+    console.log('Sample text:', extractedText.substring(0, 300));
+    
     return extractedText;
   } catch (error) {
-    console.error('Error in fallback PDF extraction:', error);
-    return 'Unable to extract text from PDF due to format limitations.';
+    console.error('Enhanced manual extraction failed:', error);
+    return 'PDF text extraction failed due to file format limitations.';
   }
+}
+
+// Decode PDF text encoding issues
+function decodePDFText(text: string): string {
+  try {
+    // Handle common PDF encoding issues
+    text = text
+      .replace(/\\u([0-9a-fA-F]{4})/g, (_, code) => String.fromCharCode(parseInt(code, 16)))
+      .replace(/\\x([0-9a-fA-F]{2})/g, (_, code) => String.fromCharCode(parseInt(code, 16)))
+      .replace(/\\([0-7]{3})/g, (_, code) => String.fromCharCode(parseInt(code, 8)));
+    
+    return text;
+  } catch {
+    return text;
+  }
+}
+
+// Check if text appears to be gibberish
+function isGibberish(text: string): boolean {
+  // Reject text that's mostly non-alphanumeric
+  const alphanumericRatio = (text.match(/[a-zA-Z0-9]/g) || []).length / text.length;
+  if (alphanumericRatio < 0.5) return true;
+  
+  // Reject text with too many repeated characters
+  const uniqueChars = new Set(text.toLowerCase()).size;
+  if (uniqueChars < Math.max(2, text.length / 4)) return true;
+  
+  // Reject very short fragments
+  if (text.length < 3) return true;
+  
+  return false;
 }
 
 serve(async (req) => {
@@ -125,7 +192,7 @@ serve(async (req) => {
 
   try {
     const { resumeUrl, candidateId } = await req.json();
-    console.log('=== RESUME EXTRACTION REQUEST ===');
+    console.log('=== ENHANCED RESUME EXTRACTION REQUEST ===');
     console.log('Resume URL:', resumeUrl);
     console.log('Candidate ID:', candidateId);
 
@@ -189,8 +256,8 @@ serve(async (req) => {
       });
     }
 
-    // Extract text from PDF using proper library
-    console.log('=== EXTRACTING TEXT WITH PDF-PARSE ===');
+    // Enhanced text extraction from PDF
+    console.log('=== EXTRACTING TEXT WITH ENHANCED METHODS ===');
     const pdfBuffer = await fileData.arrayBuffer();
     const resumeText = await extractTextFromPDF(pdfBuffer);
     
@@ -212,28 +279,32 @@ serve(async (req) => {
       });
     }
 
-    // Enhanced OpenAI prompt with better instructions
-    console.log('=== CALLING OPENAI ===');
-    const prompt = `You are an expert resume parser. Extract information from this resume text with high accuracy.
+    // Enhanced OpenAI prompt for better extraction accuracy
+    console.log('=== CALLING OPENAI WITH ENHANCED PROMPT ===');
+    const prompt = `You are an expert resume parser with high accuracy in extracting structured information from resume text.
 
 RESUME TEXT:
 "${resumeText}"
 
-Extract the following information ONLY if clearly present in the text. If information is not found or unclear, use null.
+Extract the following information with maximum accuracy. Only extract information that is explicitly stated in the resume text. Do not infer, assume, or generate any information.
 
-IMPORTANT RULES:
-- Only extract information that is explicitly stated in the resume
-- Skills should be technical skills, programming languages, frameworks, tools, or professional competencies
-- Calculate experience years from actual job dates mentioned
-- Use exact text from the resume, don't rephrase or interpret
-- If text seems corrupted or unreadable, return mostly null values
+EXTRACTION RULES:
+1. Skills: Extract only technical skills, programming languages, frameworks, tools, or professional competencies that are explicitly mentioned
+2. Experience: Calculate years based on actual employment dates if mentioned, otherwise look for explicit experience statements
+3. Title: Use the most recent job title or the title the candidate is seeking
+4. Summary: Extract existing professional summary or objective statement (do not create one)
+5. Education: Include degree, field of study, and institution if mentioned
+6. Contact: Extract exactly as written in the resume
+7. URLs: Include only if explicitly mentioned and properly formatted
 
-Respond with ONLY this JSON (no markdown formatting):
+If information is not clearly present, use null. Do not make assumptions or create content.
+
+Respond with ONLY this JSON structure (no markdown formatting):
 {
   "skills": ["skill1", "skill2"] or null,
   "experience_years": number or null,
-  "title": "job title from resume" or null,
-  "summary": "brief professional summary" or null,
+  "title": "exact job title from resume" or null,
+  "summary": "existing summary from resume" or null,
   "education": "degree and institution" or null,
   "location": "location mentioned" or null,
   "phone": "phone number" or null,
@@ -253,7 +324,7 @@ Respond with ONLY this JSON (no markdown formatting):
         messages: [
           { 
             role: 'system', 
-            content: 'You are an expert resume parser that extracts accurate information from resume text. You only extract information that is clearly visible and never make assumptions or generate fictional data.'
+            content: 'You are an expert resume parser that extracts accurate information from resume text. You are precise, only extract information that is clearly visible, and never make assumptions or generate fictional data. You always respond with valid JSON.'
           },
           { 
             role: 'user', 
@@ -261,7 +332,7 @@ Respond with ONLY this JSON (no markdown formatting):
           }
         ],
         temperature: 0.1,
-        max_tokens: 1000,
+        max_tokens: 1500,
       }),
     });
 
@@ -292,7 +363,7 @@ Respond with ONLY this JSON (no markdown formatting):
       });
     }
 
-    // Parse AI response with validation
+    // Parse AI response with enhanced validation
     console.log('=== PARSING AI RESPONSE ===');
     let extractedData;
     try {
@@ -329,24 +400,25 @@ Respond with ONLY this JSON (no markdown formatting):
       });
     }
 
-    // Prepare database update with validation
+    // Enhanced data validation and preparation
     console.log('=== PREPARING DATABASE UPDATE ===');
     const updateData: any = {
       resume_content: JSON.stringify(extractedData),
       updated_at: new Date().toISOString(),
     };
 
-    // Add validated fields
+    // Add validated fields with enhanced validation
     if (extractedData.skills && Array.isArray(extractedData.skills) && extractedData.skills.length > 0) {
       const validSkills = extractedData.skills
         .filter(skill => skill && typeof skill === 'string' && skill.trim().length > 1)
-        .map(skill => skill.trim());
+        .map(skill => skill.trim())
+        .filter((skill, index, arr) => arr.indexOf(skill) === index); // Remove duplicates
       if (validSkills.length > 0) {
         updateData.skills = validSkills;
       }
     }
     
-    if (extractedData.experience_years && typeof extractedData.experience_years === 'number' && extractedData.experience_years > 0) {
+    if (extractedData.experience_years && typeof extractedData.experience_years === 'number' && extractedData.experience_years > 0 && extractedData.experience_years <= 50) {
       updateData.experience_years = extractedData.experience_years;
     }
     
@@ -367,7 +439,10 @@ Respond with ONLY this JSON (no markdown formatting):
     }
     
     if (extractedData.phone && typeof extractedData.phone === 'string' && extractedData.phone.trim().length > 5) {
-      updateData.phone = extractedData.phone.trim();
+      const cleanPhone = extractedData.phone.trim().replace(/[^\d+\-\s\(\)]/g, '');
+      if (cleanPhone.length >= 7) {
+        updateData.phone = cleanPhone;
+      }
     }
     
     if (extractedData.linkedin_url && typeof extractedData.linkedin_url === 'string' && extractedData.linkedin_url.includes('linkedin')) {
@@ -406,16 +481,17 @@ Respond with ONLY this JSON (no markdown formatting):
     }
 
     console.log('=== SUCCESS ===');
-    console.log('Updated profile successfully');
+    console.log('Updated profile successfully with enhanced extraction');
 
     return new Response(JSON.stringify({ 
       success: true,
       extractedData,
       updatedProfile,
-      message: 'Resume data extracted and profile updated successfully',
+      message: 'Resume data extracted with enhanced accuracy and profile updated successfully',
       debugInfo: {
         extractedTextLength: resumeText.length,
-        extractedTextSample: resumeText.substring(0, 300)
+        extractedTextSample: resumeText.substring(0, 300),
+        extractionMethod: 'Enhanced PDF parsing with multiple strategies'
       }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
