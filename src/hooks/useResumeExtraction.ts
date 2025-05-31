@@ -10,10 +10,10 @@ export const useResumeExtraction = () => {
     setIsExtracting(true);
     
     try {
-      console.log('Starting resume data extraction for candidate:', candidateId);
+      console.log('=== FRONTEND: Starting resume extraction ===');
       console.log('Resume URL:', resumeUrl);
+      console.log('Candidate ID:', candidateId);
       
-      // Show initial progress toast
       toast.info('Processing your resume with AI...', {
         duration: 5000,
       });
@@ -25,73 +25,56 @@ export const useResumeExtraction = () => {
         }
       });
 
-      console.log('Edge function response:', data);
-      console.log('Edge function error:', error);
+      console.log('=== FRONTEND: Edge function response ===');
+      console.log('Data:', data);
+      console.log('Error:', error);
 
       if (error) {
-        console.error('Error calling extract-resume-data function:', error);
-        
-        // More specific error messages
-        if (error.message?.includes('fetch')) {
-          toast.error('Failed to download your resume. Please check the file and try again.');
-        } else if (error.message?.includes('OpenAI')) {
-          toast.error('AI processing failed. Please try again in a moment.');
-        } else {
-          toast.error(`Resume processing failed: ${error.message}`);
-        }
+        console.error('Edge function error:', error);
+        toast.error(`Resume processing failed: ${error.message}`);
         return false;
       }
 
       if (data?.success) {
-        console.log('Resume extraction successful:', data);
+        console.log('=== FRONTEND: Success ===');
+        console.log('Extracted data:', data.extractedData);
+        
+        let successMessage = 'Resume processed successfully! ';
         
         // Show what was extracted
-        const extractedData = data.extractedData;
-        let successMessage = 'Resume processed successfully!';
-        
-        if (extractedData) {
+        if (data.extractedData) {
           const updates = [];
-          if (extractedData.skills?.length > 0) updates.push(`${extractedData.skills.length} skills`);
-          if (extractedData.title) updates.push('job title');
-          if (extractedData.experience_years) updates.push('experience');
-          if (extractedData.education) updates.push('education');
+          if (data.extractedData.skills?.length > 0) {
+            updates.push(`${data.extractedData.skills.length} skills`);
+          }
+          if (data.extractedData.title) updates.push('job title');
+          if (data.extractedData.experience_years) updates.push('experience');
+          if (data.extractedData.education) updates.push('education');
+          if (data.extractedData.summary) updates.push('summary');
           
           if (updates.length > 0) {
-            successMessage += ` Extracted: ${updates.join(', ')}.`;
+            successMessage += `Extracted: ${updates.join(', ')}.`;
           }
         }
         
         toast.success(successMessage, {
-          duration: 7000,
+          duration: 8000,
         });
         return true;
       } else {
-        console.error('Resume extraction failed:', data);
+        console.error('=== FRONTEND: Processing failed ===');
+        console.error('Error details:', data);
         
-        // Handle specific failure cases
-        if (data?.error?.includes('PDF')) {
-          toast.error('Could not read PDF file. Please ensure it\'s a valid PDF document.');
-        } else if (data?.error?.includes('OpenAI')) {
-          toast.error('AI processing encountered an issue. Please try again.');
-        } else {
-          toast.error(`Resume processing failed: ${data?.error || 'Unknown error'}`);
-        }
+        const errorMsg = data?.error || 'Unknown error occurred';
+        toast.error(`Resume processing failed: ${errorMsg}`);
         return false;
       }
       
     } catch (error) {
-      console.error('Error in resume extraction:', error);
+      console.error('=== FRONTEND: Exception ===');
+      console.error('Error:', error);
       
-      // Network or other errors
-      if (error instanceof Error) {
-        if (error.message.includes('network') || error.message.includes('fetch')) {
-          toast.error('Network error. Please check your connection and try again.');
-        } else {
-          toast.error(`An error occurred: ${error.message}`);
-        }
-      } else {
-        toast.error('An unexpected error occurred during resume processing. Please try again.');
-      }
+      toast.error('An unexpected error occurred during resume processing. Please try again.');
       return false;
     } finally {
       setIsExtracting(false);

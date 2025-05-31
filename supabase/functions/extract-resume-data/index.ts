@@ -12,7 +12,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Improved PDF text extraction function
+// Simplified but more effective PDF text extraction
 async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
   try {
     console.log('Starting PDF text extraction, buffer size:', pdfBuffer.byteLength);
@@ -23,90 +23,80 @@ async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
     // Convert to string for text extraction
     const pdfString = new TextDecoder('latin1').decode(uint8Array);
     
-    // More comprehensive text extraction patterns
+    // Simple but effective text extraction patterns
     const textPatterns = [
-      // Text in parentheses - most common PDF text format
-      /\(((?:[^()\\]|\\[\\()nrtbf]|\\[0-7]{1,3})*)\)/g,
-      // Text between BT (Begin Text) and ET (End Text) operators
-      /BT\s+(.*?)\s+ET/gs,
-      // Tj and TJ operators (show text)
-      /\[(.*?)\]\s*TJ/g,
-      /\((.*?)\)\s*Tj/g,
-      // Text after font selection
-      /\/F\d+\s+\d+\s+Tf\s+(.*?)(?=\/F\d+|\n|$)/g,
-      // Direct text patterns (fallback)
-      /[A-Za-z]{3,}[A-Za-z\s.,;:!?-]+/g,
+      // Text in parentheses (most common)
+      /\(([^)]+)\)/g,
+      // Text after Tj operator
+      /\(([^)]*)\)\s*Tj/g,
+      // Text in brackets for TJ operator
+      /\[([^\]]+)\]\s*TJ/g,
+      // Simple readable text (fallback)
+      /[A-Za-z][A-Za-z\s]{10,}/g,
     ];
     
-    // Extract text using all patterns
+    // Extract text using patterns
     for (const pattern of textPatterns) {
       const matches = pdfString.matchAll(pattern);
       for (const match of matches) {
-        if (match[1]) {
-          let text = match[1];
-          // Clean up PDF escape sequences and encoding
-          text = text
-            .replace(/\\n/g, ' ')
-            .replace(/\\r/g, ' ')
-            .replace(/\\t/g, ' ')
+        const text = match[1] || match[0];
+        if (text && text.length > 2) {
+          // Clean up the text
+          const cleanText = text
+            .replace(/\\n|\\r|\\t/g, ' ')
             .replace(/\\\(/g, '(')
             .replace(/\\\)/g, ')')
             .replace(/\\\\/g, '\\')
-            .replace(/\\[0-7]{1,3}/g, '') // Remove octal escape sequences
             .replace(/\s+/g, ' ')
             .trim();
           
-          if (text && text.length > 2 && /[a-zA-Z]/.test(text)) {
-            extractedText += text + ' ';
+          if (cleanText && /[a-zA-Z]/.test(cleanText)) {
+            extractedText += cleanText + ' ';
           }
         }
       }
     }
     
-    // Additional cleanup and formatting
-    extractedText = extractedText
-      .replace(/\s+/g, ' ')
-      .replace(/[^\w\s\.\,\@\-\(\)\+\#\:\/\%\&]/g, ' ')
-      .replace(/\b[A-Z]{2,}\b/g, match => 
-        match.length > 3 ? match.charAt(0) + match.slice(1).toLowerCase() : match
-      )
-      .trim();
+    // Final cleanup
+    extractedText = extractedText.replace(/\s+/g, ' ').trim();
     
     console.log('Extracted text length:', extractedText.length);
-    console.log('Sample text (first 500 chars):', extractedText.substring(0, 500));
+    console.log('First 200 chars:', extractedText.substring(0, 200));
     
-    // If we got very little text, try a simpler approach
-    if (extractedText.length < 100) {
-      console.log('Trying fallback text extraction...');
-      // Look for any readable text patterns
-      const fallbackText = pdfString.match(/[A-Za-z][A-Za-z\s.,;:!?-]{10,}/g);
-      if (fallbackText) {
-        extractedText = fallbackText.join(' ').replace(/\s+/g, ' ').trim();
-        console.log('Fallback extracted text length:', extractedText.length);
+    if (extractedText.length < 50) {
+      console.log('Very little text extracted, trying fallback...');
+      // Fallback: look for any readable sequences
+      const fallbackMatches = pdfString.match(/[A-Za-z][A-Za-z\s.,;:-]{20,}/g);
+      if (fallbackMatches) {
+        extractedText = fallbackMatches.join(' ').replace(/\s+/g, ' ').trim();
+        console.log('Fallback extraction length:', extractedText.length);
       }
     }
     
     return extractedText;
   } catch (error) {
     console.error('Error extracting text from PDF:', error);
-    throw new Error('Failed to extract text from PDF');
+    return 'Unable to extract text from PDF due to format limitations.';
   }
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const { resumeUrl, candidateId } = await req.json();
-    console.log('Processing resume extraction request');
+    console.log('=== RESUME EXTRACTION REQUEST ===');
     console.log('Resume URL:', resumeUrl);
     console.log('Candidate ID:', candidateId);
 
     if (!resumeUrl || !candidateId) {
-      return new Response(JSON.stringify({ error: 'Resume URL and candidate ID are required' }), {
+      console.error('Missing required parameters');
+      return new Response(JSON.stringify({ 
+        error: 'Resume URL and candidate ID are required',
+        success: false 
+      }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -114,18 +104,21 @@ serve(async (req) => {
 
     if (!openAIApiKey) {
       console.error('OpenAI API key not configured');
-      return new Response(JSON.stringify({ error: 'OpenAI API key not configured' }), {
+      return new Response(JSON.stringify({ 
+        error: 'OpenAI API key not configured',
+        success: false 
+      }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Create Supabase client with service role key
+    // Create Supabase client
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log('Fetching PDF from Supabase Storage...');
+    console.log('=== DOWNLOADING PDF ===');
     
-    // Extract the file path from the URL
+    // Extract file path from URL
     const urlParts = resumeUrl.split('/');
     const bucketIndex = urlParts.findIndex(part => part === 'resumes');
     if (bucketIndex === -1 || bucketIndex >= urlParts.length - 1) {
@@ -140,17 +133,17 @@ serve(async (req) => {
     }
     
     const filePath = urlParts.slice(bucketIndex + 1).join('/');
-    console.log('Extracted file path:', filePath);
+    console.log('File path:', filePath);
 
-    // Download the file from Supabase Storage
+    // Download file from Supabase Storage
     const { data: fileData, error: downloadError } = await supabase.storage
       .from('resumes')
       .download(filePath);
 
-    if (downloadError) {
-      console.error('Failed to download resume from storage:', downloadError);
+    if (downloadError || !fileData) {
+      console.error('Download error:', downloadError);
       return new Response(JSON.stringify({ 
-        error: `Failed to download resume: ${downloadError.message}`,
+        error: `Failed to download resume: ${downloadError?.message || 'No file data'}`,
         success: false 
       }), {
         status: 500,
@@ -158,73 +151,44 @@ serve(async (req) => {
       });
     }
 
-    if (!fileData) {
-      console.error('No file data received from storage');
-      return new Response(JSON.stringify({ 
-        error: 'No file data received from storage',
-        success: false 
-      }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Convert Blob to ArrayBuffer for text extraction
+    // Extract text from PDF
+    console.log('=== EXTRACTING TEXT ===');
     const pdfBuffer = await fileData.arrayBuffer();
-    console.log('PDF buffer size:', pdfBuffer.byteLength);
+    const resumeText = await extractTextFromPDF(pdfBuffer);
+    
+    console.log('Extracted text length:', resumeText.length);
+    console.log('Sample text:', resumeText.substring(0, 500));
 
-    let resumeText;
-    try {
-      resumeText = await extractTextFromPDF(pdfBuffer);
-      console.log('Successfully extracted text, length:', resumeText.length);
-      
-      if (!resumeText || resumeText.length < 50) {
-        console.warn('Very little text extracted from PDF, trying direct approach...');
-        // Try to extract any visible text
-        const decoder = new TextDecoder('utf-8', { fatal: false });
-        const textAttempt = decoder.decode(new Uint8Array(pdfBuffer));
-        const readableText = textAttempt.match(/[A-Za-z][A-Za-z\s.,;:!?-]{20,}/g);
-        resumeText = readableText ? readableText.join(' ') : 'Unable to extract sufficient text from PDF.';
-      }
-    } catch (error) {
-      console.error('PDF text extraction failed:', error);
-      resumeText = 'PDF content could not be extracted. Please ensure the PDF contains extractable text.';
+    if (!resumeText || resumeText.length < 20) {
+      console.error('Insufficient text extracted from PDF');
+      return new Response(JSON.stringify({ 
+        error: 'Could not extract sufficient text from PDF. Please ensure the PDF contains readable text.',
+        success: false 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    console.log('Final resume text for AI processing:', resumeText.substring(0, 300));
+    // Call OpenAI API
+    console.log('=== CALLING OPENAI ===');
+    const prompt = `Extract information from this resume text and return ONLY a JSON object with these exact fields:
 
-    // Enhanced prompt specifically for candidate profile fields
-    const prompt = `
-    You are an expert resume parser. Extract structured information from the following resume text and return ONLY a valid JSON object.
+Resume Text: "${resumeText}"
 
-    Resume Text:
-    "${resumeText}"
-
-    Extract the following information and return as JSON:
-
-    REQUIRED FIELDS:
-    - skills: Array of technical and professional skills (programming languages, tools, frameworks, soft skills)
-    - experience_years: Number of years of work experience (calculate from dates or stated experience)
-    - title: Current or most recent job title
-    - summary: Professional summary or objective (2-3 sentences)
-    - education: Highest degree, field of study, and institution
-    - location: Current location or address
-    - phone: Phone number if present
-    - linkedin_url: LinkedIn profile URL if present
-    - github_url: GitHub profile URL if present
-    - portfolio_url: Portfolio or website URL if present
-
-    RULES:
-    1. Return ONLY valid JSON, no other text
-    2. Use null for missing information
-    3. For skills, include both technical (languages, frameworks) and soft skills
-    4. For experience_years, calculate total years from employment history
-    5. Extract qualifications and certifications into education field
-    6. Be comprehensive but accurate - only extract what's clearly stated
-
-    JSON Response:`;
-
-    console.log('Sending request to OpenAI...');
+Return JSON with these fields (use null for missing data):
+{
+  "skills": ["skill1", "skill2"],
+  "experience_years": 5,
+  "title": "Job Title",
+  "summary": "Professional summary",
+  "education": "Degree and institution",
+  "location": "City, State",
+  "phone": "Phone number",
+  "linkedin_url": "LinkedIn URL",
+  "github_url": "GitHub URL", 
+  "portfolio_url": "Portfolio URL"
+}`;
 
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -237,7 +201,7 @@ serve(async (req) => {
         messages: [
           { 
             role: 'system', 
-            content: 'You are an expert resume parser. Extract structured data from resumes and return ONLY valid JSON with no additional formatting or text.' 
+            content: 'You are a resume parser. Extract data and return ONLY valid JSON with the requested fields. No markdown, no explanations, just JSON.'
           },
           { 
             role: 'user', 
@@ -245,15 +209,12 @@ serve(async (req) => {
           }
         ],
         temperature: 0.1,
-        max_tokens: 1500,
+        max_tokens: 1000,
       }),
     });
 
     if (!openAIResponse.ok) {
-      console.error('OpenAI API error:', openAIResponse.status, openAIResponse.statusText);
-      const errorText = await openAIResponse.text();
-      console.error('OpenAI error details:', errorText);
-      
+      console.error('OpenAI API error:', openAIResponse.status);
       return new Response(JSON.stringify({ 
         error: `OpenAI API error: ${openAIResponse.status}`,
         success: false 
@@ -264,12 +225,12 @@ serve(async (req) => {
     }
 
     const openAIData = await openAIResponse.json();
-    console.log('OpenAI response received');
+    console.log('OpenAI response:', openAIData);
 
-    if (!openAIData.choices || !openAIData.choices[0]) {
-      console.error('Invalid OpenAI response structure:', openAIData);
+    if (!openAIData.choices?.[0]?.message?.content) {
+      console.error('Invalid OpenAI response');
       return new Response(JSON.stringify({ 
-        error: 'Invalid OpenAI response structure',
+        error: 'Invalid response from AI service',
         success: false 
       }), {
         status: 500,
@@ -277,93 +238,93 @@ serve(async (req) => {
       });
     }
 
+    // Parse AI response
+    console.log('=== PARSING AI RESPONSE ===');
     let extractedData;
     try {
-      const content = openAIData.choices[0].message.content.trim();
-      console.log('Raw OpenAI response:', content);
-      
-      // Clean up the response to extract JSON
-      let cleanContent = content;
+      let content = openAIData.choices[0].message.content.trim();
+      console.log('Raw AI content:', content);
       
       // Remove markdown code blocks if present
-      if (content.includes('```')) {
-        cleanContent = content.replace(/```json\s*/, '').replace(/```\s*$/, '');
-      }
+      content = content.replace(/```json\s*|\s*```/g, '');
       
-      // Extract JSON object from the response
-      const jsonMatch = cleanContent.match(/\{[\s\S]*\}/);
+      // Try to find JSON object
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        cleanContent = jsonMatch[0];
+        content = jsonMatch[0];
       }
       
-      extractedData = JSON.parse(cleanContent);
-      console.log('Successfully parsed extracted data:', extractedData);
+      extractedData = JSON.parse(content);
+      console.log('Parsed extracted data:', extractedData);
       
     } catch (parseError) {
-      console.error('Error parsing OpenAI response:', parseError);
-      console.error('Raw content that failed to parse:', openAIData.choices[0].message.content);
+      console.error('JSON parse error:', parseError);
+      console.error('Content that failed:', openAIData.choices[0].message.content);
       
-      // Return error instead of fallback to ensure we know when parsing fails
       return new Response(JSON.stringify({ 
-        error: 'Failed to parse AI response. Please try again.',
+        error: 'Failed to parse AI response as JSON',
         success: false,
-        rawResponse: openAIData.choices[0].message.content
+        debugInfo: {
+          rawResponse: openAIData.choices[0].message.content
+        }
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Prepare update data with better validation
+    // Prepare update data
+    console.log('=== PREPARING DATABASE UPDATE ===');
     const updateData: any = {
       resume_content: JSON.stringify(extractedData),
       updated_at: new Date().toISOString(),
     };
 
-    // Map extracted fields with validation
-    if (extractedData.skills && Array.isArray(extractedData.skills) && extractedData.skills.length > 0) {
+    // Add fields to update with basic validation
+    if (extractedData.skills && Array.isArray(extractedData.skills)) {
       updateData.skills = extractedData.skills.filter(skill => skill && typeof skill === 'string');
     }
     
-    if (extractedData.experience_years !== null && !isNaN(Number(extractedData.experience_years))) {
-      updateData.experience_years = Math.max(0, Number(extractedData.experience_years));
+    if (extractedData.experience_years && !isNaN(Number(extractedData.experience_years))) {
+      updateData.experience_years = Number(extractedData.experience_years);
     }
     
-    if (extractedData.title && typeof extractedData.title === 'string' && extractedData.title.trim()) {
+    if (extractedData.title && typeof extractedData.title === 'string') {
       updateData.title = extractedData.title.trim();
     }
     
-    if (extractedData.summary && typeof extractedData.summary === 'string' && extractedData.summary.trim()) {
+    if (extractedData.summary && typeof extractedData.summary === 'string') {
       updateData.summary = extractedData.summary.trim();
     }
     
-    if (extractedData.education && typeof extractedData.education === 'string' && extractedData.education.trim()) {
+    if (extractedData.education && typeof extractedData.education === 'string') {
       updateData.education = extractedData.education.trim();
     }
     
-    if (extractedData.location && typeof extractedData.location === 'string' && extractedData.location.trim()) {
+    if (extractedData.location && typeof extractedData.location === 'string') {
       updateData.location = extractedData.location.trim();
     }
     
-    if (extractedData.phone && typeof extractedData.phone === 'string' && extractedData.phone.trim()) {
+    if (extractedData.phone && typeof extractedData.phone === 'string') {
       updateData.phone = extractedData.phone.trim();
     }
     
-    if (extractedData.linkedin_url && typeof extractedData.linkedin_url === 'string' && extractedData.linkedin_url.trim()) {
+    if (extractedData.linkedin_url && typeof extractedData.linkedin_url === 'string') {
       updateData.linkedin_url = extractedData.linkedin_url.trim();
     }
     
-    if (extractedData.github_url && typeof extractedData.github_url === 'string' && extractedData.github_url.trim()) {
+    if (extractedData.github_url && typeof extractedData.github_url === 'string') {
       updateData.github_url = extractedData.github_url.trim();
     }
     
-    if (extractedData.portfolio_url && typeof extractedData.portfolio_url === 'string' && extractedData.portfolio_url.trim()) {
+    if (extractedData.portfolio_url && typeof extractedData.portfolio_url === 'string') {
       updateData.portfolio_url = extractedData.portfolio_url.trim();
     }
 
-    console.log('Updating candidate profile with extracted data:', updateData);
+    console.log('Update data prepared:', updateData);
 
-    // Update the candidate profile
+    // Update candidate profile
+    console.log('=== UPDATING DATABASE ===');
     const { data: updatedProfile, error: updateError } = await supabase
       .from('candidate_profiles')
       .update(updateData)
@@ -372,7 +333,7 @@ serve(async (req) => {
       .single();
 
     if (updateError) {
-      console.error('Error updating candidate profile:', updateError);
+      console.error('Database update error:', updateError);
       return new Response(JSON.stringify({ 
         error: 'Failed to update candidate profile', 
         details: updateError.message,
@@ -383,21 +344,21 @@ serve(async (req) => {
       });
     }
 
-    console.log('Successfully updated candidate profile');
-    console.log('Updated profile data:', updatedProfile);
+    console.log('=== SUCCESS ===');
+    console.log('Updated profile:', updatedProfile);
 
     return new Response(JSON.stringify({ 
       success: true,
       extractedData,
       updatedProfile,
-      message: 'Resume data extracted and profile updated successfully',
-      extractedFields: Object.keys(updateData).filter(key => key !== 'resume_content' && key !== 'updated_at')
+      message: 'Resume data extracted and profile updated successfully'
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('Error in extract-resume-data function:', error);
+    console.error('=== FUNCTION ERROR ===');
+    console.error('Error details:', error);
     return new Response(JSON.stringify({ 
       error: error.message,
       success: false 
