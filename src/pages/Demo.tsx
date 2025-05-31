@@ -1,4 +1,3 @@
-
 import { Play, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,7 +8,7 @@ import Footer from "@/components/Footer";
 const Demo = () => {
   const navigate = useNavigate();
 
-  const handleWatchDemo = () => {
+  const handleScheduleDemo = () => {
     navigate('/dashboard?tab=book-demo');
   };
 
@@ -49,10 +48,7 @@ const Demo = () => {
                 <p className="text-gray-600 mb-6">
                   See a 5-minute walkthrough of Hire Al's key features and how they can transform your hiring process.
                 </p>
-                <Button 
-                  onClick={handleWatchDemo}
-                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                >
+                <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
                   Watch Now
                 </Button>
               </CardContent>
@@ -72,7 +68,7 @@ const Demo = () => {
                 <Button 
                   variant="outline" 
                   className="w-full"
-                  onClick={handleWatchDemo}
+                  onClick={handleScheduleDemo}
                 >
                   Schedule Demo
                 </Button>
