@@ -10,12 +10,12 @@ export const useResumeExtraction = () => {
     setIsExtracting(true);
     
     try {
-      console.log('=== FRONTEND: Starting resume extraction ===');
+      console.log('=== FRONTEND: Starting comprehensive resume extraction ===');
       console.log('Resume URL:', resumeUrl);
       console.log('Candidate ID:', candidateId);
       
-      toast.info('Processing your resume with AI...', {
-        duration: 5000,
+      toast.info('Analyzing your resume with AI to extract comprehensive information...', {
+        duration: 6000,
       });
 
       const { data, error } = await supabase.functions.invoke('extract-resume-data', {
@@ -37,20 +37,42 @@ export const useResumeExtraction = () => {
 
       if (data?.success) {
         console.log('=== FRONTEND: Success ===');
-        console.log('Extracted data:', data.extractedData);
+        console.log('Comprehensive extracted data:', data.extractedData);
         
-        let successMessage = 'Resume processed successfully! ';
+        let successMessage = 'Resume analyzed successfully! ';
         
-        // Show what was extracted
+        // Show comprehensive extraction summary
         if (data.extractedData) {
           const updates = [];
-          if (data.extractedData.skills?.length > 0) {
-            updates.push(`${data.extractedData.skills.length} skills`);
+          
+          // Personal info
+          if (data.extractedData.personal_info?.email) updates.push('contact info');
+          if (data.extractedData.personal_info?.location) updates.push('location');
+          
+          // Professional info
+          if (data.extractedData.professional_summary?.current_role) updates.push('current role');
+          if (data.extractedData.professional_summary?.total_experience_years) updates.push('experience');
+          if (data.extractedData.professional_summary?.summary) updates.push('professional summary');
+          
+          // Education
+          if (data.extractedData.education?.qualification) updates.push('qualifications');
+          
+          // Skills
+          const skillCount = [
+            ...(data.extractedData.skills?.technical_skills || []),
+            ...(data.extractedData.skills?.programming_languages || []),
+            ...(data.extractedData.skills?.tools_and_frameworks || []),
+            ...(data.extractedData.skills?.soft_skills || [])
+          ].length;
+          
+          if (skillCount > 0) {
+            updates.push(`${skillCount} skills`);
           }
-          if (data.extractedData.title) updates.push('job title');
-          if (data.extractedData.experience_years) updates.push('experience');
-          if (data.extractedData.education) updates.push('education');
-          if (data.extractedData.summary) updates.push('summary');
+          
+          // Work experience
+          if (data.extractedData.work_experience?.companies?.length > 0) {
+            updates.push('work history');
+          }
           
           if (updates.length > 0) {
             successMessage += `Extracted: ${updates.join(', ')}.`;
@@ -58,7 +80,7 @@ export const useResumeExtraction = () => {
         }
         
         toast.success(successMessage, {
-          duration: 8000,
+          duration: 10000,
         });
         return true;
       } else {

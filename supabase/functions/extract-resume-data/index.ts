@@ -310,37 +310,66 @@ serve(async (req) => {
       });
     }
 
-    // Call OpenAI for data extraction with improved prompt
-    console.log('=== CALLING OPENAI FOR DATA EXTRACTION ===');
-    const prompt = `You are an expert resume parser. Extract structured information from this resume text with high accuracy.
+    // Enhanced OpenAI prompt for comprehensive data extraction
+    console.log('=== CALLING OPENAI FOR COMPREHENSIVE DATA EXTRACTION ===');
+    const prompt = `You are an expert resume parser and data analyst. Please analyze this resume text thoroughly and extract comprehensive professional information.
 
 RESUME TEXT:
 "${resumeText}"
 
-Extract the following information. Look carefully for all details mentioned in the resume:
+Please extract and summarize the following information with high accuracy. Look carefully for ALL details mentioned:
+
+IMPORTANT: Extract actual values from the resume text. If information is not clearly stated, use "null" for that field.
+
+Please provide the extracted information in this exact JSON format:
+
+{
+  "personal_info": {
+    "full_name": "extracted full name or null",
+    "email": "email address or null", 
+    "phone": "phone number or null",
+    "location": "city, state/country or null",
+    "linkedin_url": "LinkedIn profile URL or null",
+    "github_url": "GitHub profile URL or null",
+    "portfolio_url": "portfolio/website URL or null"
+  },
+  "professional_summary": {
+    "current_role": "most recent job title or null",
+    "summary": "professional summary/objective or null",
+    "total_experience_years": "calculated years of experience as number or null"
+  },
+  "education": {
+    "qualification": "highest degree with field of study or null",
+    "institution": "university/college name or null",
+    "graduation_year": "year of graduation or null",
+    "additional_education": "certifications, additional degrees or null"
+  },
+  "skills": {
+    "technical_skills": ["list of technical skills"] or null,
+    "programming_languages": ["list of programming languages"] or null,
+    "tools_and_frameworks": ["list of tools and frameworks"] or null,
+    "soft_skills": ["list of soft skills"] or null
+  },
+  "work_experience": {
+    "companies": ["list of company names worked at"] or null,
+    "roles": ["list of job titles held"] or null,
+    "experience_summary": "brief summary of work experience or null"
+  },
+  "additional_info": {
+    "salary_expectation": "mentioned salary range as text or null",
+    "availability": "availability information or null",
+    "notable_achievements": "key achievements or awards or null"
+  }
+}
 
 EXTRACTION RULES:
-- Skills: Extract ALL technical skills, programming languages, tools, frameworks, certifications mentioned
-- Experience: Calculate total years from employment history or look for explicit experience statements
-- Title: Most recent job title or professional title/designation
-- Summary: Extract existing professional summary, objective, or profile description
-- Education: Degree, field of study, institution, graduation year if mentioned
-- Contact: Extract phone numbers, email addresses, URLs as written
-- Location: City, state, country mentioned in address or location section
-
-Respond with ONLY this JSON format (no additional text):
-{
-  "skills": ["skill1", "skill2", "skill3"] or null,
-  "experience_years": number or null,
-  "title": "most recent job title" or null,
-  "summary": "professional summary text" or null,
-  "education": "degree, field, institution, year" or null,
-  "location": "city, state" or null,
-  "phone": "phone number" or null,
-  "linkedin_url": "LinkedIn URL" or null,
-  "github_url": "GitHub URL" or null,
-  "portfolio_url": "portfolio/website URL" or null
-}`;
+- Extract only information that is explicitly mentioned in the resume
+- For experience_years: Calculate based on work history dates or explicit statements
+- For skills: Extract ALL mentioned technical skills, programming languages, tools, frameworks
+- For education: Include degree type, field of study, institution, and year if available
+- For contact info: Extract as written in the resume
+- Use null for any field where information is not found
+- Ensure all extracted data is accurate and directly from the resume text`;
 
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -353,7 +382,7 @@ Respond with ONLY this JSON format (no additional text):
         messages: [
           { 
             role: 'system', 
-            content: 'You are an expert resume parser that extracts accurate information from resume text. Always respond with valid JSON and extract all available information carefully.'
+            content: 'You are an expert resume parser that extracts comprehensive and accurate information from resume text. Always respond with valid JSON containing all the requested fields. Be thorough and accurate in your extraction.'
           },
           { 
             role: 'user', 
@@ -361,7 +390,7 @@ Respond with ONLY this JSON format (no additional text):
           }
         ],
         temperature: 0.1,
-        max_tokens: 1500,
+        max_tokens: 2000,
       }),
     });
 
@@ -393,7 +422,7 @@ Respond with ONLY this JSON format (no additional text):
     }
 
     // Parse AI response
-    console.log('=== PARSING AI RESPONSE ===');
+    console.log('=== PARSING COMPREHENSIVE AI RESPONSE ===');
     let extractedData;
     try {
       let content = openAIData.choices[0].message.content.trim();
@@ -410,7 +439,7 @@ Respond with ONLY this JSON format (no additional text):
       }
       
       extractedData = JSON.parse(content);
-      console.log('Successfully parsed extracted data:', JSON.stringify(extractedData, null, 2));
+      console.log('Successfully parsed comprehensive extracted data:', JSON.stringify(extractedData, null, 2));
       
     } catch (parseError) {
       console.error('JSON parse error:', parseError);
@@ -429,77 +458,122 @@ Respond with ONLY this JSON format (no additional text):
       });
     }
 
-    // Prepare database update
-    console.log('=== PREPARING DATABASE UPDATE ===');
+    // Prepare comprehensive database update
+    console.log('=== PREPARING COMPREHENSIVE DATABASE UPDATE ===');
     const updateData: any = {
       resume_content: JSON.stringify(extractedData),
       updated_at: new Date().toISOString(),
     };
 
-    // Validate and add fields with better validation
-    if (extractedData.skills && Array.isArray(extractedData.skills) && extractedData.skills.length > 0) {
-      const validSkills = extractedData.skills
+    // Map personal info
+    if (extractedData.personal_info) {
+      const personal = extractedData.personal_info;
+      
+      if (personal.email && typeof personal.email === 'string' && personal.email.includes('@')) {
+        updateData.email = personal.email.trim().substring(0, 255);
+        console.log('Adding email:', updateData.email);
+      }
+      
+      if (personal.phone && typeof personal.phone === 'string' && personal.phone.trim().length > 5) {
+        const cleanPhone = personal.phone.trim().replace(/[^\d+\-\s\(\)]/g, '');
+        if (cleanPhone.length >= 7) {
+          updateData.phone = cleanPhone.substring(0, 20);
+          console.log('Adding phone:', updateData.phone);
+        }
+      }
+      
+      if (personal.location && typeof personal.location === 'string' && personal.location.trim().length > 2) {
+        updateData.location = personal.location.trim().substring(0, 200);
+        console.log('Adding location:', updateData.location);
+      }
+      
+      if (personal.linkedin_url && typeof personal.linkedin_url === 'string' && personal.linkedin_url.includes('linkedin')) {
+        updateData.linkedin_url = personal.linkedin_url.trim().substring(0, 500);
+        console.log('Adding LinkedIn URL:', updateData.linkedin_url);
+      }
+      
+      if (personal.github_url && typeof personal.github_url === 'string' && personal.github_url.includes('github')) {
+        updateData.github_url = personal.github_url.trim().substring(0, 500);
+        console.log('Adding GitHub URL:', updateData.github_url);
+      }
+      
+      if (personal.portfolio_url && typeof personal.portfolio_url === 'string' && personal.portfolio_url.includes('http')) {
+        updateData.portfolio_url = personal.portfolio_url.trim().substring(0, 500);
+        console.log('Adding portfolio URL:', updateData.portfolio_url);
+      }
+    }
+
+    // Map professional info
+    if (extractedData.professional_summary) {
+      const professional = extractedData.professional_summary;
+      
+      if (professional.current_role && typeof professional.current_role === 'string' && professional.current_role.trim().length > 2) {
+        updateData.title = professional.current_role.trim().substring(0, 200);
+        console.log('Adding current role/title:', updateData.title);
+      }
+      
+      if (professional.summary && typeof professional.summary === 'string' && professional.summary.trim().length > 10) {
+        updateData.summary = professional.summary.trim().substring(0, 1000);
+        console.log('Adding professional summary:', updateData.summary.substring(0, 100) + '...');
+      }
+      
+      if (professional.total_experience_years && typeof professional.total_experience_years === 'number' && professional.total_experience_years > 0 && professional.total_experience_years <= 50) {
+        updateData.experience_years = professional.total_experience_years;
+        console.log('Adding experience years:', updateData.experience_years);
+      }
+    }
+
+    // Map education
+    if (extractedData.education) {
+      const education = extractedData.education;
+      const educationParts = [];
+      
+      if (education.qualification) educationParts.push(education.qualification);
+      if (education.institution) educationParts.push(education.institution);
+      if (education.graduation_year) educationParts.push(education.graduation_year);
+      if (education.additional_education) educationParts.push(education.additional_education);
+      
+      if (educationParts.length > 0) {
+        updateData.education = educationParts.join(', ').substring(0, 500);
+        console.log('Adding education:', updateData.education);
+      }
+    }
+
+    // Map skills comprehensively
+    const allSkills = [];
+    if (extractedData.skills) {
+      const skills = extractedData.skills;
+      
+      if (skills.technical_skills && Array.isArray(skills.technical_skills)) {
+        allSkills.push(...skills.technical_skills);
+      }
+      if (skills.programming_languages && Array.isArray(skills.programming_languages)) {
+        allSkills.push(...skills.programming_languages);
+      }
+      if (skills.tools_and_frameworks && Array.isArray(skills.tools_and_frameworks)) {
+        allSkills.push(...skills.tools_and_frameworks);
+      }
+      if (skills.soft_skills && Array.isArray(skills.soft_skills)) {
+        allSkills.push(...skills.soft_skills);
+      }
+    }
+    
+    if (allSkills.length > 0) {
+      const validSkills = allSkills
         .filter(skill => skill && typeof skill === 'string' && skill.trim().length > 1)
         .map(skill => skill.trim())
-        .slice(0, 50);
+        .slice(0, 50); // Limit to 50 skills
+      
       if (validSkills.length > 0) {
         updateData.skills = validSkills;
-        console.log('Adding skills:', validSkills);
+        console.log('Adding comprehensive skills:', validSkills.length, 'skills total');
       }
     }
-    
-    if (extractedData.experience_years && typeof extractedData.experience_years === 'number' && extractedData.experience_years > 0 && extractedData.experience_years <= 50) {
-      updateData.experience_years = extractedData.experience_years;
-      console.log('Adding experience years:', extractedData.experience_years);
-    }
-    
-    if (extractedData.title && typeof extractedData.title === 'string' && extractedData.title.trim().length > 2) {
-      updateData.title = extractedData.title.trim().substring(0, 200);
-      console.log('Adding title:', updateData.title);
-    }
-    
-    if (extractedData.summary && typeof extractedData.summary === 'string' && extractedData.summary.trim().length > 10) {
-      updateData.summary = extractedData.summary.trim().substring(0, 1000);
-      console.log('Adding summary:', updateData.summary.substring(0, 100) + '...');
-    }
-    
-    if (extractedData.education && typeof extractedData.education === 'string' && extractedData.education.trim().length > 5) {
-      updateData.education = extractedData.education.trim().substring(0, 500);
-      console.log('Adding education:', updateData.education);
-    }
-    
-    if (extractedData.location && typeof extractedData.location === 'string' && extractedData.location.trim().length > 2) {
-      updateData.location = extractedData.location.trim().substring(0, 200);
-      console.log('Adding location:', updateData.location);
-    }
-    
-    if (extractedData.phone && typeof extractedData.phone === 'string' && extractedData.phone.trim().length > 5) {
-      const cleanPhone = extractedData.phone.trim().replace(/[^\d+\-\s\(\)]/g, '');
-      if (cleanPhone.length >= 7) {
-        updateData.phone = cleanPhone.substring(0, 20);
-        console.log('Adding phone:', updateData.phone);
-      }
-    }
-    
-    if (extractedData.linkedin_url && typeof extractedData.linkedin_url === 'string' && extractedData.linkedin_url.includes('linkedin')) {
-      updateData.linkedin_url = extractedData.linkedin_url.trim().substring(0, 500);
-      console.log('Adding LinkedIn URL:', updateData.linkedin_url);
-    }
-    
-    if (extractedData.github_url && typeof extractedData.github_url === 'string' && extractedData.github_url.includes('github')) {
-      updateData.github_url = extractedData.github_url.trim().substring(0, 500);
-      console.log('Adding GitHub URL:', updateData.github_url);
-    }
-    
-    if (extractedData.portfolio_url && typeof extractedData.portfolio_url === 'string' && extractedData.portfolio_url.includes('http')) {
-      updateData.portfolio_url = extractedData.portfolio_url.trim().substring(0, 500);
-      console.log('Adding portfolio URL:', updateData.portfolio_url);
-    }
 
-    console.log('Final update data:', JSON.stringify(updateData, null, 2));
+    console.log('Final comprehensive update data:', JSON.stringify(updateData, null, 2));
 
-    // Update candidate profile
-    console.log('=== UPDATING DATABASE ===');
+    // Update candidate profile with comprehensive data
+    console.log('=== UPDATING DATABASE WITH COMPREHENSIVE DATA ===');
     const { data: updatedProfile, error: updateError } = await supabase
       .from('candidate_profiles')
       .update(updateData)
@@ -520,13 +594,13 @@ Respond with ONLY this JSON format (no additional text):
     }
 
     console.log('=== SUCCESS ===');
-    console.log('Profile updated successfully');
+    console.log('Profile updated successfully with comprehensive data');
 
     return new Response(JSON.stringify({ 
       success: true,
       extractedData,
       updatedProfile,
-      message: 'Resume data extracted and profile updated successfully'
+      message: 'Resume data comprehensively extracted and profile updated successfully'
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
