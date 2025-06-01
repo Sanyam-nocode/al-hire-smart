@@ -75,9 +75,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   const fetchProfiles = async (user: User) => {
-    console.log('Fetching profiles for user:', user.id);
+    console.log('AuthContext: Fetching profiles for user:', user.id);
     try {
-      // Try to fetch candidate profile
+      // Try to fetch candidate profile first
       const { data: candidateData, error: candidateError } = await supabase
         .from('candidate_profiles')
         .select('*')
@@ -85,9 +85,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .maybeSingle();
 
       if (candidateError && candidateError.code !== 'PGRST116') {
-        console.error('Error fetching candidate profile:', candidateError);
+        console.error('AuthContext: Error fetching candidate profile:', candidateError);
       } else if (candidateData) {
-        console.log('Found candidate profile:', candidateData);
+        console.log('AuthContext: Found candidate profile:', candidateData);
         setCandidateProfile(candidateData);
         return;
       }
@@ -100,15 +100,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .maybeSingle();
 
       if (recruiterError && recruiterError.code !== 'PGRST116') {
-        console.error('Error fetching recruiter profile:', recruiterError);
+        console.error('AuthContext: Error fetching recruiter profile:', recruiterError);
       } else if (recruiterData) {
-        console.log('Found recruiter profile:', recruiterData);
+        console.log('AuthContext: Found recruiter profile:', recruiterData);
         setRecruiterProfile(recruiterData);
       } else {
-        console.log('No profiles found for user');
+        console.log('AuthContext: No profiles found for user');
       }
     } catch (error) {
-      console.error('Error in fetchProfiles:', error);
+      console.error('AuthContext: Error in fetchProfiles:', error);
     }
   };
 
@@ -125,7 +125,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     try {
-      console.log('AuthContext: Attempting sign in');
+      console.log('AuthContext: Attempting sign in for:', email);
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -162,10 +162,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('AuthContext: Initial session:', session?.user?.email);
       setUser(session?.user ?? null);
       if (session?.user) {
-        // Use setTimeout to defer profile fetching
-        setTimeout(() => {
-          fetchProfiles(session.user);
-        }, 0);
+        fetchProfiles(session.user);
       }
       setLoading(false);
     });
@@ -175,12 +172,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('AuthContext: Auth state changed:', event, session?.user?.email);
       setUser(session?.user ?? null);
       
-      if (session?.user) {
-        // Use setTimeout to defer profile fetching and prevent potential deadlocks
+      if (session?.user && event === 'SIGNED_IN') {
+        // Clear existing profiles first
+        setCandidateProfile(null);
+        setRecruiterProfile(null);
+        
+        // Fetch profiles with a small delay to ensure state is clean
         setTimeout(() => {
           fetchProfiles(session.user);
-        }, 0);
-      } else {
+        }, 100);
+      } else if (!session?.user) {
         setCandidateProfile(null);
         setRecruiterProfile(null);
       }
@@ -193,7 +194,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     try {
-      console.log('Signing out user...');
+      console.log('AuthContext: Signing out user...');
       
       // Clear local state first
       setUser(null);
@@ -204,15 +205,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { error } = await supabase.auth.signOut();
       
       if (error) {
-        console.error('Sign out error:', error);
+        console.error('AuthContext: Sign out error:', error);
         return { error };
       }
       
-      console.log('Successfully signed out');
+      console.log('AuthContext: Successfully signed out');
       return { error: null };
       
     } catch (error) {
-      console.error('Unexpected error during sign out:', error);
+      console.error('AuthContext: Unexpected error during sign out:', error);
       return { error };
     }
   };

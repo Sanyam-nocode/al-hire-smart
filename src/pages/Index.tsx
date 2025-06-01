@@ -13,21 +13,29 @@ const Index = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Only proceed if auth is not loading and user exists
     if (!loading && user) {
-      console.log('Index: User authenticated, redirecting...');
+      console.log('Index: User authenticated, checking profiles...', { 
+        user: user.email, 
+        recruiterProfile: recruiterProfile?.id,
+        candidateProfile: candidateProfile?.id 
+      });
       
-      // Redirect based on profile type
-      if (recruiterProfile) {
-        console.log('Index: Redirecting to recruiter dashboard');
-        navigate('/recruiter/dashboard', { replace: true });
-      } else if (candidateProfile) {
-        console.log('Index: Redirecting to candidate profile');
-        navigate('/candidate/profile', { replace: true });
-      } else {
-        // If no profile exists yet, redirect to dashboard which will handle it
-        console.log('Index: No profiles found, redirecting to dashboard');
-        navigate('/dashboard', { replace: true });
-      }
+      // Give a small delay to ensure profiles are loaded
+      const timeoutId = setTimeout(() => {
+        if (recruiterProfile) {
+          console.log('Index: Redirecting to recruiter dashboard');
+          navigate('/recruiter/dashboard', { replace: true });
+        } else if (candidateProfile) {
+          console.log('Index: Redirecting to candidate profile');
+          navigate('/candidate/profile', { replace: true });
+        } else {
+          console.log('Index: No profiles found after timeout, redirecting to dashboard');
+          navigate('/dashboard', { replace: true });
+        }
+      }, 100);
+
+      return () => clearTimeout(timeoutId);
     }
   }, [user, recruiterProfile, candidateProfile, loading, navigate]);
 
