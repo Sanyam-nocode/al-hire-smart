@@ -26,6 +26,8 @@ export const useSavedCandidates = () => {
     if (!user) return;
 
     try {
+      console.log('Loading saved candidate IDs for user:', user.id);
+      
       const { data, error } = await supabase
         .from('saved_candidates')
         .select('candidate_id')
@@ -36,7 +38,9 @@ export const useSavedCandidates = () => {
         return;
       }
 
+      console.log('Loaded saved candidate data:', data);
       const candidateIds = new Set(data.map(item => item.candidate_id));
+      console.log('Saved candidate IDs set:', candidateIds);
       setSavedCandidateIds(candidateIds);
     } catch (error) {
       console.error('Error loading saved candidates:', error);
@@ -51,6 +55,8 @@ export const useSavedCandidates = () => {
 
     setIsLoading(true);
     try {
+      console.log('Saving candidate:', candidateId, 'for recruiter:', user.id);
+      
       const { error } = await supabase
         .from('saved_candidates')
         .insert({
@@ -66,6 +72,7 @@ export const useSavedCandidates = () => {
 
       setSavedCandidateIds(prev => new Set([...prev, candidateId]));
       toast.success('Candidate saved successfully!');
+      console.log('Candidate saved successfully');
     } catch (error) {
       console.error('Error saving candidate:', error);
       toast.error('Failed to save candidate');
@@ -79,6 +86,8 @@ export const useSavedCandidates = () => {
 
     setIsLoading(true);
     try {
+      console.log('Unsaving candidate:', candidateId, 'for recruiter:', user.id);
+      
       const { error } = await supabase
         .from('saved_candidates')
         .delete()
@@ -97,6 +106,7 @@ export const useSavedCandidates = () => {
         return newSet;
       });
       toast.success('Candidate removed from saved list');
+      console.log('Candidate unsaved successfully');
     } catch (error) {
       console.error('Error unsaving candidate:', error);
       toast.error('Failed to unsave candidate');
@@ -106,7 +116,9 @@ export const useSavedCandidates = () => {
   };
 
   const isCandidateSaved = (candidateId: string) => {
-    return savedCandidateIds.has(candidateId);
+    const isSaved = savedCandidateIds.has(candidateId);
+    console.log('Checking if candidate', candidateId, 'is saved:', isSaved);
+    return isSaved;
   };
 
   return {

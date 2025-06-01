@@ -46,27 +46,49 @@ const SavedCandidatesTab = ({ onViewProfile, onContact }: SavedCandidatesTabProp
 
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      console.log('Loading saved candidates for user:', user.id);
+      
+      // First, let's check if there are any saved candidates records
+      const { data: savedRecords, error: savedError } = await supabase
         .from('saved_candidates')
-        .select(`
-          candidate_id,
-          saved_at,
-          candidate_profiles!fk_candidate_id(*)
-        `)
-        .eq('recruiter_id', user.id)
-        .order('saved_at', { ascending: false });
+        .select('*')
+        .eq('recruiter_id', user.id);
 
-      if (error) {
-        console.error('Error loading saved candidates:', error);
+      console.log('Saved candidates records:', savedRecords);
+      console.log('Saved candidates error:', savedError);
+
+      if (savedError) {
+        console.error('Error loading saved candidates records:', savedError);
         toast.error('Failed to load saved candidates');
         return;
       }
 
-      const candidates = data
-        .map(item => item.candidate_profiles)
-        .filter(Boolean) as CandidateProfile[];
-      
-      setSavedCandidates(candidates);
+      if (!savedRecords || savedRecords.length === 0) {
+        console.log('No saved candidates found');
+        setSavedCandidates([]);
+        return;
+      }
+
+      // Get the candidate IDs
+      const candidateIds = savedRecords.map(record => record.candidate_id);
+      console.log('Candidate IDs to fetch:', candidateIds);
+
+      // Now fetch the candidate profiles
+      const { data: candidates, error: candidatesError } = await supabase
+        .from('candidate_profiles')
+        .select('*')
+        .in('id', candidateIds);
+
+      console.log('Fetched candidates:', candidates);
+      console.log('Candidates error:', candidatesError);
+
+      if (candidatesError) {
+        console.error('Error loading candidate profiles:', candidatesError);
+        toast.error('Failed to load candidate profiles');
+        return;
+      }
+
+      setSavedCandidates(candidates || []);
     } catch (error) {
       console.error('Error loading saved candidates:', error);
       toast.error('Failed to load saved candidates');
