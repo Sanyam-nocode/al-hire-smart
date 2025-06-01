@@ -53,7 +53,8 @@ export const useCandidateInteractions = () => {
         return;
       }
 
-      setInteractions(data || []);
+      // Type assertion since we know the database enforces the correct interaction_type values
+      setInteractions((data as CandidateInteraction[]) || []);
     } catch (error) {
       console.error('Unexpected error loading interactions:', error);
       toast.error('Failed to load interaction history');
