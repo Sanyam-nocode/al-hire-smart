@@ -5,37 +5,16 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Users, UserCheck, LogOut, Settings as SettingsIcon, Bell, Sparkles } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { Users, UserCheck, LogOut, Settings as SettingsIcon, Bell, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import Settings from "@/components/Settings";
 import AISearchComponent from "@/components/AISearchComponent";
-import EnhancedCandidateCard from "@/components/EnhancedCandidateCard";
 
 const RecruiterDashboard = () => {
   const { user, recruiterProfile, signOut } = useAuth();
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
-
-  // Fetch candidate profiles
-  const { data: candidates, isLoading } = useQuery({
-    queryKey: ['candidates'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('candidate_profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) {
-        throw error;
-      }
-      return data;
-    },
-  });
 
   const handleSignOut = async () => {
     try {
@@ -53,24 +32,6 @@ const RecruiterDashboard = () => {
   const handleNotifications = () => {
     toast.info("Notifications functionality coming soon!");
   };
-
-  const filteredCandidates = candidates?.filter(candidate => {
-    if (!searchQuery) return true;
-    
-    const query = searchQuery.toLowerCase();
-    return (
-      candidate.first_name?.toLowerCase().includes(query) ||
-      candidate.last_name?.toLowerCase().includes(query) ||
-      candidate.title?.toLowerCase().includes(query) ||
-      candidate.location?.toLowerCase().includes(query) ||
-      candidate.skills?.some(skill => skill.toLowerCase().includes(query)) ||
-      candidate.summary?.toLowerCase().includes(query)
-    );
-  });
-
-  // Separate AI-enhanced candidates
-  const aiEnhancedCandidates = filteredCandidates?.filter(c => c.resume_content !== null) || [];
-  const regularCandidates = filteredCandidates?.filter(c => c.resume_content === null) || [];
 
   if (!user || !recruiterProfile) {
     return (
@@ -116,14 +77,10 @@ const RecruiterDashboard = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue="search" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="search">
-              <Search className="h-4 w-4 mr-2" />
-              Candidate Search
-            </TabsTrigger>
-            <TabsTrigger value="ai-search">
               <Sparkles className="h-4 w-4 mr-2" />
-              AI Search
+              AI Candidate Search
             </TabsTrigger>
             <TabsTrigger value="saved">
               <UserCheck className="h-4 w-4 mr-2" />
@@ -136,80 +93,6 @@ const RecruiterDashboard = () => {
           </TabsList>
 
           <TabsContent value="search" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Find Top Tech Talent</CardTitle>
-                <CardDescription>
-                  Search through our database of qualified candidates. AI-enhanced profiles show extracted resume data.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-4 mb-6">
-                  <Input
-                    placeholder="Search candidates by name, skills, location, or job title..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="flex-1"
-                  />
-                  <Button>
-                    <Search className="h-4 w-4 mr-2" />
-                    Search
-                  </Button>
-                </div>
-
-                {isLoading ? (
-                  <div className="text-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                    <p className="text-gray-600 mt-2">Loading candidates...</p>
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    {/* AI-Enhanced Candidates */}
-                    {aiEnhancedCandidates.length > 0 && (
-                      <div>
-                        <div className="flex items-center space-x-2 mb-4">
-                          <Sparkles className="h-5 w-5 text-blue-600" />
-                          <h3 className="text-lg font-semibold text-gray-900">
-                            AI-Enhanced Profiles ({aiEnhancedCandidates.length})
-                          </h3>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {aiEnhancedCandidates.map((candidate) => (
-                            <EnhancedCandidateCard key={candidate.id} candidate={candidate} />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Regular Candidates */}
-                    {regularCandidates.length > 0 && (
-                      <div>
-                        <div className="flex items-center space-x-2 mb-4">
-                          <Users className="h-5 w-5 text-gray-600" />
-                          <h3 className="text-lg font-semibold text-gray-900">
-                            Other Candidates ({regularCandidates.length})
-                          </h3>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {regularCandidates.map((candidate) => (
-                            <EnhancedCandidateCard key={candidate.id} candidate={candidate} />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {filteredCandidates?.length === 0 && (
-                      <div className="text-center py-8">
-                        <p className="text-gray-600">No candidates found matching your search criteria.</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="ai-search" className="space-y-6">
             <AISearchComponent />
           </TabsContent>
 
