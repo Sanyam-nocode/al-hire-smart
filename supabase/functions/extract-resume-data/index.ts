@@ -48,37 +48,37 @@ serve(async (req) => {
     // Create Supabase client
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log('=== PREPROCESSING PDF ===');
+    console.log('=== PARSING PDF WITH NEW FUNCTION ===');
     
-    // Call the preprocessing function to extract clean text
-    const { data: preprocessData, error: preprocessError } = await supabase.functions.invoke('preprocess-pdf', {
+    // Call the new parseResume function instead of preprocess-pdf
+    const { data: parseData, error: parseError } = await supabase.functions.invoke('parseResume', {
       body: { resumeUrl }
     });
 
-    console.log('=== PREPROCESSING RESPONSE ===');
-    console.log('Data:', preprocessData);
-    console.log('Error:', preprocessError);
+    console.log('=== PARSE RESPONSE ===');
+    console.log('Data:', parseData);
+    console.log('Error:', parseError);
 
-    if (preprocessError || !preprocessData?.success) {
-      console.error('Preprocessing failed:', preprocessError);
-      const errorMsg = preprocessError?.message || preprocessData?.error || 'PDF preprocessing failed';
+    if (parseError || !parseData?.success) {
+      console.error('PDF parsing failed:', parseError);
+      const errorMsg = parseError?.message || parseData?.error || 'PDF parsing failed';
       return new Response(JSON.stringify({ 
-        error: `PDF preprocessing failed: ${errorMsg}`,
+        error: `PDF parsing failed: ${errorMsg}`,
         success: false,
-        debugInfo: preprocessData?.debugInfo
+        debugInfo: parseData?.debugInfo
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const resumeText = preprocessData.extractedText;
-    console.log('Preprocessed text length:', resumeText.length);
-    console.log('Preprocessed text preview:', resumeText.substring(0, 1500));
+    const resumeText = parseData.text;
+    console.log('Parsed text length:', resumeText.length);
+    console.log('Parsed text preview:', resumeText.substring(0, 1500));
 
     if (!resumeText || resumeText.length < 50) {
       return new Response(JSON.stringify({ 
-        error: 'Insufficient text extracted from PDF after preprocessing',
+        error: 'Insufficient text extracted from PDF after parsing',
         success: false,
         debugInfo: {
           extractedTextLength: resumeText.length,
@@ -90,59 +90,63 @@ serve(async (req) => {
       });
     }
 
-    // Enhanced OpenAI prompt for better extraction
+    // Enhanced OpenAI prompt for better extraction with the clean text
     console.log('=== CALLING OPENAI FOR DATA EXTRACTION ===');
-    const prompt = `You are an expert resume parser. Extract ALL available information from this resume text and return it as valid JSON.
+    const prompt = `You are a resume parsing assistant.
 
-RESUME TEXT:
-"${resumeText}"
-
-Extract information carefully and return ONLY valid JSON in this exact structure (no markdown, no code blocks):
+From the resume text below, extract the following details and return only valid JSON:
 
 {
   "personal_info": {
-    "full_name": "exact name found or null",
-    "email": "email address or null",
-    "phone": "phone number or null", 
-    "location": "city, state/country or null",
-    "linkedin_url": "LinkedIn URL or null",
-    "github_url": "GitHub URL or null",
-    "portfolio_url": "portfolio/website URL or null"
+    "full_name": "",
+    "email": "",
+    "phone": "",
+    "location": "",
+    "linkedin_url": "",
+    "github_url": "",
+    "portfolio_url": ""
   },
   "professional_summary": {
-    "current_role": "most recent job title or null",
-    "summary": "professional summary/objective text or null",
-    "total_experience_years": "number of years of experience or null",
-    "industry": "primary industry/field or null"
+    "current_role": "",
+    "summary": "",
+    "total_experience_years": "",
+    "industry": ""
   },
   "education": {
-    "qualification": "highest degree with field or null",
-    "institution": "university/college name or null", 
-    "graduation_year": "graduation year or null",
-    "additional_qualifications": "other degrees, certifications or null"
+    "qualification": "",
+    "institution": "",
+    "graduation_year": "",
+    "additional_qualifications": ""
   },
   "skills": {
-    "technical_skills": ["list of technical skills"],
-    "programming_languages": ["programming languages"],
-    "tools_and_frameworks": ["tools, frameworks, software"],
-    "soft_skills": ["soft skills, interpersonal skills"]
+    "technical_skills": [],
+    "programming_languages": [],
+    "tools_and_frameworks": [],
+    "soft_skills": []
   },
   "work_experience": {
-    "companies": ["company names"],
-    "roles": ["job titles"],
-    "current_company": "most recent company or null",
-    "current_position": "most recent position or null", 
-    "key_achievements": ["achievements, accomplishments"]
+    "companies": [],
+    "roles": [],
+    "current_company": "",
+    "current_position": "",
+    "key_achievements": []
   },
   "additional_info": {
-    "certifications": ["certifications"],
-    "awards": ["awards, honors"],
-    "projects": ["project names/descriptions"],
-    "languages": ["languages spoken"]
+    "certifications": [],
+    "awards": [],
+    "projects": [],
+    "languages": []
   }
 }
 
-Extract ALL information present in the resume. If information is not found, use null. Be thorough and accurate.`;
+Rules:
+- If any field is missing, return it as an empty string or empty array.
+- Extract ALL information present in the resume text.
+- Return only clean JSON. Do not include markdown or explanation.
+- Be thorough and accurate in extraction.
+
+Resume text:
+"${resumeText}"`;
 
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -357,11 +361,12 @@ Extract ALL information present in the resume. If information is not found, use 
       success: true,
       extractedData,
       updatedProfile,
-      preprocessingInfo: {
-        textLength: preprocessData.textLength,
-        extractedText: preprocessData.extractedText.substring(0, 1000) + '...'
+      parsingInfo: {
+        textLength: parseData.textLength,
+        numpages: parseData.numpages,
+        extractedText: parseData.text.substring(0, 1000) + '...'
       },
-      message: 'Resume data extracted and profile updated successfully'
+      message: 'Resume data extracted and profile updated successfully using pdf-parse'
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
