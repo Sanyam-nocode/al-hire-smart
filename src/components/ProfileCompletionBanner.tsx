@@ -18,13 +18,7 @@ const ProfileCompletionBanner = ({ validation, onEditProfile }: ProfileCompletio
       <Alert className="bg-green-50 border-green-200">
         <CheckCircle className="h-4 w-4 text-green-600" />
         <AlertDescription className="text-green-800">
-          <div className="flex items-center justify-between">
-            <span>✅ Your profile is complete! You're now visible to recruiters.</span>
-            <Button variant="outline" size="sm" onClick={onEditProfile}>
-              <Edit className="h-4 w-4 mr-2" />
-              Edit Profile
-            </Button>
-          </div>
+          <span>✅ Your profile is complete! You're now visible to recruiters.</span>
         </AlertDescription>
       </Alert>
     );
