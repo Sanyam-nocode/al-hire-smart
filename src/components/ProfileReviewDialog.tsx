@@ -133,7 +133,6 @@ const ProfileReviewDialog = ({
         linkedin_url: formData.linkedinUrl.trim() || null,
         github_url: formData.githubUrl.trim() || null,
         portfolio_url: formData.portfolioUrl.trim() || null,
-        profile_complete: validation.isValid,
         updated_at: new Date().toISOString()
       };
 

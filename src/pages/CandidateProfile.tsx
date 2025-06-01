@@ -152,13 +152,8 @@ const CandidateProfile = () => {
         updated_at: new Date().toISOString()
       };
 
-      // Add profile completion status - validate the data that will be saved
-      const validation = validateCandidateProfile(dataToUpdate);
-      dataToUpdate.profile_complete = validation.isValid;
-
       console.log('CandidateProfile: Final data to update:', dataToUpdate);
       console.log('CandidateProfile: Profile ID:', candidateProfile.id);
-      console.log('CandidateProfile: Profile completion status:', validation.isValid);
 
       const { data: updatedData, error } = await supabase
         .from('candidate_profiles')
@@ -553,11 +548,22 @@ const CandidateProfile = () => {
 
             <Card>
               <CardHeader>
-                <div>
-                  <CardTitle>Personal Information</CardTitle>
-                  <CardDescription>
-                    Keep your profile up to date to get better job matches
-                  </CardDescription>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle>Personal Information</CardTitle>
+                    <CardDescription>
+                      Keep your profile up to date to get better job matches
+                    </CardDescription>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setReviewFromResume(false);
+                      setShowReviewDialog(true);
+                    }}
+                  >
+                    Edit Profile
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
