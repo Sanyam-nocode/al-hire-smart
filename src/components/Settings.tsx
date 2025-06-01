@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -21,7 +20,7 @@ interface SettingsProps {
 }
 
 const Settings = ({ open, onOpenChange, trigger }: SettingsProps) => {
-  const { user, recruiterProfile, candidateProfile } = useAuth();
+  const { user, recruiterProfile, candidateProfile, refreshProfile } = useAuth();
   const queryClient = useQueryClient();
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(false);
@@ -63,6 +62,9 @@ const Settings = ({ open, onOpenChange, trigger }: SettingsProps) => {
         // Invalidate and refetch auth context data
         await queryClient.invalidateQueries({ queryKey: ['candidates'] });
         
+        // Refresh the profile in AuthContext
+        await refreshProfile();
+        
         toast.success("Profile updated successfully!");
       } else if (userType === 'recruiter' && recruiterProfile) {
         const updateData = {
@@ -85,6 +87,9 @@ const Settings = ({ open, onOpenChange, trigger }: SettingsProps) => {
           toast.error("Failed to update profile. Please try again.");
           return;
         }
+
+        // Refresh the profile in AuthContext
+        await refreshProfile();
 
         toast.success("Profile updated successfully!");
       }
