@@ -10,11 +10,35 @@ import { Users, UserCheck, LogOut, Settings as SettingsIcon, Bell, Sparkles } fr
 import { toast } from "sonner";
 import Settings from "@/components/Settings";
 import AISearchComponent from "@/components/AISearchComponent";
+import CandidateProfileModal from "@/components/CandidateProfileModal";
+import ContactCandidateModal from "@/components/ContactCandidateModal";
+
+interface CandidateProfile {
+  id: string;
+  first_name: string;
+  last_name: string;
+  title: string | null;
+  location: string | null;
+  skills: string[] | null;
+  experience_years: number | null;
+  summary: string | null;
+  education: string | null;
+  email: string;
+  phone: string | null;
+  linkedin_url: string | null;
+  github_url: string | null;
+  portfolio_url: string | null;
+  salary_expectation: number | null;
+  resume_content: string | null;
+}
 
 const RecruiterDashboard = () => {
   const { user, recruiterProfile, signOut } = useAuth();
   const navigate = useNavigate();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [selectedCandidate, setSelectedCandidate] = useState<CandidateProfile | null>(null);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [contactModalOpen, setContactModalOpen] = useState(false);
 
   const handleSignOut = async () => {
     try {
@@ -31,6 +55,16 @@ const RecruiterDashboard = () => {
 
   const handleNotifications = () => {
     toast.info("Notifications functionality coming soon!");
+  };
+
+  const handleViewProfile = (candidate: CandidateProfile) => {
+    setSelectedCandidate(candidate);
+    setProfileModalOpen(true);
+  };
+
+  const handleContact = (candidate: CandidateProfile) => {
+    setSelectedCandidate(candidate);
+    setContactModalOpen(true);
   };
 
   if (!user || !recruiterProfile) {
@@ -93,7 +127,7 @@ const RecruiterDashboard = () => {
           </TabsList>
 
           <TabsContent value="search" className="space-y-6">
-            <AISearchComponent />
+            <AISearchComponent onViewProfile={handleViewProfile} onContact={handleContact} />
           </TabsContent>
 
           <TabsContent value="saved">
@@ -159,6 +193,20 @@ const RecruiterDashboard = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Modals */}
+      <CandidateProfileModal
+        candidate={selectedCandidate}
+        open={profileModalOpen}
+        onOpenChange={setProfileModalOpen}
+        onContact={handleContact}
+      />
+
+      <ContactCandidateModal
+        candidate={selectedCandidate}
+        open={contactModalOpen}
+        onOpenChange={setContactModalOpen}
+      />
     </div>
   );
 };

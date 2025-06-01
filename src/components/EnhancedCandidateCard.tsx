@@ -25,9 +25,11 @@ interface CandidateProfile {
 
 interface EnhancedCandidateCardProps {
   candidate: CandidateProfile;
+  onViewProfile: (candidate: CandidateProfile) => void;
+  onContact: (candidate: CandidateProfile) => void;
 }
 
-const EnhancedCandidateCard = ({ candidate }: EnhancedCandidateCardProps) => {
+const EnhancedCandidateCard = ({ candidate, onViewProfile, onContact }: EnhancedCandidateCardProps) => {
   const hasAIExtractedData = candidate.resume_content !== null;
   
   const formatSalary = (amount: number) => {
@@ -143,10 +145,10 @@ const EnhancedCandidateCard = ({ candidate }: EnhancedCandidateCardProps) => {
         </div>
 
         <div className="flex gap-2">
-          <Button size="sm" className="flex-1">
+          <Button size="sm" className="flex-1" onClick={() => onViewProfile(candidate)}>
             View Full Profile
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => onContact(candidate)}>
             Contact
           </Button>
         </div>
