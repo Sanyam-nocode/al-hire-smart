@@ -26,8 +26,11 @@ export const useSavedCandidates = () => {
 
   const loadSavedCandidates = async () => {
     if (!user || !recruiterProfile) {
+      console.log('useSavedCandidates: No user or recruiter profile');
       return;
     }
+
+    console.log('useSavedCandidates: Loading saved candidates for recruiter:', recruiterProfile.id);
 
     try {
       const { data, error } = await supabase
@@ -35,12 +38,15 @@ export const useSavedCandidates = () => {
         .select('candidate_id')
         .eq('recruiter_id', recruiterProfile.id);
 
+      console.log('useSavedCandidates: Query result:', { data, error });
+
       if (error) {
         console.error('Error loading saved candidates:', error);
         return;
       }
 
       const candidateIds = new Set(data?.map(item => item.candidate_id) || []);
+      console.log('useSavedCandidates: Loaded candidate IDs:', candidateIds);
       setSavedCandidateIds(candidateIds);
     } catch (error) {
       console.error('Error loading saved candidates:', error);
@@ -53,7 +59,9 @@ export const useSavedCandidates = () => {
       return;
     }
 
+    console.log('useSavedCandidates: Saving candidate:', candidateId, 'for recruiter:', recruiterProfile.id);
     setIsLoading(true);
+    
     try {
       const { error } = await supabase
         .from('saved_candidates')
@@ -61,6 +69,8 @@ export const useSavedCandidates = () => {
           recruiter_id: recruiterProfile.id,
           candidate_id: candidateId,
         });
+
+      console.log('useSavedCandidates: Save result:', { error });
 
       if (error) {
         console.error('Error saving candidate:', error);
@@ -86,13 +96,17 @@ export const useSavedCandidates = () => {
   const unsaveCandidate = async (candidateId: string) => {
     if (!user || !recruiterProfile) return;
 
+    console.log('useSavedCandidates: Unsaving candidate:', candidateId, 'for recruiter:', recruiterProfile.id);
     setIsLoading(true);
+    
     try {
       const { error } = await supabase
         .from('saved_candidates')
         .delete()
         .eq('recruiter_id', recruiterProfile.id)
         .eq('candidate_id', candidateId);
+
+      console.log('useSavedCandidates: Unsave result:', { error });
 
       if (error) {
         console.error('Error unsaving candidate:', error);

@@ -40,22 +40,28 @@ const SavedCandidatesTab = ({ onViewProfile, onContact }: SavedCandidatesTabProp
       loadSavedCandidates();
     } else {
       setIsLoading(false);
+      setSavedCandidates([]);
     }
   }, [user, recruiterProfile]);
 
   const loadSavedCandidates = async () => {
     if (!user || !recruiterProfile) {
+      console.log('SavedCandidatesTab: No user or recruiter profile');
       setIsLoading(false);
       return;
     }
 
+    console.log('SavedCandidatesTab: Loading saved candidates for recruiter:', recruiterProfile.id);
     setIsLoading(true);
+    
     try {
       // First, get all saved candidate records for this recruiter
       const { data: savedRecords, error: savedError } = await supabase
         .from('saved_candidates')
         .select('candidate_id')
         .eq('recruiter_id', recruiterProfile.id);
+
+      console.log('SavedCandidatesTab: Saved records query result:', { savedRecords, savedError });
 
       if (savedError) {
         console.error('Error loading saved candidates records:', savedError);
@@ -65,6 +71,7 @@ const SavedCandidatesTab = ({ onViewProfile, onContact }: SavedCandidatesTabProp
       }
 
       if (!savedRecords || savedRecords.length === 0) {
+        console.log('SavedCandidatesTab: No saved records found');
         setSavedCandidates([]);
         setIsLoading(false);
         return;
@@ -72,12 +79,15 @@ const SavedCandidatesTab = ({ onViewProfile, onContact }: SavedCandidatesTabProp
 
       // Get the candidate IDs
       const candidateIds = savedRecords.map(record => record.candidate_id);
+      console.log('SavedCandidatesTab: Candidate IDs to fetch:', candidateIds);
 
       // Now fetch the candidate profiles
       const { data: candidates, error: candidatesError } = await supabase
         .from('candidate_profiles')
         .select('*')
         .in('id', candidateIds);
+
+      console.log('SavedCandidatesTab: Candidates query result:', { candidates, candidatesError });
 
       if (candidatesError) {
         console.error('Error loading candidate profiles:', candidatesError);
@@ -86,6 +96,7 @@ const SavedCandidatesTab = ({ onViewProfile, onContact }: SavedCandidatesTabProp
         return;
       }
 
+      console.log('SavedCandidatesTab: Successfully loaded candidates:', candidates?.length || 0);
       setSavedCandidates(candidates || []);
     } catch (error) {
       console.error('Unexpected error loading saved candidates:', error);
@@ -94,6 +105,19 @@ const SavedCandidatesTab = ({ onViewProfile, onContact }: SavedCandidatesTabProp
       setIsLoading(false);
     }
   };
+
+  if (!user || !recruiterProfile) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Saved Candidates</CardTitle>
+          <CardDescription>
+            Please log in as a recruiter to view saved candidates.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   if (isLoading) {
     return (
