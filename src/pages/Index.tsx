@@ -1,20 +1,35 @@
 
+import { useEffect } from "react";
 import { ArrowRight, Search, Users, Zap, Brain, CheckCircle, Star } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import DashboardRedirect from "@/components/DashboardRedirect";
 import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
-  const { user, loading } = useAuth();
+  const { user, recruiterProfile, candidateProfile, loading } = useAuth();
+  const navigate = useNavigate();
 
-  // If user is authenticated, only show the redirect component
-  if (user && !loading) {
-    return <DashboardRedirect />;
-  }
+  useEffect(() => {
+    if (!loading && user) {
+      console.log('Index: User authenticated, redirecting...');
+      
+      // Redirect based on profile type
+      if (recruiterProfile) {
+        console.log('Index: Redirecting to recruiter dashboard');
+        navigate('/recruiter/dashboard', { replace: true });
+      } else if (candidateProfile) {
+        console.log('Index: Redirecting to candidate profile');
+        navigate('/candidate/profile', { replace: true });
+      } else {
+        // If no profile exists yet, redirect to dashboard which will handle it
+        console.log('Index: No profiles found, redirecting to dashboard');
+        navigate('/dashboard', { replace: true });
+      }
+    }
+  }, [user, recruiterProfile, candidateProfile, loading, navigate]);
 
   // If still loading, show loading state
   if (loading) {
@@ -22,6 +37,16 @@ const Index = () => {
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
         <p className="ml-4 text-gray-600">Loading...</p>
+      </div>
+    );
+  }
+
+  // If user is authenticated, show loading while redirect happens
+  if (user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        <p className="ml-4 text-gray-600">Redirecting to dashboard...</p>
       </div>
     );
   }
