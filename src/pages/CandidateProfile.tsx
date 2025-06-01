@@ -9,20 +9,21 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { User, FileText, Settings as SettingsIcon, LogOut, Upload, X, File, Download, Sparkles } from "lucide-react";
+import { User, FileText, Settings as SettingsIcon, LogOut, Upload, X, File, Download, Sparkles, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import Settings from "@/components/Settings";
 import { useResumeExtraction } from "@/hooks/useResumeExtraction";
 
 const CandidateProfile = () => {
-  const { user, candidateProfile, signOut } = useAuth();
+  const { user, candidateProfile, signOut, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { isExtracting, extractResumeData } = useResumeExtraction();
 
   // Close settings modal when component unmounts
@@ -44,6 +45,19 @@ const CandidateProfile = () => {
       }
     } catch (error) {
       toast.error("Error signing out");
+    }
+  };
+
+  const handleRefreshProfile = async () => {
+    setIsRefreshing(true);
+    try {
+      await refreshProfile();
+      toast.success("Profile refreshed successfully!");
+    } catch (error) {
+      console.error('Error refreshing profile:', error);
+      toast.error("Failed to refresh profile");
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -125,9 +139,11 @@ const CandidateProfile = () => {
         
         if (extractionSuccess) {
           setUploadProgress(100);
-          // Refresh the page to show updated data
-          setTimeout(() => {
-            window.location.reload();
+          // Refresh the profile to show updated data
+          toast.info("Refreshing your profile with the extracted data...");
+          setTimeout(async () => {
+            await refreshProfile();
+            toast.success("Profile updated with extracted resume data!");
           }, 2000);
         } else {
           setUploadProgress(100);
@@ -189,10 +205,8 @@ const CandidateProfile = () => {
 
       toast.success("Resume deleted successfully!");
       
-      // Refresh the page to show updated data
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+      // Refresh the profile to show updated data
+      await refreshProfile();
 
     } catch (error) {
       console.error('Error deleting resume:', error);
@@ -308,6 +322,14 @@ const CandidateProfile = () => {
               <span className="text-sm text-gray-600">
                 Welcome, {candidateProfile.first_name}
               </span>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleRefreshProfile}
+                disabled={isRefreshing}
+              >
+                <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </Button>
               <Settings
                 open={settingsOpen}
                 onOpenChange={setSettingsOpen}
@@ -354,7 +376,7 @@ const CandidateProfile = () => {
                     </p>
                   </div>
                   <p className="text-blue-700 text-sm mt-1">
-                    Some information below has been automatically extracted from your resume using AI.
+                    Information below has been automatically extracted from your resume using AI technology.
                   </p>
                 </CardContent>
               </Card>
@@ -459,15 +481,26 @@ const CandidateProfile = () => {
                 </div>
 
                 <div className="space-y-2">
+                  <Label>Education</Label>
+                  <Input 
+                    id="education" 
+                    defaultValue={candidateProfile.education || ''}
+                    readOnly={!isEditing}
+                    placeholder="e.g., Bachelor's in Computer Science, XYZ University, 2020"
+                  />
+                </div>
+
+                <div className="space-y-2">
                   <Label>Skills</Label>
                   <div className="flex flex-wrap gap-2">
-                    {candidateProfile.skills?.map((skill, index) => (
-                      <Badge key={index} variant="secondary">
-                        {skill}
-                      </Badge>
-                    ))}
-                    {(!candidateProfile.skills || candidateProfile.skills.length === 0) && (
-                      <p className="text-gray-500 text-sm">No skills added yet</p>
+                    {candidateProfile.skills && candidateProfile.skills.length > 0 ? (
+                      candidateProfile.skills.map((skill, index) => (
+                        <Badge key={index} variant="secondary">
+                          {skill}
+                        </Badge>
+                      ))
+                    ) : (
+                      <p className="text-gray-500 text-sm">No skills added yet. Upload a resume to automatically extract skills.</p>
                     )}
                   </div>
                 </div>
@@ -494,14 +527,6 @@ const CandidateProfile = () => {
                     <Input 
                       id="portfolio" 
                       defaultValue={candidateProfile.portfolio_url || ''}
-                      readOnly={!isEditing}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="education">Education</Label>
-                    <Input 
-                      id="education" 
-                      defaultValue={candidateProfile.education || ''}
                       readOnly={!isEditing}
                     />
                   </div>

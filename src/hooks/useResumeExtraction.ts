@@ -10,11 +10,11 @@ export const useResumeExtraction = () => {
     setIsExtracting(true);
     
     try {
-      console.log('=== FRONTEND: Starting enhanced resume extraction with OCR.space ===');
+      console.log('=== FRONTEND: Starting enhanced resume extraction ===');
       console.log('Resume URL:', resumeUrl);
       console.log('Candidate ID:', candidateId);
       
-      toast.info('Analyzing your resume with AI and OCR.space technology...', {
+      toast.info('Analyzing your resume with AI technology...', {
         duration: 15000,
       });
 
@@ -25,22 +25,23 @@ export const useResumeExtraction = () => {
         }
       });
 
-      console.log('=== FRONTEND: Enhanced extraction response ===');
+      console.log('=== FRONTEND: Extraction response ===');
       console.log('Data:', data);
       console.log('Error:', error);
 
       if (error) {
-        console.error('Enhanced extraction error:', error);
+        console.error('Extraction error:', error);
         toast.error(`Resume processing failed: ${error.message}`);
         return false;
       }
 
       if (data?.success) {
-        console.log('=== FRONTEND: Enhanced extraction success ===');
-        console.log('Enhanced extracted data:', data.extractedData);
+        console.log('=== FRONTEND: Extraction successful ===');
+        console.log('Extracted data:', data.extractedData);
+        console.log('Updated profile:', data.updatedProfile);
         console.log('Extraction method:', data.extractionInfo?.method);
         
-        // Build detailed success message based on extraction method
+        // Build detailed success message
         let successMessage = 'Resume analyzed successfully! ';
         const updates = [];
         
@@ -48,15 +49,13 @@ export const useResumeExtraction = () => {
         if (data.extractionInfo?.method === 'ocr-space') {
           successMessage = '🔍 Resume processed using advanced OCR technology! ';
         } else if (data.extractionInfo?.method === 'standard-parser') {
-          successMessage = '📄 Resume processed using standard PDF parsing! ';
-        } else if (data.extractionInfo?.method === 'preprocessor-fallback') {
-          successMessage = '⚡ Resume processed using enhanced preprocessing! ';
+          successMessage = '📄 Resume processed using PDF parsing! ';
         }
         
         if (data.extractedData) {
           const { personal_info, professional_summary, education, skills, work_experience } = data.extractedData;
           
-          // Check what was extracted with more detail
+          // Check what was extracted
           if (personal_info?.email) updates.push('contact info');
           if (personal_info?.location) updates.push('location');
           if (personal_info?.linkedin_url) updates.push('LinkedIn profile');
@@ -88,20 +87,34 @@ export const useResumeExtraction = () => {
           }
         }
         
+        // Show detailed success message
         toast.success(successMessage, {
           duration: 12000,
         });
+
+        // Add additional notification about profile update
+        if (data.updatedProfile) {
+          setTimeout(() => {
+            toast.info('Your profile has been automatically updated with the extracted information!', {
+              duration: 8000,
+            });
+          }, 2000);
+        }
         
         return true;
       } else {
-        console.error('=== FRONTEND: Enhanced processing failed ===');
+        console.error('=== FRONTEND: Processing failed ===');
         console.error('Error details:', data);
         
-        const errorMsg = data?.error || 'Unknown error occurred during enhanced processing';
+        const errorMsg = data?.error || 'Unknown error occurred during processing';
         
-        // Provide specific guidance for OCR failures
+        // Provide specific guidance for different types of failures
         if (errorMsg.includes('OCR') || errorMsg.includes('ocr')) {
-          toast.error(`OCR processing failed: ${errorMsg}. Please try uploading a clearer PDF or different format.`, {
+          toast.error(`OCR processing failed: ${errorMsg}. Please try uploading a clearer PDF.`, {
+            duration: 10000,
+          });
+        } else if (errorMsg.includes('text')) {
+          toast.error(`Text extraction failed: ${errorMsg}. Please ensure your PDF contains readable text.`, {
             duration: 10000,
           });
         } else {
@@ -114,10 +127,10 @@ export const useResumeExtraction = () => {
       }
       
     } catch (error) {
-      console.error('=== FRONTEND: Enhanced extraction exception ===');
+      console.error('=== FRONTEND: Extraction exception ===');
       console.error('Error:', error);
       
-      toast.error('An unexpected error occurred during resume processing. Please try again with a different PDF.');
+      toast.error('An unexpected error occurred during resume processing. Please try again.');
       return false;
     } finally {
       setIsExtracting(false);
