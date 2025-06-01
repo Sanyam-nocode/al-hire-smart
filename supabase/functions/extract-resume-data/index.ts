@@ -216,8 +216,8 @@ serve(async (req) => {
     console.log('Cleaned text length:', cleanedText.length);
     console.log('Cleaned text sample:', cleanedText.substring(0, 500));
 
-    // Enhanced OpenAI prompt with better field mapping instructions
-    console.log('=== CALLING OPENAI WITH ENHANCED PROMPT ===');
+    // Enhanced OpenAI prompt with improved years of experience calculation
+    console.log('=== CALLING OPENAI WITH ENHANCED PROMPT FOR EXPERIENCE CALCULATION ===');
     const prompt = `You are an expert resume parsing assistant. Extract information from the following resume text and map it to profile fields.
 
 CRITICAL INSTRUCTIONS:
@@ -225,18 +225,30 @@ CRITICAL INSTRUCTIONS:
 2. Return ONLY valid JSON, no markdown formatting or explanations
 3. Map data accurately to the specified fields
 4. Use null for missing information, do not guess
+5. CALCULATE experience_years by analyzing ALL employment periods and work experience
 
 FIELD SPECIFICATIONS:
 - phone: Phone number with country code if available (string)
 - location: Current city/location (string, e.g., "New York, NY")
 - title: Current or most recent job title (string)
-- experience_years: Total years of work experience (integer)
+- experience_years: TOTAL years of professional work experience (integer) - IMPORTANT: Calculate this by:
+  * Finding all employment periods (start date to end date or "Present")
+  * Adding up the total duration in years (round to nearest integer)
+  * Include internships and part-time work if mentioned
+  * If dates like "04/2022 - Present" are found, calculate from start date to current date (2025)
+  * Example: "04/2022 - Present" = approximately 3 years (2022 to 2025)
 - summary: Professional summary in 2-3 sentences (string)
 - education: Education in format "Degree, Institution, Year" (string)
 - linkedin_url: LinkedIn profile URL (string)
 - github_url: GitHub profile URL (string)
 - portfolio_url: Portfolio/website URL (string)
 - skills: Array of technical skills, max 15 items (array of strings)
+
+EXPERIENCE CALCULATION EXAMPLES:
+- "04/2022 - Present" = 3 years (from April 2022 to 2025)
+- "2020 - 2023" = 3 years
+- "Jan 2019 - Dec 2021" = 3 years
+- Multiple jobs: "2018-2020" + "2020-Present" = 2 + 5 = 7 years total
 
 Return this EXACT JSON structure:
 {
@@ -255,7 +267,7 @@ Return this EXACT JSON structure:
 Resume text to analyze:
 "${cleanedText}"
 
-IMPORTANT: Return ONLY the JSON object with no additional text, explanations, or markdown formatting.`;
+IMPORTANT: Return ONLY the JSON object with no additional text, explanations, or markdown formatting. Pay special attention to calculating experience_years from employment dates.`;
 
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -268,7 +280,7 @@ IMPORTANT: Return ONLY the JSON object with no additional text, explanations, or
         messages: [
           { 
             role: 'system', 
-            content: 'You are an expert resume parser. Extract information precisely and return only valid JSON without any markdown formatting or explanations.'
+            content: 'You are an expert resume parser. Extract information precisely, calculate years of experience from employment dates, and return only valid JSON without any markdown formatting or explanations.'
           },
           { 
             role: 'user', 
@@ -380,13 +392,18 @@ IMPORTANT: Return ONLY the JSON object with no additional text, explanations, or
       console.log('Mapped title:', updateData.title);
     }
     
-    if (extractedData.experience_years && (typeof extractedData.experience_years === 'number' || typeof extractedData.experience_years === 'string')) {
+    // Enhanced experience_years mapping with better validation
+    if (extractedData.experience_years !== null && extractedData.experience_years !== undefined) {
       const experience = parseInt(extractedData.experience_years.toString());
-      if (!isNaN(experience) && experience > 0 && experience <= 50) {
+      if (!isNaN(experience) && experience >= 0 && experience <= 50) {
         updateData.experience_years = experience;
         mappedFields.push('experience_years');
         console.log('Mapped experience_years:', updateData.experience_years);
+      } else {
+        console.log('Invalid experience_years value:', extractedData.experience_years);
       }
+    } else {
+      console.log('No experience_years provided by AI');
     }
     
     if (extractedData.summary && typeof extractedData.summary === 'string' && extractedData.summary.trim()) {
