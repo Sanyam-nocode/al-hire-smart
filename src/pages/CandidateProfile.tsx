@@ -9,11 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { User, FileText, Settings as SettingsIcon, LogOut, Upload, X, File, Download, Sparkles, RefreshCw } from "lucide-react";
+import { User, FileText, Settings as SettingsIcon, LogOut, Upload, X, File, Download, Sparkles, RefreshCw, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import Settings from "@/components/Settings";
 import { useResumeExtraction } from "@/hooks/useResumeExtraction";
+import ExtractedResumeData from "@/components/ExtractedResumeData";
 
 const CandidateProfile = () => {
   const { user, candidateProfile, signOut, refreshProfile } = useAuth();
@@ -25,6 +26,7 @@ const CandidateProfile = () => {
   const [dragActive, setDragActive] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [showExtractedData, setShowExtractedData] = useState(false);
   const { isExtracting, extractResumeData } = useResumeExtraction();
 
   // Close settings modal when component unmounts
@@ -377,7 +379,7 @@ const CandidateProfile = () => {
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="profile">
               <User className="h-4 w-4 mr-2" />
               Profile
@@ -385,6 +387,10 @@ const CandidateProfile = () => {
             <TabsTrigger value="resume">
               <FileText className="h-4 w-4 mr-2" />
               Resume
+            </TabsTrigger>
+            <TabsTrigger value="extracted-data" disabled={!candidateProfile.resume_content}>
+              <Eye className="h-4 w-4 mr-2" />
+              Extracted Data
             </TabsTrigger>
             <TabsTrigger value="preferences">
               <SettingsIcon className="h-4 w-4 mr-2" />
@@ -706,6 +712,33 @@ const CandidateProfile = () => {
                         Extracting information from your resume...
                       </p>
                     )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="extracted-data">
+            <Card>
+              <CardHeader>
+                <CardTitle>AI-Extracted Resume Data</CardTitle>
+                <CardDescription>
+                  View the structured data that was automatically extracted from your resume using AI
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {candidateProfile.resume_content ? (
+                  <ExtractedResumeData resumeContent={candidateProfile.resume_content} />
+                ) : (
+                  <div className="text-center py-8">
+                    <FileText className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No extracted data available</h3>
+                    <p className="text-gray-600 mb-4">
+                      Upload a resume to see AI-extracted data here
+                    </p>
+                    <Button onClick={() => setShowExtractedData(false)} variant="outline">
+                      Upload Resume
+                    </Button>
                   </div>
                 )}
               </CardContent>
