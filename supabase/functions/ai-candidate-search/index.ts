@@ -28,7 +28,7 @@ serve(async (req) => {
       });
     }
 
-    console.log('Processing strict AI search query:', query);
+    console.log('Processing ultra-strict AI search query:', query);
 
     // Create Supabase client
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -46,21 +46,26 @@ serve(async (req) => {
       });
     }
 
-    // Enhanced prompt for extremely strict matching
+    // Ultra-strict prompt that requires ALL criteria to be met
     const prompt = `
-You are an expert AI recruiter with extremely high standards for candidate matching. Your job is to ONLY return candidates who PRECISELY match ALL the specified criteria in the search query.
+You are an ULTRA-STRICT AI recruiter. Your ONLY job is to find candidates who meet EVERY SINGLE requirement in the search query. If a candidate is missing even ONE requirement, they MUST be excluded.
 
-CRITICAL INSTRUCTIONS:
-1. BE EXTREMELY STRICT - Only return candidates who meet ALL specified requirements
-2. For technical skills: EXACT match required (React means React specifically, not just JavaScript)
-3. For experience: Must meet or exceed the minimum years specified
-4. For location: Must match the location if specified (consider nearby areas only if explicitly mentioned)
-5. For job titles/roles: Must have relevant title or demonstrable experience in that role
-6. If ANY requirement is not met, EXCLUDE the candidate
-7. Return MAXIMUM 10 best matches, ordered by how well they meet ALL criteria
-8. If NO candidates meet ALL criteria, return empty array
+CRITICAL RULES - NO EXCEPTIONS:
+1. ALL requirements must be satisfied - this is an AND operation, NOT OR
+2. Technical skills: Must have EXACT skill mentioned (React means React specifically, not just JavaScript)
+3. Experience: Must meet or exceed EXACT years specified (3+ years means >= 3 years)
+4. Location: Must match specified location if mentioned
+5. If ANY requirement is not met, EXCLUDE the candidate completely
+6. Return MAXIMUM 10 candidates who meet ALL criteria
+7. If NO candidates meet ALL requirements, return empty array []
 
-Search Query: "${query}"
+SEARCH QUERY TO ANALYZE: "${query}"
+
+STEP-BY-STEP ANALYSIS REQUIRED:
+1. Extract ALL individual requirements from the query
+2. For EACH candidate, check if they satisfy EVERY SINGLE requirement
+3. If they fail ANY requirement, immediately exclude them
+4. Only include candidates who pass ALL requirements
 
 Available Candidates:
 ${candidates?.map(candidate => `
@@ -72,25 +77,26 @@ Skills: ${candidate.skills ? candidate.skills.join(', ') : 'Not specified'}
 Experience: ${candidate.experience_years || 'Not specified'} years
 Summary: ${candidate.summary || 'Not specified'}
 Education: ${candidate.education || 'Not specified'}
-Salary Expectation: ${candidate.salary_expectation ? '$' + candidate.salary_expectation.toLocaleString() : 'Not specified'}
 Resume Content: ${candidate.resume_content ? candidate.resume_content.substring(0, 500) : 'Not specified'}
 `).join('\n---\n')}
 
-STRICT MATCHING RULES:
-- Technical Skills: Must have EXACT skill mentioned (e.g., "React" query requires React in skills)
-- Experience Level: Must meet minimum years (e.g., "3+ years" means >= 3 years)
-- Location: Must match specified location or be in same metro area
-- Role/Title: Must have relevant experience for the specified role
-- Salary: If mentioned, must be within reasonable range
+EXAMPLE ANALYSIS:
+Query: "React developers with 3+ years experience"
+Requirements: [React skill, >= 3 years experience]
+- Candidate A: Has React, 5 years experience → INCLUDE
+- Candidate B: Has JavaScript, 5 years experience → EXCLUDE (no React)
+- Candidate C: Has React, 2 years experience → EXCLUDE (< 3 years)
+- Candidate D: Has React, 3 years experience → INCLUDE
 
-ANALYZE EACH CANDIDATE:
-1. Extract ALL requirements from the search query
-2. Check if candidate meets EVERY requirement
-3. If ANY requirement is missing or insufficient, EXCLUDE the candidate
-4. Only include candidates who satisfy ALL criteria
+NOW ANALYZE EACH CANDIDATE:
+For each candidate, explicitly state:
+- Does candidate have [specific skill]? YES/NO
+- Does candidate have [experience requirement]? YES/NO
+- Does candidate meet [location requirement]? YES/NO (if specified)
+- OVERALL: Include or Exclude?
 
-Return ONLY a JSON array of candidate IDs who meet ALL requirements:
-["id1", "id2", "id3"]
+Only return JSON array of IDs for candidates who meet ALL requirements:
+["id1", "id2"]
 
 If no candidates meet ALL requirements, return: []
 `;
@@ -106,17 +112,17 @@ If no candidates meet ALL requirements, return: []
         messages: [
           { 
             role: 'system', 
-            content: 'You are an extremely strict AI recruiter that only returns candidates who meet ALL specified criteria. You must respond with ONLY valid JSON arrays of candidate IDs, no markdown, no explanations.' 
+            content: 'You are an ultra-strict AI recruiter. You MUST analyze each requirement separately and ONLY return candidates who meet EVERY requirement. Respond with ONLY valid JSON arrays of candidate IDs. Be extremely rigorous - if in doubt, exclude the candidate.' 
           },
           { role: 'user', content: prompt }
         ],
-        temperature: 0.1, // Very low temperature for consistent, strict results
-        max_tokens: 300,
+        temperature: 0.0, // Absolute minimum for maximum consistency
+        max_tokens: 500,
       }),
     });
 
     const openAIData = await openAIResponse.json();
-    console.log('OpenAI strict matching response:', openAIData);
+    console.log('OpenAI ultra-strict response:', openAIData);
 
     if (!openAIData.choices || !openAIData.choices[0]) {
       return new Response(JSON.stringify({ error: 'Invalid OpenAI response' }), {
@@ -144,54 +150,67 @@ If no candidates meet ALL requirements, return: []
       console.error('Error parsing OpenAI response:', parseError);
       console.log('Raw content:', openAIData.choices[0].message.content);
       
-      // Enhanced fallback with strict matching
+      // Enhanced ultra-strict fallback matching
       const queryLower = query.toLowerCase();
       
-      // Extract specific requirements from query
-      const skillsMatch = queryLower.match(/\b(react|angular|vue|python|java|javascript|node\.?js|typescript|sql|mongodb|postgresql|aws|docker|kubernetes|machine learning|ai|ml|data science)\b/g) || [];
+      // Extract requirements with more precision
+      const skillsMatch = queryLower.match(/\b(react|angular|vue|python|java|javascript|node\.?js|typescript|sql|mongodb|postgresql|aws|docker|kubernetes|machine learning|ai|ml|data science|php|ruby|go|rust|c\+\+|c#|swift|kotlin)\b/g) || [];
       const experienceMatch = queryLower.match(/(\d+)\+?\s*years?/);
-      const locationMatch = queryLower.match(/\bin\s+([a-zA-Z\s]+?)(?:\s|$|,)/);
+      const locationWords = queryLower.match(/\bin\s+([a-zA-Z\s,]+?)(?:\s|$|,|\band\b|\bwith\b)/);
       
-      const minExperience = experienceMatch ? parseInt(experienceMatch[1]) : 0;
-      const requiredLocation = locationMatch ? locationMatch[1].trim() : null;
+      const minExperience = experienceMatch ? parseInt(experienceMatch[1]) : null;
+      const requiredLocation = locationWords ? locationWords[1].trim() : null;
       
-      console.log('Fallback matching with:', {
+      console.log('Ultra-strict fallback matching with:', {
         skills: skillsMatch,
         minExperience,
         location: requiredLocation
       });
       
       matchedIds = candidates?.filter(candidate => {
-        // Check skills requirement
+        // STRICT skills requirement - ALL mentioned skills must be present
         if (skillsMatch.length > 0) {
           const candidateSkills = (candidate.skills || []).map(s => s.toLowerCase());
           const candidateText = [
-            candidate.title,
-            candidate.summary,
-            candidate.resume_content
+            candidate.title || '',
+            candidate.summary || '',
+            candidate.resume_content || ''
           ].join(' ').toLowerCase();
           
-          const hasAllSkills = skillsMatch.every(skill => 
-            candidateSkills.some(cs => cs.includes(skill)) ||
-            candidateText.includes(skill)
-          );
+          // Check if ALL required skills are present
+          const hasAllSkills = skillsMatch.every(requiredSkill => {
+            const hasInSkillsArray = candidateSkills.some(candidateSkill => 
+              candidateSkill.includes(requiredSkill) || candidateSkill === requiredSkill
+            );
+            const hasInText = candidateText.includes(requiredSkill);
+            return hasInSkillsArray || hasInText;
+          });
           
-          if (!hasAllSkills) return false;
-        }
-        
-        // Check experience requirement
-        if (minExperience > 0 && (!candidate.experience_years || candidate.experience_years < minExperience)) {
-          return false;
-        }
-        
-        // Check location requirement
-        if (requiredLocation && candidate.location) {
-          const candidateLocation = candidate.location.toLowerCase();
-          if (!candidateLocation.includes(requiredLocation.toLowerCase())) {
+          if (!hasAllSkills) {
+            console.log(`Excluding ${candidate.first_name} ${candidate.last_name} - missing skills. Required: ${skillsMatch.join(', ')}, Has: ${candidateSkills.join(', ')}`);
             return false;
           }
         }
         
+        // STRICT experience requirement
+        if (minExperience !== null) {
+          if (!candidate.experience_years || candidate.experience_years < minExperience) {
+            console.log(`Excluding ${candidate.first_name} ${candidate.last_name} - insufficient experience. Required: ${minExperience}+, Has: ${candidate.experience_years || 0}`);
+            return false;
+          }
+        }
+        
+        // STRICT location requirement
+        if (requiredLocation && candidate.location) {
+          const candidateLocation = candidate.location.toLowerCase();
+          const normalizedRequired = requiredLocation.toLowerCase().trim();
+          if (!candidateLocation.includes(normalizedRequired)) {
+            console.log(`Excluding ${candidate.first_name} ${candidate.last_name} - location mismatch. Required: ${requiredLocation}, Has: ${candidate.location}`);
+            return false;
+          }
+        }
+        
+        console.log(`Including ${candidate.first_name} ${candidate.last_name} - meets ALL requirements`);
         return true;
       }).map(c => c.id) || [];
     }
@@ -201,7 +220,7 @@ If no candidates meet ALL requirements, return: []
       .map(id => candidates?.find(c => c.id === id))
       .filter(Boolean);
 
-    console.log(`Strict filtering returned ${matchedCandidates.length} qualifying candidates`);
+    console.log(`Ultra-strict filtering returned ${matchedCandidates.length} fully qualifying candidates out of ${candidates?.length} total candidates`);
 
     return new Response(JSON.stringify({ 
       candidates: matchedCandidates,
@@ -211,7 +230,7 @@ If no candidates meet ALL requirements, return: []
     });
 
   } catch (error) {
-    console.error('Error in strict ai-candidate-search function:', error);
+    console.error('Error in ultra-strict ai-candidate-search function:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
