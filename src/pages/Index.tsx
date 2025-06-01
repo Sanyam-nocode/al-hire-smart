@@ -1,74 +1,20 @@
-import { useEffect, useState } from "react";
 import { ArrowRight, Search, Users, Zap, Brain, CheckCircle, Star } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import DashboardRedirect from "@/components/DashboardRedirect";
 import { useAuth } from "@/contexts/AuthContext";
-
 const Index = () => {
-  const { user, recruiterProfile, candidateProfile, loading } = useAuth();
-  const navigate = useNavigate();
-  const [redirectAttempted, setRedirectAttempted] = useState(false);
-
-  useEffect(() => {
-    // Only proceed if auth is not loading
-    if (loading) return;
-    
-    // If user is authenticated and we haven't attempted redirect yet
-    if (user && !redirectAttempted) {
-      console.log('Index: User authenticated, checking profiles for redirect:', { 
-        user: user.email, 
-        recruiterProfile: recruiterProfile?.id || 'null',
-        candidateProfile: candidateProfile?.id || 'null'
-      });
-      
-      setRedirectAttempted(true);
-      
-      // Immediate redirect based on profile type
-      if (recruiterProfile) {
-        console.log('Index: Redirecting to recruiter dashboard');
-        navigate('/recruiter/dashboard', { replace: true });
-      } else if (candidateProfile) {
-        console.log('Index: Redirecting to candidate profile');
-        navigate('/candidate/profile', { replace: true });
-      } else {
-        console.log('Index: No profiles found, redirecting to dashboard');
-        navigate('/dashboard', { replace: true });
-      }
-    }
-  }, [user, recruiterProfile, candidateProfile, loading, navigate, redirectAttempted]);
-
-  // Show loading spinner while auth is initializing
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show brief redirect message for authenticated users (this should be very brief)
-  if (user && redirectAttempted) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Redirecting to your dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show homepage content for unauthenticated users
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+  const {
+    user
+  } = useAuth();
+  return <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       {/* Header with Navbar - contains logo, name, features, about, pricing, sign in & get started */}
       <Navbar />
+      
+      {user && <DashboardRedirect />}
       
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -332,8 +278,6 @@ const Index = () => {
       </section>
 
       <Footer />
-    </div>
-  );
+    </div>;
 };
-
 export default Index;

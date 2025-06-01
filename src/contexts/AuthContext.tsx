@@ -75,13 +75,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   const fetchProfiles = async (user: User) => {
-    console.log('AuthContext: Fetching profiles for user:', user.id, user.email);
+    console.log('Fetching profiles for user:', user.id);
     try {
-      // Clear existing profiles first
-      setCandidateProfile(null);
-      setRecruiterProfile(null);
-
-      // Try to fetch candidate profile first
+      // Try to fetch candidate profile
       const { data: candidateData, error: candidateError } = await supabase
         .from('candidate_profiles')
         .select('*')
@@ -89,9 +85,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .maybeSingle();
 
       if (candidateError && candidateError.code !== 'PGRST116') {
-        console.error('AuthContext: Error fetching candidate profile:', candidateError);
+        console.error('Error fetching candidate profile:', candidateError);
       } else if (candidateData) {
-        console.log('AuthContext: Found candidate profile:', candidateData);
+        console.log('Found candidate profile:', candidateData);
         setCandidateProfile(candidateData);
         return;
       }
@@ -104,39 +100,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .maybeSingle();
 
       if (recruiterError && recruiterError.code !== 'PGRST116') {
-        console.error('AuthContext: Error fetching recruiter profile:', recruiterError);
+        console.error('Error fetching recruiter profile:', recruiterError);
       } else if (recruiterData) {
-        console.log('AuthContext: Found recruiter profile:', recruiterData);
+        console.log('Found recruiter profile:', recruiterData);
         setRecruiterProfile(recruiterData);
       } else {
-        console.log('AuthContext: No profiles found for user');
+        console.log('No profiles found for user');
       }
     } catch (error) {
-      console.error('AuthContext: Error in fetchProfiles:', error);
+      console.error('Error in fetchProfiles:', error);
     }
   };
 
   const refreshProfile = async () => {
     if (user) {
+      // Clear current profiles
+      setCandidateProfile(null);
+      setRecruiterProfile(null);
+      
+      // Fetch fresh profiles
       await fetchProfiles(user);
     }
   };
 
   const signIn = async (email: string, password: string) => {
     try {
-      console.log('AuthContext: Attempting sign in for:', email);
-      const { data, error } = await supabase.auth.signInWithPassword({
+      console.log('AuthContext: Attempting sign in');
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      console.log('AuthContext: Sign in result:', { user: data.user?.email, error });
-      
-      if (data.user && !error) {
-        setUser(data.user);
-        // Fetch profiles immediately after successful login
-        await fetchProfiles(data.user);
-      }
-      
+      console.log('AuthContext: Sign in result:', { error });
       return { error };
     } catch (error) {
       console.error('AuthContext: Sign in error:', error);
@@ -163,73 +157,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     console.log('AuthContext: Setting up auth listeners');
     
-    let mounted = true;
-
     // Get initial session
-    const getInitialSession = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('AuthContext: Error getting session:', error);
-          if (mounted) setLoading(false);
-          return;
-        }
-        
-        console.log('AuthContext: Initial session user:', session?.user?.email || 'No user');
-        
-        if (mounted) {
-          if (session?.user) {
-            setUser(session.user);
-            await fetchProfiles(session.user);
-          } else {
-            setUser(null);
-            setCandidateProfile(null);
-            setRecruiterProfile(null);
-          }
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error('AuthContext: Error in getInitialSession:', error);
-        if (mounted) {
-          setLoading(false);
-        }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('AuthContext: Initial session:', session?.user?.email);
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        // Use setTimeout to defer profile fetching
+        setTimeout(() => {
+          fetchProfiles(session.user);
+        }, 0);
       }
-    };
-
-    getInitialSession();
+      setLoading(false);
+    });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('AuthContext: Auth state changed:', event, session?.user?.email || 'No user');
+      console.log('AuthContext: Auth state changed:', event, session?.user?.email);
+      setUser(session?.user ?? null);
       
-      if (!mounted) return;
-      
-      if (session?.user && event === 'SIGNED_IN') {
-        setUser(session.user);
-        // Fetch profiles after sign in
-        await fetchProfiles(session.user);
-      } else if (!session?.user) {
-        setUser(null);
+      if (session?.user) {
+        // Use setTimeout to defer profile fetching and prevent potential deadlocks
+        setTimeout(() => {
+          fetchProfiles(session.user);
+        }, 0);
+      } else {
         setCandidateProfile(null);
         setRecruiterProfile(null);
       }
       
-      // Always ensure loading is false after auth state changes
-      if (mounted) {
-        setLoading(false);
-      }
+      setLoading(false);
     });
 
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
   const signOut = async () => {
     try {
-      console.log('AuthContext: Signing out user...');
+      console.log('Signing out user...');
       
       // Clear local state first
       setUser(null);
@@ -240,15 +204,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { error } = await supabase.auth.signOut();
       
       if (error) {
-        console.error('AuthContext: Sign out error:', error);
+        console.error('Sign out error:', error);
         return { error };
       }
       
-      console.log('AuthContext: Successfully signed out');
+      console.log('Successfully signed out');
       return { error: null };
       
     } catch (error) {
-      console.error('AuthContext: Unexpected error during sign out:', error);
+      console.error('Unexpected error during sign out:', error);
       return { error };
     }
   };
