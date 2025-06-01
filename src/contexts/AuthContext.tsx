@@ -172,6 +172,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (error) {
           console.error('AuthContext: Error getting session:', error);
+          if (mounted) setLoading(false);
+          return;
         }
         
         console.log('AuthContext: Initial session user:', session?.user?.email || 'No user');
@@ -185,7 +187,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setCandidateProfile(null);
             setRecruiterProfile(null);
           }
-          // Always set loading to false after initial check
           setLoading(false);
         }
       } catch (error) {
@@ -214,8 +215,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setRecruiterProfile(null);
       }
       
-      // Ensure loading is set to false after any auth state change
-      setLoading(false);
+      // Always ensure loading is false after auth state changes
+      if (mounted) {
+        setLoading(false);
+      }
     });
 
     return () => {

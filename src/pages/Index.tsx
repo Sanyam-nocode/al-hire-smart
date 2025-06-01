@@ -10,38 +10,37 @@ import { useAuth } from "@/contexts/AuthContext";
 const Index = () => {
   const { user, recruiterProfile, candidateProfile, loading } = useAuth();
   const navigate = useNavigate();
-  const [hasRedirected, setHasRedirected] = useState(false);
+  const [redirectAttempted, setRedirectAttempted] = useState(false);
 
   useEffect(() => {
-    // Only proceed if auth is not loading and user exists
-    if (!loading && user && !hasRedirected) {
-      console.log('Index: User authenticated, profiles state:', { 
+    // Only proceed if auth is not loading
+    if (loading) return;
+    
+    // If user is authenticated and we haven't attempted redirect yet
+    if (user && !redirectAttempted) {
+      console.log('Index: User authenticated, checking profiles for redirect:', { 
         user: user.email, 
         recruiterProfile: recruiterProfile?.id || 'null',
         candidateProfile: candidateProfile?.id || 'null'
       });
       
-      setHasRedirected(true);
+      setRedirectAttempted(true);
       
-      // Small delay to ensure profiles are loaded
-      const timeoutId = setTimeout(() => {
-        if (recruiterProfile) {
-          console.log('Index: Redirecting to recruiter dashboard');
-          navigate('/recruiter/dashboard', { replace: true });
-        } else if (candidateProfile) {
-          console.log('Index: Redirecting to candidate profile');
-          navigate('/candidate/profile', { replace: true });
-        } else {
-          console.log('Index: No profiles found, redirecting to dashboard for profile setup');
-          navigate('/dashboard', { replace: true });
-        }
-      }, 100);
-
-      return () => clearTimeout(timeoutId);
+      // Immediate redirect based on profile type
+      if (recruiterProfile) {
+        console.log('Index: Redirecting to recruiter dashboard');
+        navigate('/recruiter/dashboard', { replace: true });
+      } else if (candidateProfile) {
+        console.log('Index: Redirecting to candidate profile');
+        navigate('/candidate/profile', { replace: true });
+      } else {
+        console.log('Index: No profiles found, redirecting to dashboard');
+        navigate('/dashboard', { replace: true });
+      }
     }
-  }, [user, recruiterProfile, candidateProfile, loading, navigate, hasRedirected]);
+  }, [user, recruiterProfile, candidateProfile, loading, navigate, redirectAttempted]);
 
-  // Show loading only if auth is still loading
+  // Show loading spinner while auth is initializing
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -53,8 +52,8 @@ const Index = () => {
     );
   }
 
-  // Show loading if authenticated user is being redirected
-  if (user && !hasRedirected) {
+  // Show brief redirect message for authenticated users (this should be very brief)
+  if (user && redirectAttempted) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
         <div className="text-center">
@@ -65,7 +64,7 @@ const Index = () => {
     );
   }
 
-  // Show homepage content for unauthenticated users or after redirect attempt
+  // Show homepage content for unauthenticated users
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       {/* Header with Navbar - contains logo, name, features, about, pricing, sign in & get started */}
