@@ -40,7 +40,7 @@ export const useAISearch = () => {
     setIsSearching(true);
     
     try {
-      console.log('Performing AI search with query:', query);
+      console.log('Performing strict AI search with query:', query);
       
       const { data, error } = await supabase.functions.invoke('ai-candidate-search', {
         body: { query }
@@ -55,7 +55,11 @@ export const useAISearch = () => {
       const result = data as AISearchResult;
       setSearchResults(result.candidates || []);
       
-      toast.success(`Found ${result.total} matching candidates`);
+      if (result.total === 0) {
+        toast.info('No candidates found matching all your criteria. Try broadening your search terms.');
+      } else {
+        toast.success(`Found ${result.total} candidates who meet all your requirements`);
+      }
       
     } catch (error) {
       console.error('Error in AI search:', error);

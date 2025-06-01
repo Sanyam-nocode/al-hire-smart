@@ -59,10 +59,10 @@ const AISearchComponent = ({ onViewProfile, onContact }: AISearchComponentProps)
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-blue-600" />
-            AI-Powered Candidate Search
+            AI Candidate Search
           </CardTitle>
           <CardDescription>
-            Use natural language to find the perfect candidates. Describe what you're looking for, and AI will match candidates based on skills, experience, location, and more. Enhanced profiles show AI-extracted resume data.
+            Our AI precisely filters candidates to match your exact requirements. Only candidates who meet your specific criteria for skills, experience, location, and other preferences will be shown in the results.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -110,7 +110,7 @@ const AISearchComponent = ({ onViewProfile, onContact }: AISearchComponentProps)
           {searchResults.length > 0 && (
             <div className="flex items-center justify-between">
               <p className="text-sm text-gray-600">
-                Found {searchResults.length} matching candidates
+                Found {searchResults.length} candidates matching your criteria
               </p>
               <Button variant="outline" size="sm" onClick={clearResults}>
                 Clear Results
