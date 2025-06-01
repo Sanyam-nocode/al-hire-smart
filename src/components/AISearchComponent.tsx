@@ -59,13 +59,19 @@ const AISearchComponent = ({ onViewProfile, onContact }: AISearchComponentProps)
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-blue-600" />
-            AI-Powered Candidate Search
+            AI-Powered Precision Candidate Search
           </CardTitle>
           <CardDescription>
-            Use natural language to find the perfect candidates. Describe what you're looking for, and AI will match candidates based on skills, experience, location, and more. Enhanced profiles show AI-extracted resume data.
+            Use natural language to find candidates who <strong>precisely match</strong> your requirements. Our AI strictly filters candidates based on skills, experience, location, and other criteria. Only candidates who genuinely satisfy ALL your requirements will appear in results.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+            <p className="text-sm text-amber-800">
+              <strong>Precision Search:</strong> Results are strictly filtered - candidates must meet ALL specified criteria. If you see fewer results than expected, try broadening your search terms or reducing specific requirements.
+            </p>
+          </div>
+
           <div className="flex gap-2">
             <Input
               placeholder="e.g., 'React developers with 3+ years experience in San Francisco'"
@@ -110,11 +116,22 @@ const AISearchComponent = ({ onViewProfile, onContact }: AISearchComponentProps)
           {searchResults.length > 0 && (
             <div className="flex items-center justify-between">
               <p className="text-sm text-gray-600">
-                Found {searchResults.length} matching candidates
+                Found {searchResults.length} candidates who <strong>precisely match</strong> your criteria
               </p>
               <Button variant="outline" size="sm" onClick={clearResults}>
                 Clear Results
               </Button>
+            </div>
+          )}
+
+          {searchResults.length === 0 && searchQuery && !isSearching && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm text-blue-800">
+                <strong>No precise matches found.</strong> Try:
+                <br />• Reducing specific requirements (e.g., "2+ years" instead of "5+ years")
+                <br />• Using broader skill terms (e.g., "JavaScript" instead of "React.js")
+                <br />• Removing location constraints or adding "remote" option
+              </p>
             </div>
           )}
         </CardContent>
