@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -20,16 +21,11 @@ const RecruiterDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  // Ensure settings modal is closed on component mount and never auto-opens
+  // Ensure settings modal is closed on component mount
   useEffect(() => {
     console.log('RecruiterDashboard: Component mounted, ensuring settings is closed');
     setSettingsOpen(false);
   }, []);
-
-  // Additional useEffect to prevent settings from auto-opening
-  useEffect(() => {
-    console.log('RecruiterDashboard: Settings state changed to:', settingsOpen);
-  }, [settingsOpen]);
 
   // Fetch candidate profiles
   const { data: candidates, isLoading } = useQuery({
@@ -65,13 +61,8 @@ const RecruiterDashboard = () => {
   };
 
   const handleSettingsClick = () => {
-    console.log('RecruiterDashboard: Settings button clicked, opening settings');
+    console.log('RecruiterDashboard: Settings button clicked');
     setSettingsOpen(true);
-  };
-
-  const handleSettingsClose = (open: boolean) => {
-    console.log('RecruiterDashboard: Settings modal close requested, open:', open);
-    setSettingsOpen(open);
   };
 
   const filteredCandidates = candidates?.filter(candidate => {
@@ -291,13 +282,11 @@ const RecruiterDashboard = () => {
         </Tabs>
       </div>
 
-      {/* Settings Modal - render conditionally and only when explicitly opened */}
-      {settingsOpen && (
-        <Settings
-          open={settingsOpen}
-          onOpenChange={handleSettingsClose}
-        />
-      )}
+      {/* Settings Modal - only render when needed */}
+      <Settings
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+      />
     </div>
   );
 };

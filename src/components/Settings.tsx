@@ -20,7 +20,7 @@ interface SettingsProps {
   trigger?: React.ReactNode;
 }
 
-const Settings = ({ open = false, onOpenChange, trigger }: SettingsProps) => {
+const Settings = ({ open, onOpenChange, trigger }: SettingsProps) => {
   const { user, recruiterProfile, candidateProfile } = useAuth();
   const queryClient = useQueryClient();
   const [emailNotifications, setEmailNotifications] = useState(true);
@@ -391,37 +391,38 @@ const Settings = ({ open = false, onOpenChange, trigger }: SettingsProps) => {
     </div>
   );
 
-  // Always render as Sheet, never as standalone content
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      {trigger && (
+  if (trigger) {
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetTrigger asChild>
           {trigger}
         </SheetTrigger>
-      )}
-      <SheetContent 
-        className="w-full sm:max-w-4xl overflow-y-auto" 
-        onClick={(e) => e.stopPropagation()}
-        onPointerDownOutside={(e) => {
-          // Only close if clicking outside the sheet content area
-          const target = e.target as Element;
-          if (!target.closest('[data-radix-popper-content-wrapper]')) {
-            e.preventDefault();
-          }
-        }}
-      >
-        <SheetHeader>
-          <SheetTitle>Settings</SheetTitle>
-          <SheetDescription>
-            Manage your account settings and preferences
-          </SheetDescription>
-        </SheetHeader>
-        <div className="mt-6" onClick={(e) => e.stopPropagation()}>
-          {settingsContent}
-        </div>
-      </SheetContent>
-    </Sheet>
-  );
+        <SheetContent 
+          className="w-full sm:max-w-4xl overflow-y-auto" 
+          onClick={(e) => e.stopPropagation()}
+          onPointerDownOutside={(e) => {
+            // Only close if clicking outside the sheet content area
+            const target = e.target as Element;
+            if (!target.closest('[data-radix-popper-content-wrapper]')) {
+              e.preventDefault();
+            }
+          }}
+        >
+          <SheetHeader>
+            <SheetTitle>Settings</SheetTitle>
+            <SheetDescription>
+              Manage your account settings and preferences
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-6" onClick={(e) => e.stopPropagation()}>
+            {settingsContent}
+          </div>
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  return settingsContent;
 };
 
 export default Settings;
