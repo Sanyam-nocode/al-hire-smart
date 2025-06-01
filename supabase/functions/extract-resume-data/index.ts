@@ -88,7 +88,7 @@ serve(async (req) => {
 
   try {
     const { resumeUrl, candidateId } = await req.json();
-    console.log('=== ENHANCED RESUME EXTRACTION WITH OCR ===');
+    console.log('=== ENHANCED RESUME EXTRACTION WITH IMPROVED PDF PARSING ===');
     console.log('Resume URL:', resumeUrl);
     console.log('Candidate ID:', candidateId);
 
@@ -117,22 +117,23 @@ serve(async (req) => {
     // Create Supabase client
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log('=== TRYING STANDARD PDF PARSER FIRST ===');
+    console.log('=== TRYING ENHANCED PDF PARSER FIRST ===');
     
     // Try the enhanced parseResume function first
     const { data: parseData, error: parseError } = await supabase.functions.invoke('parseResume', {
       body: { resumeUrl }
     });
 
-    console.log('=== STANDARD PARSE RESPONSE ===');
+    console.log('=== ENHANCED PARSE RESPONSE ===');
     console.log('Parse success:', parseData?.success);
     console.log('Parse error:', parseError);
+    console.log('Text length:', parseData?.textLength);
 
     let resumeText = '';
     let extractionMethod = 'none';
 
     if (parseError || !parseData?.success || !parseData?.text || parseData.text.length < 100) {
-      console.log('=== STANDARD PARSER INSUFFICIENT, TRYING OCR.SPACE ===');
+      console.log('=== ENHANCED PARSER INSUFFICIENT, TRYING OCR.SPACE ===');
       
       try {
         resumeText = await extractTextWithOCR(resumeUrl);
@@ -150,7 +151,7 @@ serve(async (req) => {
         if (preprocessError || !preprocessData?.success) {
           console.error('All extraction methods failed');
           return new Response(JSON.stringify({ 
-            error: 'All PDF extraction methods failed including OCR.space. The PDF might be corrupted, password-protected, or in an unsupported format.',
+            error: 'All PDF extraction methods failed including enhanced parsing and OCR.space. The PDF might be corrupted, password-protected, or in an unsupported format.',
             success: false,
             debugInfo: {
               parseError: parseError?.message || parseData?.error,
@@ -174,19 +175,19 @@ serve(async (req) => {
       }
     } else {
       resumeText = parseData.text || '';
-      extractionMethod = 'standard-parser';
+      extractionMethod = 'enhanced-parser';
     }
 
     console.log('=== FINAL EXTRACTED TEXT ANALYSIS ===');
     console.log('Extraction method used:', extractionMethod);
     console.log('Text length:', resumeText.length);
-    console.log('Text preview (first 500 chars):', resumeText.substring(0, 500));
+    console.log('Text preview (first 1000 chars):', resumeText.substring(0, 1000));
 
     // Check if we have enough meaningful text
     if (!resumeText || resumeText.length < 50) {
       console.error('Insufficient text extracted from all methods');
       return new Response(JSON.stringify({ 
-        error: 'Could not extract sufficient readable text from PDF using any method including OCR.space.',
+        error: 'Could not extract sufficient readable text from PDF using any method including enhanced parsing and OCR.space.',
         success: false,
         debugInfo: {
           extractionMethod,
@@ -213,47 +214,48 @@ serve(async (req) => {
 
     console.log('=== CLEANED TEXT FOR AI ===');
     console.log('Cleaned text length:', cleanedText.length);
+    console.log('Cleaned text sample:', cleanedText.substring(0, 500));
 
-    // Enhanced OpenAI prompt optimized for profile field mapping
-    console.log('=== CALLING OPENAI WITH PROFILE-OPTIMIZED PROMPT ===');
-    const prompt = `You are an expert resume parsing assistant. Extract information from the following resume text and map it specifically to the candidate profile fields.
+    // Enhanced OpenAI prompt with better field mapping instructions
+    console.log('=== CALLING OPENAI WITH ENHANCED PROMPT ===');
+    const prompt = `You are an expert resume parsing assistant. Extract information from the following resume text and map it to profile fields.
 
 CRITICAL INSTRUCTIONS:
-1. Extract ONLY the information that is clearly present in the resume
-2. Map the data to match the EXACT profile field structure
-3. Return ONLY valid JSON, no markdown or explanations
-4. Focus on accuracy over completeness - leave fields empty if unclear
+1. Extract ONLY information that is clearly present in the resume text
+2. Return ONLY valid JSON, no markdown formatting or explanations
+3. Map data accurately to the specified fields
+4. Use null for missing information, do not guess
 
-Profile Field Mapping Requirements:
-- phone: Extract phone number (include country code if present)
-- location: Extract current location/city (e.g., "Gurgaon, India", "New York, NY")
-- title: Extract current job title or most recent position
-- experience_years: Calculate total years of experience as INTEGER
-- summary: Create a concise professional summary (2-3 sentences max)
-- education: Format as "Degree, Institution, Year" (e.g., "Bachelor's Computer Science, XYZ University, 2020")
-- linkedin_url: Extract LinkedIn profile URL
-- github_url: Extract GitHub profile URL  
-- portfolio_url: Extract portfolio/website URL
-- skills: Array of technical skills, programming languages, tools (max 20 items)
+FIELD SPECIFICATIONS:
+- phone: Phone number with country code if available (string)
+- location: Current city/location (string, e.g., "New York, NY")
+- title: Current or most recent job title (string)
+- experience_years: Total years of work experience (integer)
+- summary: Professional summary in 2-3 sentences (string)
+- education: Education in format "Degree, Institution, Year" (string)
+- linkedin_url: LinkedIn profile URL (string)
+- github_url: GitHub profile URL (string)
+- portfolio_url: Portfolio/website URL (string)
+- skills: Array of technical skills, max 15 items (array of strings)
 
 Return this EXACT JSON structure:
 {
-  "phone": "",
-  "location": "",
-  "title": "",
+  "phone": null,
+  "location": null,
+  "title": null,
   "experience_years": null,
-  "summary": "",
-  "education": "",
-  "linkedin_url": "",
-  "github_url": "",
-  "portfolio_url": "",
+  "summary": null,
+  "education": null,
+  "linkedin_url": null,
+  "github_url": null,
+  "portfolio_url": null,
   "skills": []
 }
 
-Resume text:
+Resume text to analyze:
 "${cleanedText}"
 
-IMPORTANT: Return ONLY the JSON object. Do not include any explanations, markdown formatting, or additional text.`;
+IMPORTANT: Return ONLY the JSON object with no additional text, explanations, or markdown formatting.`;
 
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -266,7 +268,7 @@ IMPORTANT: Return ONLY the JSON object. Do not include any explanations, markdow
         messages: [
           { 
             role: 'system', 
-            content: 'You are an expert resume parser. Extract information precisely and return only valid JSON without any markdown formatting.'
+            content: 'You are an expert resume parser. Extract information precisely and return only valid JSON without any markdown formatting or explanations.'
           },
           { 
             role: 'user', 
@@ -316,7 +318,7 @@ IMPORTANT: Return ONLY the JSON object. Do not include any explanations, markdow
     try {
       let content = rawAIContent.trim();
       
-      // Clean any markdown formatting more aggressively
+      // Clean any markdown formatting aggressively
       content = content.replace(/```json\s*|\s*```/g, '');
       content = content.replace(/```\s*|\s*```/g, '');
       content = content.replace(/^[^{]*/, ''); // Remove everything before first {
@@ -350,77 +352,90 @@ IMPORTANT: Return ONLY the JSON object. Do not include any explanations, markdow
       });
     }
 
-    // Update database with extracted data - Direct field mapping
-    console.log('=== UPDATING DATABASE WITH MAPPED DATA ===');
+    // Update database with extracted data - Enhanced field mapping
+    console.log('=== UPDATING DATABASE WITH ENHANCED FIELD MAPPING ===');
     const updateData: any = {
       resume_content: JSON.stringify(extractedData),
       updated_at: new Date().toISOString(),
     };
 
-    // Direct mapping from extracted data to database fields
+    const mappedFields: string[] = [];
+
+    // Direct mapping with validation
     if (extractedData.phone && typeof extractedData.phone === 'string' && extractedData.phone.trim()) {
       updateData.phone = extractedData.phone.trim().substring(0, 20);
-      console.log('Mapping phone:', updateData.phone);
+      mappedFields.push('phone');
+      console.log('Mapped phone:', updateData.phone);
     }
     
     if (extractedData.location && typeof extractedData.location === 'string' && extractedData.location.trim()) {
       updateData.location = extractedData.location.trim().substring(0, 200);
-      console.log('Mapping location:', updateData.location);
+      mappedFields.push('location');
+      console.log('Mapped location:', updateData.location);
     }
     
     if (extractedData.title && typeof extractedData.title === 'string' && extractedData.title.trim()) {
       updateData.title = extractedData.title.trim().substring(0, 200);
-      console.log('Mapping title:', updateData.title);
+      mappedFields.push('title');
+      console.log('Mapped title:', updateData.title);
     }
     
-    if (extractedData.experience_years && typeof extractedData.experience_years === 'number') {
+    if (extractedData.experience_years && (typeof extractedData.experience_years === 'number' || typeof extractedData.experience_years === 'string')) {
       const experience = parseInt(extractedData.experience_years.toString());
       if (!isNaN(experience) && experience > 0 && experience <= 50) {
         updateData.experience_years = experience;
-        console.log('Mapping experience_years:', updateData.experience_years);
+        mappedFields.push('experience_years');
+        console.log('Mapped experience_years:', updateData.experience_years);
       }
     }
     
     if (extractedData.summary && typeof extractedData.summary === 'string' && extractedData.summary.trim()) {
       updateData.summary = extractedData.summary.trim().substring(0, 1000);
-      console.log('Mapping summary:', updateData.summary);
+      mappedFields.push('summary');
+      console.log('Mapped summary:', updateData.summary);
     }
     
     if (extractedData.education && typeof extractedData.education === 'string' && extractedData.education.trim()) {
       updateData.education = extractedData.education.trim().substring(0, 500);
-      console.log('Mapping education:', updateData.education);
+      mappedFields.push('education');
+      console.log('Mapped education:', updateData.education);
     }
     
     if (extractedData.linkedin_url && typeof extractedData.linkedin_url === 'string' && extractedData.linkedin_url.trim()) {
       updateData.linkedin_url = extractedData.linkedin_url.trim().substring(0, 500);
-      console.log('Mapping linkedin_url:', updateData.linkedin_url);
+      mappedFields.push('linkedin_url');
+      console.log('Mapped linkedin_url:', updateData.linkedin_url);
     }
     
     if (extractedData.github_url && typeof extractedData.github_url === 'string' && extractedData.github_url.trim()) {
       updateData.github_url = extractedData.github_url.trim().substring(0, 500);
-      console.log('Mapping github_url:', updateData.github_url);
+      mappedFields.push('github_url');
+      console.log('Mapped github_url:', updateData.github_url);
     }
     
     if (extractedData.portfolio_url && typeof extractedData.portfolio_url === 'string' && extractedData.portfolio_url.trim()) {
       updateData.portfolio_url = extractedData.portfolio_url.trim().substring(0, 500);
-      console.log('Mapping portfolio_url:', updateData.portfolio_url);
+      mappedFields.push('portfolio_url');
+      console.log('Mapped portfolio_url:', updateData.portfolio_url);
     }
 
-    // Skills array mapping
+    // Enhanced skills array mapping
     if (extractedData.skills && Array.isArray(extractedData.skills) && extractedData.skills.length > 0) {
       const validSkills = extractedData.skills
         .filter(skill => skill && typeof skill === 'string' && skill.trim().length > 1)
         .map(skill => skill.trim())
         .filter((skill, index, arr) => arr.indexOf(skill) === index) // Remove duplicates
-        .slice(0, 20); // Limit to 20 skills
+        .slice(0, 15); // Limit to 15 skills
       
       if (validSkills.length > 0) {
         updateData.skills = validSkills;
-        console.log('Mapping skills:', updateData.skills);
+        mappedFields.push('skills');
+        console.log('Mapped skills:', updateData.skills);
       }
     }
 
     console.log('Final update data:', updateData);
+    console.log('Fields to be updated:', mappedFields);
 
     // Update candidate profile
     const { data: updatedProfile, error: updateError } = await supabase
@@ -442,22 +457,22 @@ IMPORTANT: Return ONLY the JSON object. Do not include any explanations, markdow
       });
     }
 
-    console.log('=== EXTRACTION SUCCESS WITH FIELD MAPPING ===');
-    console.log('Profile updated successfully with fields:', Object.keys(updateData));
+    console.log('=== EXTRACTION SUCCESS WITH ENHANCED FIELD MAPPING ===');
+    console.log('Profile updated successfully with fields:', mappedFields);
 
     return new Response(JSON.stringify({ 
       success: true,
       extractedData,
       updatedProfile,
-      mappedFields: Object.keys(updateData).filter(key => key !== 'resume_content' && key !== 'updated_at'),
+      mappedFields,
       extractionInfo: {
         method: extractionMethod,
         originalTextLength: resumeText.length,
         cleanedTextLength: cleanedText.length,
-        fieldsUpdated: Object.keys(updateData).length - 2, // Exclude resume_content and updated_at
-        ocrUsed: extractionMethod === 'ocr-space'
+        fieldsUpdated: mappedFields.length,
+        extractedUsing: extractionMethod
       },
-      message: `Resume data extracted and ${Object.keys(updateData).length - 2} profile fields updated successfully using ${extractionMethod}`
+      message: `Resume data extracted and ${mappedFields.length} profile fields updated successfully using ${extractionMethod}`
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

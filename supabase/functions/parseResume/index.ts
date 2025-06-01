@@ -58,38 +58,6 @@ function isTextMeaningful(text: string): boolean {
   return keywordCount >= 2 || hasEmail || hasPhone;
 }
 
-// Advanced OCR fallback using Tesseract-like approach
-async function performOCR(pdfBuffer: ArrayBuffer): Promise<string> {
-  try {
-    console.log('=== ATTEMPTING OCR EXTRACTION ===');
-    
-    // For now, we'll implement a basic OCR simulation
-    // In a real implementation, you'd use a service like Google Vision API or Tesseract
-    // This is a placeholder that attempts to extract text from image-based PDFs
-    
-    // Convert buffer to text and look for embedded text
-    const uint8Array = new Uint8Array(pdfBuffer);
-    const binaryString = Array.from(uint8Array)
-      .map(byte => String.fromCharCode(byte))
-      .join('');
-    
-    // Look for text patterns in the binary data
-    const textMatches = binaryString.match(/[a-zA-Z0-9@.\-\s]{10,}/g) || [];
-    const extractedText = textMatches
-      .filter(match => match.trim().length > 5)
-      .join(' ')
-      .substring(0, 5000); // Limit length
-    
-    console.log('OCR extracted text length:', extractedText.length);
-    console.log('OCR text preview:', extractedText.substring(0, 500));
-    
-    return cleanExtractedText(extractedText);
-  } catch (error) {
-    console.error('OCR extraction failed:', error);
-    return '';
-  }
-}
-
 // Enhanced PDF text extraction with multiple strategies
 async function extractTextAdvanced(pdfBuffer: ArrayBuffer): Promise<string> {
   const strategies = [];
@@ -130,46 +98,85 @@ async function extractTextAdvanced(pdfBuffer: ArrayBuffer): Promise<string> {
     console.error('Strategy 2 failed:', error);
   }
   
-  // Strategy 3: OCR fallback
+  // Strategy 3: Manual PDF parsing
   try {
-    console.log('=== STRATEGY 3: OCR fallback ===');
-    const ocrText = await performOCR(pdfBuffer);
+    console.log('=== STRATEGY 3: Manual PDF parsing ===');
+    const uint8Array = new Uint8Array(pdfBuffer);
+    let pdfString = '';
     
-    if (isTextMeaningful(ocrText)) {
-      strategies.push({ method: 'ocr', text: ocrText, score: ocrText.length });
+    // Convert to string
+    for (let i = 0; i < uint8Array.length; i++) {
+      pdfString += String.fromCharCode(uint8Array[i]);
+    }
+    
+    // Extract text between parentheses (common PDF text format)
+    const textMatches = pdfString.match(/\(([^)]{10,})\)/g) || [];
+    const extractedTexts = textMatches
+      .map(match => match.slice(1, -1)) // Remove parentheses
+      .filter(text => text.length > 10 && /[a-zA-Z]/.test(text))
+      .join(' ');
+    
+    const cleanText = cleanExtractedText(extractedTexts);
+    
+    console.log('Strategy 3 - Text length:', cleanText.length);
+    console.log('Strategy 3 - Text preview:', cleanText.substring(0, 500));
+    
+    if (isTextMeaningful(cleanText)) {
+      strategies.push({ method: 'manual', text: cleanText, score: cleanText.length });
     }
   } catch (error) {
     console.error('Strategy 3 failed:', error);
   }
   
-  // Strategy 4: Raw binary text extraction
+  // Strategy 4: Stream-based extraction
   try {
-    console.log('=== STRATEGY 4: Raw binary extraction ===');
+    console.log('=== STRATEGY 4: Stream extraction ===');
     const uint8Array = new Uint8Array(pdfBuffer);
-    const binaryText = Array.from(uint8Array)
-      .map(byte => (byte >= 32 && byte <= 126) ? String.fromCharCode(byte) : ' ')
-      .join('')
-      .replace(/\s+/g, ' ')
-      .trim();
+    let pdfString = '';
     
-    // Extract meaningful segments
-    const meaningfulSegments = binaryText
-      .split(/\s+/)
-      .filter(segment => 
-        segment.length > 2 && 
-        /[a-zA-Z]/.test(segment) &&
-        !/^[^a-zA-Z]*$/.test(segment)
-      )
-      .join(' ')
-      .substring(0, 5000);
+    // Convert to string
+    for (let i = 0; i < uint8Array.length; i++) {
+      pdfString += String.fromCharCode(uint8Array[i]);
+    }
     
-    const cleanText = cleanExtractedText(meaningfulSegments);
+    // Look for BT/ET text blocks
+    const textBlocks = pdfString.match(/BT\s*([\s\S]*?)\s*ET/g) || [];
+    const allTexts = [];
+    
+    for (const block of textBlocks) {
+      // Extract Tj operations
+      const tjMatches = block.match(/\(([^)]+)\)\s*Tj/g) || [];
+      for (const match of tjMatches) {
+        const text = match.match(/\(([^)]+)\)/)?.[1];
+        if (text && text.length > 2) {
+          allTexts.push(text);
+        }
+      }
+      
+      // Extract TJ operations (arrays)
+      const tjArrayMatches = block.match(/\[([^\]]+)\]\s*TJ/g) || [];
+      for (const match of tjArrayMatches) {
+        const arrayContent = match.match(/\[([^\]]+)\]/)?.[1];
+        if (arrayContent) {
+          const stringMatches = arrayContent.match(/\(([^)]+)\)/g) || [];
+          for (const stringMatch of stringMatches) {
+            const text = stringMatch.slice(1, -1);
+            if (text && text.length > 2) {
+              allTexts.push(text);
+            }
+          }
+        }
+      }
+    }
+    
+    const combinedText = allTexts.join(' ');
+    const cleanText = cleanExtractedText(combinedText);
     
     console.log('Strategy 4 - Text length:', cleanText.length);
     console.log('Strategy 4 - Text preview:', cleanText.substring(0, 500));
     
     if (isTextMeaningful(cleanText)) {
-      strategies.push({ method: 'binary', text: cleanText, score: cleanText.length });
+      strategies.push({ method: 'stream', text: cleanText, score: cleanText.length });
     }
   } catch (error) {
     console.error('Strategy 4 failed:', error);
@@ -283,7 +290,7 @@ serve(async (req) => {
       success: true,
       text: extractedText,
       textLength: extractedText.length,
-      message: 'PDF text extracted successfully using enhanced extraction with OCR capabilities'
+      message: 'PDF text extracted successfully using enhanced multi-strategy extraction'
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
