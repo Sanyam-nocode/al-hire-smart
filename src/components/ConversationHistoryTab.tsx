@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -38,32 +37,37 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
   const [candidatesMap, setCandidatesMap] = useState<Record<string, CandidateProfile>>({});
   const [loadingCandidates, setLoadingCandidates] = useState(false);
 
-  // Filter interactions to only show those for saved candidates
-  const filteredInteractions = interactions.filter(interaction => 
-    savedCandidateIds.has(interaction.candidate_id)
-  );
+  // Memoize filtered interactions to prevent infinite re-renders
+  const filteredInteractions = useMemo(() => {
+    return interactions.filter(interaction => 
+      savedCandidateIds.has(interaction.candidate_id)
+    );
+  }, [interactions, savedCandidateIds]);
+
+  // Memoize candidate IDs to prevent unnecessary re-fetching
+  const candidateIds = useMemo(() => {
+    return Array.from(new Set(filteredInteractions.map(i => i.candidate_id)));
+  }, [filteredInteractions]);
 
   useEffect(() => {
-    if (filteredInteractions.length > 0) {
-      loadCandidateProfiles();
+    if (candidateIds.length > 0) {
+      loadCandidateProfiles(candidateIds);
     } else {
       setCandidatesMap({});
     }
-  }, [filteredInteractions]);
+  }, [candidateIds]);
 
-  const loadCandidateProfiles = async () => {
-    const candidateIds = Array.from(new Set(filteredInteractions.map(i => i.candidate_id)));
-    
-    if (candidateIds.length === 0) return;
+  const loadCandidateProfiles = async (candidateIdsToLoad: string[]) => {
+    if (candidateIdsToLoad.length === 0) return;
 
-    console.log('ConversationHistoryTab: Loading candidate profiles for saved candidates:', candidateIds);
+    console.log('ConversationHistoryTab: Loading candidate profiles for saved candidates:', candidateIdsToLoad);
     setLoadingCandidates(true);
     
     try {
       const { data, error } = await supabase
         .from('candidate_profiles')
         .select('id, first_name, last_name, title, email')
-        .in('id', candidateIds);
+        .in('id', candidateIdsToLoad);
 
       if (error) {
         console.error('Error loading candidate profiles:', error);
