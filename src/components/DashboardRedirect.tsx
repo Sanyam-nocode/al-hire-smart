@@ -21,37 +21,37 @@ const DashboardRedirect = () => {
       // Check which profile exists to determine user type
       if (recruiterProfile) {
         console.log('DashboardRedirect: Redirecting to recruiter dashboard');
-        // Use window.location for a full page navigation to ensure clean state
-        window.location.href = '/recruiter/dashboard';
-        return;
+        navigate('/recruiter/dashboard');
       } else if (candidateProfile) {
         console.log('DashboardRedirect: Redirecting to candidate profile');
-        window.location.href = '/candidate/profile';
-        return;
+        navigate('/candidate/profile');
       } else {
-        // If no profile exists yet, wait a bit longer for profiles to load
-        console.log('DashboardRedirect: No profiles found, waiting for profiles to load...');
+        // If no profile exists yet, wait a bit and then redirect to signup
+        console.log('DashboardRedirect: No profiles found, waiting before redirecting to signup...');
         const timeout = setTimeout(() => {
-          console.log('DashboardRedirect: Still no profiles after timeout, redirecting to signup');
-          window.location.href = '/signup';
-        }, 2000); // Reduced to 2 seconds
+          console.log('DashboardRedirect: Timeout reached, redirecting to signup');
+          navigate('/signup');
+        }, 3000); // Wait 3 seconds for profiles to load
         
         return () => clearTimeout(timeout);
       }
     } else if (!loading && !user) {
       console.log('DashboardRedirect: No user, redirecting to login');
-      window.location.href = '/login';
+      // If not logged in, redirect to login
+      navigate('/login');
     }
-  }, [user, recruiterProfile, candidateProfile, loading]);
+  }, [user, recruiterProfile, candidateProfile, loading, navigate]);
 
-  // Show loading state while waiting for auth and profiles
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-      <p className="text-gray-600 mt-4">Redirecting to your dashboard...</p>
-      {loading && <p className="text-sm text-gray-500 mt-2">Loading your profile...</p>}
-    </div>
-  );
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        <p className="ml-4 text-gray-600">Loading your profile...</p>
+      </div>
+    );
+  }
+
+  return null;
 };
 
 export default DashboardRedirect;
