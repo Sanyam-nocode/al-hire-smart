@@ -144,6 +144,35 @@ export type Database = {
         }
         Relationships: []
       }
+      saved_candidates: {
+        Row: {
+          candidate_id: string
+          id: string
+          recruiter_id: string
+          saved_at: string
+        }
+        Insert: {
+          candidate_id: string
+          id?: string
+          recruiter_id: string
+          saved_at?: string
+        }
+        Update: {
+          candidate_id?: string
+          id?: string
+          recruiter_id?: string
+          saved_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_candidate_id"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

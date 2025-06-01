@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -10,6 +9,7 @@ import { Users, UserCheck, LogOut, Settings as SettingsIcon, Bell, Sparkles } fr
 import { toast } from "sonner";
 import Settings from "@/components/Settings";
 import AISearchComponent from "@/components/AISearchComponent";
+import SavedCandidatesTab from "@/components/SavedCandidatesTab";
 import CandidateProfileModal from "@/components/CandidateProfileModal";
 import ContactCandidateModal from "@/components/ContactCandidateModal";
 
@@ -131,19 +131,7 @@ const RecruiterDashboard = () => {
           </TabsContent>
 
           <TabsContent value="saved">
-            <Card>
-              <CardHeader>
-                <CardTitle>Saved Candidates</CardTitle>
-                <CardDescription>
-                  Candidates you've bookmarked for future consideration
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600 text-center py-8">
-                  No saved candidates yet. Start searching to find and save potential hires.
-                </p>
-              </CardContent>
-            </Card>
+            <SavedCandidatesTab onViewProfile={handleViewProfile} onContact={handleContact} />
           </TabsContent>
 
           <TabsContent value="profile">

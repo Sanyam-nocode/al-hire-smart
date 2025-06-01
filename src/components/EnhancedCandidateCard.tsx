@@ -1,8 +1,8 @@
-
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Sparkles, MapPin, Calendar, DollarSign, ExternalLink } from "lucide-react";
+import { Sparkles, MapPin, Calendar, DollarSign, ExternalLink, Bookmark, BookmarkCheck } from "lucide-react";
+import { useSavedCandidates } from "@/hooks/useSavedCandidates";
 
 interface CandidateProfile {
   id: string;
@@ -31,6 +31,8 @@ interface EnhancedCandidateCardProps {
 
 const EnhancedCandidateCard = ({ candidate, onViewProfile, onContact }: EnhancedCandidateCardProps) => {
   const hasAIExtractedData = candidate.resume_content !== null;
+  const { saveCandidate, unsaveCandidate, isCandidateSaved, isLoading } = useSavedCandidates();
+  const isSaved = isCandidateSaved(candidate.id);
   
   const formatSalary = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -39,6 +41,14 @@ const EnhancedCandidateCard = ({ candidate, onViewProfile, onContact }: Enhanced
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
+  };
+
+  const handleSaveToggle = async () => {
+    if (isSaved) {
+      await unsaveCandidate(candidate.id);
+    } else {
+      await saveCandidate(candidate.id);
+    }
   };
 
   return (
@@ -53,12 +63,27 @@ const EnhancedCandidateCard = ({ candidate, onViewProfile, onContact }: Enhanced
               <p className="text-gray-600 font-medium">{candidate.title}</p>
             )}
           </div>
-          {hasAIExtractedData && (
-            <div className="flex items-center space-x-1 bg-blue-50 text-blue-700 px-2 py-1 rounded-full">
-              <Sparkles className="h-3 w-3" />
-              <span className="text-xs font-medium">AI Enhanced</span>
-            </div>
-          )}
+          <div className="flex items-center space-x-2">
+            {hasAIExtractedData && (
+              <div className="flex items-center space-x-1 bg-blue-50 text-blue-700 px-2 py-1 rounded-full">
+                <Sparkles className="h-3 w-3" />
+                <span className="text-xs font-medium">AI Enhanced</span>
+              </div>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSaveToggle}
+              disabled={isLoading}
+              className={`h-8 w-8 p-0 ${isSaved ? 'bg-blue-50 border-blue-200 text-blue-600' : ''}`}
+            >
+              {isSaved ? (
+                <BookmarkCheck className="h-4 w-4" />
+              ) : (
+                <Bookmark className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
         </div>
 
         <div className="space-y-3 mb-4">
