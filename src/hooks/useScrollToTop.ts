@@ -6,6 +6,16 @@ export const useScrollToTop = () => {
   const location = useLocation();
 
   useEffect(() => {
-    window.scrollTo(0, 0);
+    console.log('Navigated to:', location.pathname);
+    
+    // Use requestAnimationFrame to ensure DOM has updated
+    requestAnimationFrame(() => {
+      window.scrollTo({
+        top: 0,
+        left: 0,
+        behavior: 'instant'
+      });
+      console.log('Scrolled to top for route:', location.pathname);
+    });
   }, [location.pathname]);
 };
