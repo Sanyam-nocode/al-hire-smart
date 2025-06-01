@@ -14,7 +14,6 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCandidateInteractions } from '@/hooks/useCandidateInteractions';
-import { useSavedCandidates } from '@/hooks/useSavedCandidates';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { Eye, Plus } from 'lucide-react';
@@ -34,29 +33,21 @@ interface ConversationHistoryTabProps {
 const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) => {
   const { user, recruiterProfile } = useAuth();
   const { interactions, isLoading } = useCandidateInteractions();
-  const { savedCandidateIds } = useSavedCandidates();
   const [candidatesMap, setCandidatesMap] = useState<Record<string, CandidateProfile>>({});
   const [loadingCandidates, setLoadingCandidates] = useState(false);
 
-  // Filter interactions to only show those with saved candidates
-  const filteredInteractions = interactions.filter(interaction => 
-    savedCandidateIds.has(interaction.candidate_id)
-  );
-
   useEffect(() => {
-    if (filteredInteractions.length > 0) {
+    if (interactions.length > 0) {
       loadCandidateProfiles();
-    } else {
-      setCandidatesMap({});
     }
-  }, [filteredInteractions]);
+  }, [interactions]);
 
   const loadCandidateProfiles = async () => {
-    const candidateIds = Array.from(new Set(filteredInteractions.map(i => i.candidate_id)));
+    const candidateIds = Array.from(new Set(interactions.map(i => i.candidate_id)));
     
     if (candidateIds.length === 0) return;
 
-    console.log('ConversationHistoryTab: Loading candidate profiles for saved candidates:', candidateIds);
+    console.log('ConversationHistoryTab: Loading candidate profiles for IDs:', candidateIds);
     setLoadingCandidates(true);
     
     try {
@@ -144,16 +135,16 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
         <CardHeader>
           <CardTitle>Conversation History</CardTitle>
           <CardDescription>
-            Track interactions with your saved candidates ({filteredInteractions.length} interactions)
+            Track all your interactions with candidates ({interactions.length} interactions)
           </CardDescription>
         </CardHeader>
       </Card>
 
-      {filteredInteractions.length === 0 ? (
+      {interactions.length === 0 ? (
         <Card>
           <CardContent className="py-8">
             <p className="text-gray-600 text-center">
-              No interactions with saved candidates yet. Save candidates and start interacting with them to see history here.
+              No interactions recorded yet. Start by saving candidates or contacting them.
             </p>
           </CardContent>
         </Card>
@@ -171,7 +162,7 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredInteractions.map((interaction) => {
+                {interactions.map((interaction) => {
                   const candidate = candidatesMap[interaction.candidate_id];
                   return (
                     <TableRow key={interaction.id}>
