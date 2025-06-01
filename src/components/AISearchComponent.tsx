@@ -48,9 +48,9 @@ const AISearchComponent = ({ onViewProfile, onContact }: AISearchComponentProps)
   const exampleQueries = [
     "React developers with 3+ years experience",
     "Frontend engineers in San Francisco",
-    "Python developers with Django experience",
-    "Senior JavaScript developers with 5+ years",
-    "Full-stack developers with Node.js and React"
+    "Full-stack developers who know Node.js and Python",
+    "Senior software engineers with AI/ML experience",
+    "JavaScript developers open to remote work"
   ];
 
   return (
@@ -59,22 +59,16 @@ const AISearchComponent = ({ onViewProfile, onContact }: AISearchComponentProps)
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-blue-600" />
-            Ultra-Precise AI Candidate Search
+            AI-Powered Candidate Search
           </CardTitle>
           <CardDescription>
-            Our AI search requires <strong>exact matches</strong> for all criteria. Candidates must explicitly have the skills, experience, and qualifications you specify. No assumptions or "close enough" matches.
+            Use natural language to find the perfect candidates. Describe what you're looking for, and AI will match candidates based on skills, experience, location, and more. Enhanced profiles show AI-extracted resume data.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-            <p className="text-sm text-red-800">
-              <strong>Ultra-Precise Matching:</strong> For technical skills like "React", candidates must explicitly list React in their skills or mention it in their profile. Similar technologies (Vue.js, Angular) do NOT qualify. Experience requirements must be met exactly.
-            </p>
-          </div>
-
           <div className="flex gap-2">
             <Input
-              placeholder="e.g., 'React developers with 3+ years experience'"
+              placeholder="e.g., 'React developers with 3+ years experience in San Francisco'"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyPress={handleKeyPress}
@@ -97,7 +91,7 @@ const AISearchComponent = ({ onViewProfile, onContact }: AISearchComponentProps)
           </div>
 
           <div className="space-y-2">
-            <p className="text-sm font-medium text-gray-700">Example precise searches:</p>
+            <p className="text-sm font-medium text-gray-700">Example searches:</p>
             <div className="flex flex-wrap gap-2">
               {exampleQueries.map((query, index) => (
                 <Button
@@ -116,23 +110,11 @@ const AISearchComponent = ({ onViewProfile, onContact }: AISearchComponentProps)
           {searchResults.length > 0 && (
             <div className="flex items-center justify-between">
               <p className="text-sm text-gray-600">
-                Found {searchResults.length} candidates with <strong>exact matches</strong> for all criteria
+                Found {searchResults.length} matching candidates
               </p>
               <Button variant="outline" size="sm" onClick={clearResults}>
                 Clear Results
               </Button>
-            </div>
-          )}
-
-          {searchResults.length === 0 && searchQuery && !isSearching && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-800">
-                <strong>No exact matches found.</strong> Our search requires precise matches. Try:
-                <br />• Using exact skill names (e.g., "JavaScript" not "JS")
-                <br />• Reducing experience requirements (e.g., "2+ years" instead of "5+ years")
-                <br />• Searching for one skill at a time for better results
-                <br />• Removing location constraints or including "remote"
-              </p>
             </div>
           )}
         </CardContent>

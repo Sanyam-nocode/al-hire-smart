@@ -1,3 +1,4 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -45,54 +46,35 @@ serve(async (req) => {
       });
     }
 
-    // Ultra-precise prompt with strict matching requirements
+    // Use OpenAI to analyze the query and match candidates
     const prompt = `
-You are an ULTRA-PRECISE AI recruiter assistant. Your primary directive is EXACTNESS - only return candidates who EXPLICITLY and DEMONSTRABLY meet ALL requirements.
+You are an AI recruiter assistant. Analyze the search query and return candidate IDs that best match the criteria.
 
 Search Query: "${query}"
 
-CRITICAL PRECISION RULES:
-1. SKILL MATCHING: For technical skills (React, Angular, Vue, Python, etc.), candidates MUST explicitly mention the EXACT skill in their skills array, title, summary, or resume content. Similar technologies DO NOT count (Vue.js ≠ React, Angular ≠ React).
-
-2. EXPERIENCE MATCHING: For experience requirements (e.g., "3+ years"), candidates MUST have AT LEAST that many years. If the query says "3+ years experience with React", they need BOTH 3+ total years AND explicit React knowledge.
-
-3. LOCATION MATCHING: For location requirements, candidates must be in that exact location OR explicitly mention remote work/willingness to relocate.
-
-4. ROLE MATCHING: For role-specific searches (e.g., "Frontend Developer"), candidates must have relevant titles or clearly demonstrated experience in that role.
-
-5. ZERO TOLERANCE: If ANY requirement cannot be verified from the candidate's data, EXCLUDE that candidate. When in doubt, EXCLUDE.
-
-6. EXPLICIT EVIDENCE REQUIRED: Don't infer or assume - only match on explicitly stated information.
-
-Available Candidates Data:
+Available Candidates:
 ${candidates?.map(candidate => `
 ID: ${candidate.id}
 Name: ${candidate.first_name} ${candidate.last_name}
 Title: ${candidate.title || 'Not specified'}
 Location: ${candidate.location || 'Not specified'}
-Skills Array: ${candidate.skills ? `[${candidate.skills.join(', ')}]` : 'No skills listed'}
-Experience Years: ${candidate.experience_years || 'Not specified'} years
-Summary: ${candidate.summary || 'No summary'}
+Skills: ${candidate.skills ? candidate.skills.join(', ') : 'Not specified'}
+Experience: ${candidate.experience_years || 'Not specified'} years
+Summary: ${candidate.summary || 'Not specified'}
 Education: ${candidate.education || 'Not specified'}
-Resume Content Keywords: ${candidate.resume_content ? candidate.resume_content.substring(0, 800).toLowerCase() : 'No resume content'}
+Salary Expectation: ${candidate.salary_expectation ? '$' + candidate.salary_expectation.toLocaleString() : 'Not specified'}
 `).join('\n---\n')}
 
-MATCHING ANALYSIS REQUIRED:
-For each requirement in the search query:
-- Extract the EXACT requirement (e.g., "React", "3+ years", "San Francisco")
-- For each candidate, check if they EXPLICITLY meet this requirement
-- Only include candidates who meet ALL requirements with VERIFIABLE evidence
+Instructions:
+1. Analyze the search query for keywords related to skills, experience, location, job titles, salary expectations, etc.
+2. Match candidates based on relevance to the query criteria
+3. Consider partial matches and related terms (e.g., "React" matches "JavaScript", "Frontend" matches "UI/UX")
+4. Return a JSON array of candidate IDs ordered by relevance (best matches first)
+5. Include top 10 matches if available
+6. If no good matches found, return empty array
 
-EXAMPLES OF STRICT MATCHING:
-- Query: "React developers" → Only candidates with "React" in skills, title, summary, or resume
-- Query: "3+ years experience" → Only candidates with experience_years >= 3
-- Query: "Frontend developers with React" → Must have BOTH frontend role evidence AND React skills
-- Vue.js, Angular, JavaScript alone DO NOT qualify for "React developers"
-
-Return ONLY a JSON array of candidate IDs who have EXPLICIT, VERIFIABLE evidence for ALL search requirements.
-If NO candidates meet the strict criteria, return an empty array.
-
-Response format: ["id1", "id2"]
+Return ONLY a valid JSON array of strings (candidate IDs), nothing else:
+["id1", "id2", "id3"]
 `;
 
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -106,11 +88,11 @@ Response format: ["id1", "id2"]
         messages: [
           { 
             role: 'system', 
-            content: 'You are an ULTRA-PRECISE AI recruiter that only matches candidates with EXPLICIT, VERIFIABLE evidence for ALL requirements. Zero tolerance for assumptions or close matches. When in doubt, EXCLUDE the candidate. Respond ONLY with valid JSON arrays of candidate IDs.' 
+            content: 'You are a helpful AI recruiter assistant. You must respond with ONLY valid JSON arrays of candidate IDs, no markdown, no explanations, no code blocks.' 
           },
           { role: 'user', content: prompt }
         ],
-        temperature: 0.05, // Ultra-low temperature for maximum precision
+        temperature: 0.2,
         max_tokens: 500,
       }),
     });
@@ -144,72 +126,23 @@ Response format: ["id1", "id2"]
       console.error('Error parsing OpenAI response:', parseError);
       console.log('Raw content:', openAIData.choices[0].message.content);
       
-      // Ultra-strict fallback search
+      // Fallback to simple text-based search if AI parsing fails
       const queryLower = query.toLowerCase();
-      
-      // Extract requirements with more precision
-      const skillKeywords = extractTechnicalSkills(queryLower);
-      const experienceYears = extractExperienceYears(queryLower);
-      const locationKeywords = extractLocationKeywords(queryLower);
-      
-      console.log('Fallback search criteria:', { skillKeywords, experienceYears, locationKeywords });
+      const searchTerms = queryLower.split(' ').filter(term => term.length > 2);
       
       matchedIds = candidates?.filter(candidate => {
-        // All requirements must be met
-        let requirementsMet = 0;
-        let totalRequirements = 0;
+        const searchableText = [
+          candidate.first_name,
+          candidate.last_name,
+          candidate.title,
+          candidate.location,
+          candidate.summary,
+          candidate.education,
+          ...(candidate.skills || [])
+        ].join(' ').toLowerCase();
         
-        // Strict skill matching
-        if (skillKeywords.length > 0) {
-          totalRequirements++;
-          const candidateSkills = (candidate.skills || []).map(s => s.toLowerCase());
-          const candidateText = [
-            candidate.title,
-            candidate.summary,
-            candidate.resume_content
-          ].join(' ').toLowerCase();
-          
-          // ALL specified skills must be present
-          const allSkillsMatch = skillKeywords.every(skill => {
-            const hasSkill = candidateSkills.includes(skill.toLowerCase()) || 
-                           candidateText.includes(skill.toLowerCase());
-            console.log(`Checking skill "${skill}" for ${candidate.first_name} ${candidate.last_name}:`, hasSkill);
-            return hasSkill;
-          });
-          
-          if (allSkillsMatch) {
-            requirementsMet++;
-          }
-        }
-        
-        // Strict experience matching
-        if (experienceYears > 0) {
-          totalRequirements++;
-          if (candidate.experience_years && candidate.experience_years >= experienceYears) {
-            requirementsMet++;
-            console.log(`Experience requirement met for ${candidate.first_name} ${candidate.last_name}: ${candidate.experience_years} >= ${experienceYears}`);
-          } else {
-            console.log(`Experience requirement NOT met for ${candidate.first_name} ${candidate.last_name}: ${candidate.experience_years} < ${experienceYears}`);
-          }
-        }
-        
-        // Strict location matching
-        if (locationKeywords.length > 0) {
-          totalRequirements++;
-          const candidateLocation = (candidate.location || '').toLowerCase();
-          const locationMatch = locationKeywords.some(loc => candidateLocation.includes(loc));
-          if (locationMatch) {
-            requirementsMet++;
-            console.log(`Location requirement met for ${candidate.first_name} ${candidate.last_name}`);
-          } else {
-            console.log(`Location requirement NOT met for ${candidate.first_name} ${candidate.last_name}`);
-          }
-        }
-        
-        // ALL requirements must be satisfied
-        const isMatch = totalRequirements === 0 || requirementsMet === totalRequirements;
-        console.log(`Final match result for ${candidate.first_name} ${candidate.last_name}: ${isMatch} (${requirementsMet}/${totalRequirements})`);
-        return isMatch;
+        // Check if any search terms match
+        return searchTerms.some(term => searchableText.includes(term));
       }).map(c => c.id) || [];
     }
 
@@ -218,7 +151,7 @@ Response format: ["id1", "id2"]
       .map(id => candidates?.find(c => c.id === id))
       .filter(Boolean);
 
-    console.log(`Found ${matchedCandidates.length} strictly matching candidates out of ${candidates?.length} total candidates`);
+    console.log(`Found ${matchedCandidates.length} matching candidates`);
 
     return new Response(JSON.stringify({ 
       candidates: matchedCandidates,
@@ -235,55 +168,3 @@ Response format: ["id1", "id2"]
     });
   }
 });
-
-// Enhanced helper functions for ultra-precise matching
-function extractTechnicalSkills(query: string): string[] {
-  const technicalSkills = [
-    // Frontend Frameworks
-    'react', 'angular', 'vue.js', 'vue', 'svelte', 'ember',
-    // Backend Frameworks  
-    'node.js', 'express', 'django', 'flask', 'spring', 'laravel',
-    // Languages
-    'javascript', 'typescript', 'python', 'java', 'c#', 'c++', 'go', 'rust', 'php', 'ruby', 'swift', 'kotlin',
-    // Databases
-    'mongodb', 'postgresql', 'mysql', 'redis', 'elasticsearch',
-    // Cloud & DevOps
-    'aws', 'azure', 'gcp', 'docker', 'kubernetes', 'jenkins',
-    // Other Technologies
-    'graphql', 'rest', 'sql', 'html', 'css', 'sass', 'scss', 'git'
-  ];
-  
-  return technicalSkills.filter(skill => {
-    // More precise matching - look for skill as whole word
-    const regex = new RegExp(`\\b${skill}\\b`, 'i');
-    return regex.test(query);
-  });
-}
-
-function extractExperienceYears(query: string): number {
-  // More precise experience extraction
-  const patterns = [
-    /(\d+)\s*\+?\s*years?\s*(of\s*)?(experience|exp)/i,
-    /(\d+)\s*\+?\s*year\s*(experience|exp)/i,
-    /(\d+)\s*\+\s*years?/i
-  ];
-  
-  for (const pattern of patterns) {
-    const match = query.match(pattern);
-    if (match) {
-      return parseInt(match[1]);
-    }
-  }
-  return 0;
-}
-
-function extractLocationKeywords(query: string): string[] {
-  const locations = [
-    'san francisco', 'new york', 'los angeles', 'chicago', 'boston', 'seattle',
-    'austin', 'denver', 'atlanta', 'dallas', 'miami', 'philadelphia',
-    'remote', 'california', 'texas', 'florida', 'washington', 'oregon', 
-    'colorado', 'north carolina', 'new jersey', 'massachusetts'
-  ];
-  
-  return locations.filter(location => query.includes(location));
-}
