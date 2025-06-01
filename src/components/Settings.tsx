@@ -34,7 +34,6 @@ const Settings = ({ open, onOpenChange, trigger }: SettingsProps) => {
 
   const handleSaveProfile = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    event.stopPropagation();
     setIsUpdating(true);
 
     try {
@@ -97,27 +96,15 @@ const Settings = ({ open, onOpenChange, trigger }: SettingsProps) => {
     }
   };
 
-  const handleSaveNotifications = (event?: React.MouseEvent) => {
-    if (event) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
+  const handleSaveNotifications = () => {
     toast.success("Notification preferences saved!");
   };
 
-  const handleSavePrivacy = (event?: React.MouseEvent) => {
-    if (event) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
+  const handleSavePrivacy = () => {
     toast.success("Privacy settings updated!");
   };
 
-  const handleDeleteAccount = (event?: React.MouseEvent) => {
-    if (event) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
+  const handleDeleteAccount = () => {
     toast.error("Account deletion is not available yet. Please contact support.");
   };
 
@@ -125,19 +112,19 @@ const Settings = ({ open, onOpenChange, trigger }: SettingsProps) => {
     <div className="w-full max-w-4xl mx-auto">
       <Tabs defaultValue="profile" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="profile" onClick={(e) => e.stopPropagation()}>
+          <TabsTrigger value="profile">
             <User className="h-4 w-4 mr-2" />
             Profile
           </TabsTrigger>
-          <TabsTrigger value="notifications" onClick={(e) => e.stopPropagation()}>
+          <TabsTrigger value="notifications">
             <Bell className="h-4 w-4 mr-2" />
             Notifications
           </TabsTrigger>
-          <TabsTrigger value="privacy" onClick={(e) => e.stopPropagation()}>
+          <TabsTrigger value="privacy">
             <Shield className="h-4 w-4 mr-2" />
             Privacy
           </TabsTrigger>
-          <TabsTrigger value="account" onClick={(e) => e.stopPropagation()}>
+          <TabsTrigger value="account">
             <Trash2 className="h-4 w-4 mr-2" />
             Account
           </TabsTrigger>
@@ -162,7 +149,6 @@ const Settings = ({ open, onOpenChange, trigger }: SettingsProps) => {
                       defaultValue={userProfile?.first_name || ''}
                       placeholder="Enter your first name"
                       required
-                      onClick={(e) => e.stopPropagation()}
                     />
                   </div>
                   <div className="space-y-2">
@@ -173,7 +159,6 @@ const Settings = ({ open, onOpenChange, trigger }: SettingsProps) => {
                       defaultValue={userProfile?.last_name || ''}
                       placeholder="Enter your last name"
                       required
-                      onClick={(e) => e.stopPropagation()}
                     />
                   </div>
                   <div className="space-y-2">
@@ -185,7 +170,6 @@ const Settings = ({ open, onOpenChange, trigger }: SettingsProps) => {
                       defaultValue={user?.email || ''}
                       placeholder="Enter your email"
                       required
-                      onClick={(e) => e.stopPropagation()}
                     />
                   </div>
                   <div className="space-y-2">
@@ -195,7 +179,6 @@ const Settings = ({ open, onOpenChange, trigger }: SettingsProps) => {
                       name="phone"
                       defaultValue={userProfile?.phone || ''}
                       placeholder="Enter your phone number"
-                      onClick={(e) => e.stopPropagation()}
                     />
                   </div>
                   <div className="space-y-2">
@@ -205,7 +188,6 @@ const Settings = ({ open, onOpenChange, trigger }: SettingsProps) => {
                       name="location"
                       defaultValue={userProfile?.location || ''}
                       placeholder="Enter your location"
-                      onClick={(e) => e.stopPropagation()}
                     />
                   </div>
                   {userType === 'recruiter' && (
@@ -217,12 +199,11 @@ const Settings = ({ open, onOpenChange, trigger }: SettingsProps) => {
                         defaultValue={recruiterProfile?.company || ''}
                         placeholder="Enter your company"
                         required
-                        onClick={(e) => e.stopPropagation()}
                       />
                     </div>
                   )}
                 </div>
-                <Button type="submit" disabled={isUpdating} onClick={(e) => e.stopPropagation()}>
+                <Button type="submit" disabled={isUpdating}>
                   {isUpdating ? "Saving..." : "Save Profile Changes"}
                 </Button>
               </form>
@@ -239,7 +220,7 @@ const Settings = ({ open, onOpenChange, trigger }: SettingsProps) => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label htmlFor="email-notifications">Email Notifications</Label>
                   <p className="text-sm text-muted-foreground">
@@ -249,16 +230,13 @@ const Settings = ({ open, onOpenChange, trigger }: SettingsProps) => {
                 <Switch
                   id="email-notifications"
                   checked={emailNotifications}
-                  onCheckedChange={(checked) => {
-                    setEmailNotifications(checked);
-                  }}
-                  onClick={(e) => e.stopPropagation()}
+                  onCheckedChange={setEmailNotifications}
                 />
               </div>
               
               <Separator />
               
-              <div className="flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label htmlFor="push-notifications">Push Notifications</Label>
                   <p className="text-sm text-muted-foreground">
@@ -268,16 +246,13 @@ const Settings = ({ open, onOpenChange, trigger }: SettingsProps) => {
                 <Switch
                   id="push-notifications"
                   checked={pushNotifications}
-                  onCheckedChange={(checked) => {
-                    setPushNotifications(checked);
-                  }}
-                  onClick={(e) => e.stopPropagation()}
+                  onCheckedChange={setPushNotifications}
                 />
               </div>
               
               <Separator />
               
-              <div className="flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label htmlFor="marketing-emails">Marketing Emails</Label>
                   <p className="text-sm text-muted-foreground">
@@ -287,10 +262,7 @@ const Settings = ({ open, onOpenChange, trigger }: SettingsProps) => {
                 <Switch
                   id="marketing-emails"
                   checked={marketingEmails}
-                  onCheckedChange={(checked) => {
-                    setMarketingEmails(checked);
-                  }}
-                  onClick={(e) => e.stopPropagation()}
+                  onCheckedChange={setMarketingEmails}
                 />
               </div>
               
@@ -310,7 +282,7 @@ const Settings = ({ open, onOpenChange, trigger }: SettingsProps) => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label htmlFor="profile-visibility">Profile Visibility</Label>
                   <p className="text-sm text-muted-foreground">
@@ -323,21 +295,18 @@ const Settings = ({ open, onOpenChange, trigger }: SettingsProps) => {
                 <Switch
                   id="profile-visibility"
                   checked={profileVisibility}
-                  onCheckedChange={(checked) => {
-                    setProfileVisibility(checked);
-                  }}
-                  onClick={(e) => e.stopPropagation()}
+                  onCheckedChange={setProfileVisibility}
                 />
               </div>
               
               <Separator />
               
-              <div className="space-y-4" onClick={(e) => e.stopPropagation()}>
+              <div className="space-y-4">
                 <h4 className="text-sm font-medium">Data Export</h4>
                 <p className="text-sm text-muted-foreground">
                   Download a copy of your personal data
                 </p>
-                <Button variant="outline" onClick={(e) => e.stopPropagation()}>
+                <Button variant="outline">
                   <Globe className="h-4 w-4 mr-2" />
                   Export My Data
                 </Button>
@@ -359,19 +328,19 @@ const Settings = ({ open, onOpenChange, trigger }: SettingsProps) => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-4" onClick={(e) => e.stopPropagation()}>
+              <div className="space-y-4">
                 <h4 className="text-sm font-medium">Change Password</h4>
                 <p className="text-sm text-muted-foreground">
                   Update your account password for better security
                 </p>
-                <Button variant="outline" onClick={(e) => e.stopPropagation()}>
+                <Button variant="outline">
                   Change Password
                 </Button>
               </div>
               
               <Separator />
               
-              <div className="space-y-4" onClick={(e) => e.stopPropagation()}>
+              <div className="space-y-4">
                 <h4 className="text-sm font-medium text-destructive">Danger Zone</h4>
                 <p className="text-sm text-muted-foreground">
                   Permanently delete your account and all associated data
@@ -397,24 +366,14 @@ const Settings = ({ open, onOpenChange, trigger }: SettingsProps) => {
         <SheetTrigger asChild>
           {trigger}
         </SheetTrigger>
-        <SheetContent 
-          className="w-full sm:max-w-4xl overflow-y-auto" 
-          onClick={(e) => e.stopPropagation()}
-          onPointerDownOutside={(e) => {
-            // Only close if clicking outside the sheet content area
-            const target = e.target as Element;
-            if (!target.closest('[data-radix-popper-content-wrapper]')) {
-              e.preventDefault();
-            }
-          }}
-        >
+        <SheetContent className="w-full sm:max-w-4xl overflow-y-auto">
           <SheetHeader>
             <SheetTitle>Settings</SheetTitle>
             <SheetDescription>
               Manage your account settings and preferences
             </SheetDescription>
           </SheetHeader>
-          <div className="mt-6" onClick={(e) => e.stopPropagation()}>
+          <div className="mt-6">
             {settingsContent}
           </div>
         </SheetContent>

@@ -21,17 +21,16 @@ const DashboardRedirect = () => {
       // Check which profile exists to determine user type
       if (recruiterProfile) {
         console.log('DashboardRedirect: Redirecting to recruiter dashboard');
-        // Use replace to prevent back navigation issues
-        navigate('/recruiter/dashboard', { replace: true });
+        navigate('/recruiter/dashboard');
       } else if (candidateProfile) {
         console.log('DashboardRedirect: Redirecting to candidate profile');
-        navigate('/candidate/profile', { replace: true });
+        navigate('/candidate/profile');
       } else {
         // If no profile exists yet, wait a bit and then redirect to signup
         console.log('DashboardRedirect: No profiles found, waiting before redirecting to signup...');
         const timeout = setTimeout(() => {
           console.log('DashboardRedirect: Timeout reached, redirecting to signup');
-          navigate('/signup', { replace: true });
+          navigate('/signup');
         }, 3000); // Wait 3 seconds for profiles to load
         
         return () => clearTimeout(timeout);
@@ -39,7 +38,7 @@ const DashboardRedirect = () => {
     } else if (!loading && !user) {
       console.log('DashboardRedirect: No user, redirecting to login');
       // If not logged in, redirect to login
-      navigate('/login', { replace: true });
+      navigate('/login');
     }
   }, [user, recruiterProfile, candidateProfile, loading, navigate]);
 

@@ -21,12 +21,6 @@ const RecruiterDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  // Ensure settings modal is closed on component mount
-  useEffect(() => {
-    console.log('RecruiterDashboard: Component mounted, ensuring settings is closed');
-    setSettingsOpen(false);
-  }, []);
-
   // Fetch candidate profiles
   const { data: candidates, isLoading } = useQuery({
     queryKey: ['candidates'],
@@ -58,11 +52,6 @@ const RecruiterDashboard = () => {
 
   const handleNotifications = () => {
     toast.info("Notifications functionality coming soon!");
-  };
-
-  const handleSettingsClick = () => {
-    console.log('RecruiterDashboard: Settings button clicked');
-    setSettingsOpen(true);
   };
 
   const filteredCandidates = candidates?.filter(candidate => {
@@ -108,9 +97,15 @@ const RecruiterDashboard = () => {
               <Button variant="outline" size="sm" onClick={handleNotifications}>
                 <Bell className="h-4 w-4" />
               </Button>
-              <Button variant="outline" size="sm" onClick={handleSettingsClick}>
-                <SettingsIcon className="h-4 w-4" />
-              </Button>
+              <Settings
+                open={settingsOpen}
+                onOpenChange={setSettingsOpen}
+                trigger={
+                  <Button variant="outline" size="sm">
+                    <SettingsIcon className="h-4 w-4" />
+                  </Button>
+                }
+              />
               <Button variant="outline" size="sm" onClick={handleSignOut}>
                 <LogOut className="h-4 w-4" />
               </Button>
@@ -281,12 +276,6 @@ const RecruiterDashboard = () => {
           </TabsContent>
         </Tabs>
       </div>
-
-      {/* Settings Modal - only render when needed */}
-      <Settings
-        open={settingsOpen}
-        onOpenChange={setSettingsOpen}
-      />
     </div>
   );
 };
