@@ -47,6 +47,11 @@ const Login = () => {
     }
   };
 
+  const handleSignupClick = () => {
+    console.log("Sign up here button clicked");
+    setSignupModalOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <Navbar />
@@ -179,8 +184,9 @@ const Login = () => {
             <p className="text-gray-600">
               Don't have an account?{" "}
               <button 
-                onClick={() => setSignupModalOpen(true)}
-                className="text-blue-600 hover:underline font-medium"
+                type="button"
+                onClick={handleSignupClick}
+                className="text-blue-600 hover:underline font-medium cursor-pointer bg-transparent border-none p-0"
               >
                 Sign up here
               </button>
