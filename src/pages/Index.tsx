@@ -1,3 +1,4 @@
+
 import { ArrowRight, Search, Users, Zap, Brain, CheckCircle, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -6,15 +7,30 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import DashboardRedirect from "@/components/DashboardRedirect";
 import { useAuth } from "@/contexts/AuthContext";
+
 const Index = () => {
-  const {
-    user
-  } = useAuth();
-  return <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+  const { user, loading } = useAuth();
+
+  // If user is authenticated, only show the redirect component
+  if (user && !loading) {
+    return <DashboardRedirect />;
+  }
+
+  // If still loading, show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        <p className="ml-4 text-gray-600">Loading...</p>
+      </div>
+    );
+  }
+
+  // Only show homepage content for unauthenticated users
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       {/* Header with Navbar - contains logo, name, features, about, pricing, sign in & get started */}
       <Navbar />
-      
-      {user && <DashboardRedirect />}
       
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -278,6 +294,8 @@ const Index = () => {
       </section>
 
       <Footer />
-    </div>;
+    </div>
+  );
 };
+
 export default Index;
