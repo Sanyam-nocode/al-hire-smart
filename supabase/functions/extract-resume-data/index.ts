@@ -1,4 +1,3 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -19,7 +18,7 @@ serve(async (req) => {
 
   try {
     const { resumeUrl, candidateId } = await req.json();
-    console.log('=== RESUME EXTRACTION REQUEST ===');
+    console.log('=== ENHANCED RESUME EXTRACTION REQUEST ===');
     console.log('Resume URL:', resumeUrl);
     console.log('Candidate ID:', candidateId);
 
@@ -48,22 +47,22 @@ serve(async (req) => {
     // Create Supabase client
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log('=== PARSING PDF WITH NEW FUNCTION ===');
+    console.log('=== CALLING ENHANCED PDF PARSER ===');
     
-    // Call the new parseResume function instead of preprocess-pdf
+    // Call the enhanced parseResume function
     const { data: parseData, error: parseError } = await supabase.functions.invoke('parseResume', {
       body: { resumeUrl }
     });
 
-    console.log('=== PARSE RESPONSE ===');
+    console.log('=== ENHANCED PARSE RESPONSE ===');
     console.log('Data:', parseData);
     console.log('Error:', parseError);
 
     if (parseError || !parseData?.success) {
-      console.error('PDF parsing failed:', parseError);
-      const errorMsg = parseError?.message || parseData?.error || 'PDF parsing failed';
+      console.error('Enhanced PDF parsing failed:', parseError);
+      const errorMsg = parseError?.message || parseData?.error || 'Enhanced PDF parsing failed';
       return new Response(JSON.stringify({ 
-        error: `PDF parsing failed: ${errorMsg}`,
+        error: `Enhanced PDF parsing failed: ${errorMsg}`,
         success: false,
         debugInfo: parseData?.debugInfo
       }), {
@@ -73,12 +72,12 @@ serve(async (req) => {
     }
 
     const resumeText = parseData.text;
-    console.log('Parsed text length:', resumeText.length);
-    console.log('Parsed text preview:', resumeText.substring(0, 1500));
+    console.log('Enhanced parsed text length:', resumeText.length);
+    console.log('Enhanced parsed text preview:', resumeText.substring(0, 2000));
 
     if (!resumeText || resumeText.length < 50) {
       return new Response(JSON.stringify({ 
-        error: 'Insufficient text extracted from PDF after parsing',
+        error: 'Insufficient meaningful text extracted from PDF after enhanced parsing',
         success: false,
         debugInfo: {
           extractedTextLength: resumeText.length,
@@ -90,11 +89,18 @@ serve(async (req) => {
       });
     }
 
-    // Enhanced OpenAI prompt for better extraction with the clean text
-    console.log('=== CALLING OPENAI FOR DATA EXTRACTION ===');
-    const prompt = `You are a resume parsing assistant.
+    // Enhanced OpenAI prompt with better instructions
+    console.log('=== CALLING OPENAI WITH ENHANCED PROMPT ===');
+    const prompt = `You are an expert resume parsing assistant. Extract information from the following resume text with high accuracy.
 
-From the resume text below, extract the following details and return only valid JSON:
+IMPORTANT INSTRUCTIONS:
+- Extract ALL available information from the resume text
+- If information is not clearly stated, leave the field empty
+- Be thorough and accurate in your extraction
+- Return ONLY valid JSON without any markdown formatting
+- Pay special attention to contact information, skills, and experience
+
+Extract the following details and return as JSON:
 
 {
   "personal_info": {
@@ -139,13 +145,7 @@ From the resume text below, extract the following details and return only valid 
   }
 }
 
-Rules:
-- If any field is missing, return it as an empty string or empty array.
-- Extract ALL information present in the resume text.
-- Return only clean JSON. Do not include markdown or explanation.
-- Be thorough and accurate in extraction.
-
-Resume text:
+Resume text to parse:
 "${resumeText}"`;
 
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -159,7 +159,7 @@ Resume text:
         messages: [
           { 
             role: 'system', 
-            content: 'You are an expert resume parser. Extract information accurately and respond only with valid JSON. Never use markdown formatting.'
+            content: 'You are an expert resume parser with high accuracy. Extract information precisely and respond only with valid JSON. Never use markdown formatting or explanations.'
           },
           { 
             role: 'user', 
@@ -167,7 +167,7 @@ Resume text:
           }
         ],
         temperature: 0.1,
-        max_tokens: 3000,
+        max_tokens: 4000,
       }),
     });
 
@@ -185,7 +185,7 @@ Resume text:
     }
 
     const openAIData = await openAIResponse.json();
-    console.log('OpenAI response received');
+    console.log('Enhanced OpenAI response received');
 
     if (!openAIData.choices?.[0]?.message?.content) {
       console.error('Invalid OpenAI response structure');
@@ -198,33 +198,35 @@ Resume text:
       });
     }
 
-    // Parse AI response
-    console.log('=== PARSING AI RESPONSE ===');
+    // Parse AI response with enhanced error handling
+    console.log('=== PARSING ENHANCED AI RESPONSE ===');
     let extractedData;
     try {
       let content = openAIData.choices[0].message.content.trim();
-      console.log('Raw AI content length:', content.length);
-      console.log('Raw AI content preview:', content.substring(0, 500));
+      console.log('Enhanced AI content length:', content.length);
+      console.log('Enhanced AI content preview:', content.substring(0, 1000));
       
-      // Clean any markdown formatting
+      // Clean any markdown formatting more aggressively
       content = content.replace(/```json\s*|\s*```/g, '');
       content = content.replace(/```\s*|\s*```/g, '');
+      content = content.replace(/^[^{]*/, ''); // Remove everything before first {
+      content = content.replace(/[^}]*$/, ''); // Remove everything after last }
       
-      // Find JSON object
+      // Find JSON object with better regex
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         content = jsonMatch[0];
       }
       
       extractedData = JSON.parse(content);
-      console.log('Successfully parsed extracted data:', JSON.stringify(extractedData, null, 2));
+      console.log('Successfully parsed enhanced extracted data:', JSON.stringify(extractedData, null, 2));
       
     } catch (parseError) {
-      console.error('JSON parse error:', parseError);
+      console.error('Enhanced JSON parse error:', parseError);
       console.error('Content that failed to parse:', openAIData.choices[0].message.content);
       
       return new Response(JSON.stringify({ 
-        error: 'Failed to parse AI response as JSON',
+        error: 'Failed to parse enhanced AI response as JSON',
         success: false,
         debugInfo: {
           rawResponse: openAIData.choices[0].message.content,
@@ -236,8 +238,8 @@ Resume text:
       });
     }
 
-    // Update database with extracted data
-    console.log('=== UPDATING DATABASE ===');
+    // Update database with extracted data (same logic as before)
+    console.log('=== UPDATING DATABASE WITH ENHANCED DATA ===');
     const updateData: any = {
       resume_content: JSON.stringify(extractedData),
       updated_at: new Date().toISOString(),
@@ -332,7 +334,7 @@ Resume text:
       }
     }
 
-    console.log('Final update data:', JSON.stringify(updateData, null, 2));
+    console.log('Enhanced final update data:', JSON.stringify(updateData, null, 2));
 
     // Update candidate profile
     const { data: updatedProfile, error: updateError } = await supabase
@@ -354,8 +356,8 @@ Resume text:
       });
     }
 
-    console.log('=== EXTRACTION SUCCESS ===');
-    console.log('Profile updated successfully');
+    console.log('=== ENHANCED EXTRACTION SUCCESS ===');
+    console.log('Profile updated successfully with enhanced extraction');
 
     return new Response(JSON.stringify({ 
       success: true,
@@ -363,16 +365,15 @@ Resume text:
       updatedProfile,
       parsingInfo: {
         textLength: parseData.textLength,
-        numpages: parseData.numpages,
-        extractedText: parseData.text.substring(0, 1000) + '...'
+        extractedText: parseData.text.substring(0, 2000) + '...'
       },
-      message: 'Resume data extracted and profile updated successfully using pdf-parse'
+      message: 'Resume data extracted and profile updated successfully using enhanced PDF parsing with OCR capabilities'
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('=== FUNCTION ERROR ===');
+    console.error('=== ENHANCED FUNCTION ERROR ===');
     console.error('Error details:', error);
     return new Response(JSON.stringify({ 
       error: error.message,
