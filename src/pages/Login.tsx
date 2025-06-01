@@ -18,14 +18,36 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [signupModalOpen, setSignupModalOpen] = useState(false);
-  const { signIn, user } = useAuth();
+  const { signIn, user, candidateProfile, recruiterProfile, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user) {
-      navigate('/dashboard');
+    console.log('Login page: Auth state changed', { 
+      user: user?.email, 
+      candidateProfile: candidateProfile?.id, 
+      recruiterProfile: recruiterProfile?.id,
+      authLoading 
+    });
+
+    // Only redirect if not loading and user exists
+    if (!authLoading && user) {
+      console.log('Login page: User authenticated, determining redirect...');
+      
+      // If profiles are still loading, wait a bit more
+      if (!candidateProfile && !recruiterProfile) {
+        console.log('Login page: Profiles not loaded yet, waiting...');
+        const timeout = setTimeout(() => {
+          console.log('Login page: Timeout reached, redirecting to dashboard anyway');
+          navigate('/dashboard');
+        }, 2000); // Wait max 2 seconds for profiles
+        
+        return () => clearTimeout(timeout);
+      } else {
+        console.log('Login page: Profiles loaded, redirecting to dashboard');
+        navigate('/dashboard');
+      }
     }
-  }, [user, navigate]);
+  }, [user, candidateProfile, recruiterProfile, authLoading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,7 +55,7 @@ const Login = () => {
     // Prevent multiple submissions
     if (loading) return;
     
-    console.log("Starting sign in process...");
+    console.log("Login page: Starting sign in process...");
     setLoading(true);
 
     try {
@@ -43,22 +65,22 @@ const Login = () => {
         return;
       }
 
-      console.log("Attempting to sign in with email:", email);
+      console.log("Login page: Attempting to sign in with email:", email);
       const { error } = await signIn(email, password);
       
       if (error) {
-        console.error("Sign in error:", error);
+        console.error("Login page: Sign in error:", error);
         toast.error(error.message || "Failed to sign in");
       } else {
-        console.log("Sign in successful");
+        console.log("Login page: Sign in successful");
         toast.success("Successfully signed in!");
-        // Don't navigate here - let the useEffect handle it when user state updates
+        // Navigation will be handled by useEffect when user state updates
       }
     } catch (error) {
-      console.error("Unexpected error during sign in:", error);
+      console.error("Login page: Unexpected error during sign in:", error);
       toast.error("An unexpected error occurred. Please try again.");
     } finally {
-      console.log("Resetting loading state");
+      console.log("Login page: Resetting loading state");
       setLoading(false);
     }
   };
@@ -67,6 +89,15 @@ const Login = () => {
     console.log("Sign up here button clicked");
     setSignupModalOpen(true);
   };
+
+  // Show loading if auth is still initializing
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">

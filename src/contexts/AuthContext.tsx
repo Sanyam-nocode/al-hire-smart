@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -74,6 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   const fetchProfiles = async (user: User) => {
+    console.log('Fetching profiles for user:', user.id);
     try {
       // Try to fetch candidate profile
       const { data: candidateData, error: candidateError } = await supabase
@@ -85,6 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (candidateError && candidateError.code !== 'PGRST116') {
         console.error('Error fetching candidate profile:', candidateError);
       } else if (candidateData) {
+        console.log('Found candidate profile:', candidateData);
         setCandidateProfile(candidateData);
         return;
       }
@@ -99,7 +102,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (recruiterError && recruiterError.code !== 'PGRST116') {
         console.error('Error fetching recruiter profile:', recruiterError);
       } else if (recruiterData) {
+        console.log('Found recruiter profile:', recruiterData);
         setRecruiterProfile(recruiterData);
+      } else {
+        console.log('No profiles found for user');
       }
     } catch (error) {
       console.error('Error in fetchProfiles:', error);
@@ -119,12 +125,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     try {
+      console.log('AuthContext: Attempting sign in');
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
+      console.log('AuthContext: Sign in result:', { error });
       return { error };
     } catch (error) {
+      console.error('AuthContext: Sign in error:', error);
       return { error };
     }
   };
@@ -146,22 +155,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
+    console.log('AuthContext: Setting up auth listeners');
+    
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('AuthContext: Initial session:', session?.user?.email);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchProfiles(session.user);
+        // Use setTimeout to defer profile fetching
+        setTimeout(() => {
+          fetchProfiles(session.user);
+        }, 0);
       }
       setLoading(false);
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session?.user?.email);
+      console.log('AuthContext: Auth state changed:', event, session?.user?.email);
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        await fetchProfiles(session.user);
+        // Use setTimeout to defer profile fetching and prevent potential deadlocks
+        setTimeout(() => {
+          fetchProfiles(session.user);
+        }, 0);
       } else {
         setCandidateProfile(null);
         setRecruiterProfile(null);
