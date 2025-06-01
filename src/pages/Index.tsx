@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { ArrowRight, Search, Users, Zap, Brain, CheckCircle, Star } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
@@ -11,21 +10,20 @@ import { useAuth } from "@/contexts/AuthContext";
 const Index = () => {
   const { user, recruiterProfile, candidateProfile, loading } = useAuth();
   const navigate = useNavigate();
-  const [redirecting, setRedirecting] = useState(false);
+  const [hasRedirected, setHasRedirected] = useState(false);
 
   useEffect(() => {
     // Only proceed if auth is not loading and user exists
-    if (!loading && user) {
+    if (!loading && user && !hasRedirected) {
       console.log('Index: User authenticated, profiles state:', { 
         user: user.email, 
         recruiterProfile: recruiterProfile?.id || 'null',
         candidateProfile: candidateProfile?.id || 'null'
       });
       
-      // Set redirecting state to show loading
-      setRedirecting(true);
+      setHasRedirected(true);
       
-      // Give a moment for profiles to be set, then redirect
+      // Small delay to ensure profiles are loaded
       const timeoutId = setTimeout(() => {
         if (recruiterProfile) {
           console.log('Index: Redirecting to recruiter dashboard');
@@ -37,16 +35,13 @@ const Index = () => {
           console.log('Index: No profiles found, redirecting to dashboard for profile setup');
           navigate('/dashboard', { replace: true });
         }
-      }, 200);
+      }, 100);
 
       return () => clearTimeout(timeoutId);
-    } else if (!loading && !user) {
-      // User is definitely not authenticated
-      setRedirecting(false);
     }
-  }, [user, recruiterProfile, candidateProfile, loading, navigate]);
+  }, [user, recruiterProfile, candidateProfile, loading, navigate, hasRedirected]);
 
-  // If still loading auth state, show loading
+  // Show loading only if auth is still loading
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -58,8 +53,8 @@ const Index = () => {
     );
   }
 
-  // If user is authenticated and we're redirecting, show redirect message
-  if (user && redirecting) {
+  // Show loading if authenticated user is being redirected
+  if (user && !hasRedirected) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
         <div className="text-center">
@@ -70,7 +65,7 @@ const Index = () => {
     );
   }
 
-  // Only show homepage content for unauthenticated users
+  // Show homepage content for unauthenticated users or after redirect attempt
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       {/* Header with Navbar - contains logo, name, features, about, pricing, sign in & get started */}

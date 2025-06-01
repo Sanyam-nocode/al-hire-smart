@@ -185,6 +185,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setCandidateProfile(null);
             setRecruiterProfile(null);
           }
+          // Always set loading to false after initial check
           setLoading(false);
         }
       } catch (error) {
@@ -213,6 +214,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setRecruiterProfile(null);
       }
       
+      // Ensure loading is set to false after any auth state change
       setLoading(false);
     });
 
