@@ -48,31 +48,34 @@ serve(async (req) => {
 
     // Use OpenAI to analyze the query and match candidates
     const prompt = `
-    You are an AI recruiter assistant. Analyze the following search query and return the IDs of candidates that best match the criteria.
+You are an AI recruiter assistant. Analyze the search query and return candidate IDs that best match the criteria.
 
-    Search Query: "${query}"
+Search Query: "${query}"
 
-    Available Candidates:
-    ${candidates?.map(candidate => `
-    ID: ${candidate.id}
-    Name: ${candidate.first_name} ${candidate.last_name}
-    Title: ${candidate.title || 'Not specified'}
-    Location: ${candidate.location || 'Not specified'}
-    Skills: ${candidate.skills ? candidate.skills.join(', ') : 'Not specified'}
-    Experience: ${candidate.experience_years || 'Not specified'} years
-    Summary: ${candidate.summary || 'Not specified'}
-    Education: ${candidate.education || 'Not specified'}
-    `).join('\n---\n')}
+Available Candidates:
+${candidates?.map(candidate => `
+ID: ${candidate.id}
+Name: ${candidate.first_name} ${candidate.last_name}
+Title: ${candidate.title || 'Not specified'}
+Location: ${candidate.location || 'Not specified'}
+Skills: ${candidate.skills ? candidate.skills.join(', ') : 'Not specified'}
+Experience: ${candidate.experience_years || 'Not specified'} years
+Summary: ${candidate.summary || 'Not specified'}
+Education: ${candidate.education || 'Not specified'}
+Salary Expectation: ${candidate.salary_expectation ? '$' + candidate.salary_expectation.toLocaleString() : 'Not specified'}
+`).join('\n---\n')}
 
-    Instructions:
-    1. Analyze the search query for keywords related to skills, experience, location, job titles, etc.
-    2. Match candidates based on relevance to the query
-    3. Return ONLY a JSON array of candidate IDs that match, ordered by relevance (best matches first)
-    4. Include at least the top 5 matches if available, but no more than 20
-    5. If no good matches, return an empty array
+Instructions:
+1. Analyze the search query for keywords related to skills, experience, location, job titles, salary expectations, etc.
+2. Match candidates based on relevance to the query criteria
+3. Consider partial matches and related terms (e.g., "React" matches "JavaScript", "Frontend" matches "UI/UX")
+4. Return a JSON array of candidate IDs ordered by relevance (best matches first)
+5. Include top 10 matches if available
+6. If no good matches found, return empty array
 
-    Response format: ["id1", "id2", "id3", ...]
-    `;
+Return ONLY a valid JSON array of strings (candidate IDs), nothing else:
+["id1", "id2", "id3"]
+`;
 
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -83,10 +86,14 @@ serve(async (req) => {
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: 'You are a helpful AI recruiter assistant that matches job candidates to search queries.' },
+          { 
+            role: 'system', 
+            content: 'You are a helpful AI recruiter assistant. You must respond with ONLY valid JSON arrays of candidate IDs, no markdown, no explanations, no code blocks.' 
+          },
           { role: 'user', content: prompt }
         ],
-        temperature: 0.3,
+        temperature: 0.2,
+        max_tokens: 500,
       }),
     });
 
@@ -102,15 +109,40 @@ serve(async (req) => {
 
     let matchedIds: string[] = [];
     try {
-      const content = openAIData.choices[0].message.content.trim();
+      let content = openAIData.choices[0].message.content.trim();
+      
+      // Remove markdown code blocks if present
+      content = content.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+      
+      // Try to parse the cleaned content
       matchedIds = JSON.parse(content);
+      
+      // Ensure it's an array
+      if (!Array.isArray(matchedIds)) {
+        throw new Error('Response is not an array');
+      }
+      
     } catch (parseError) {
       console.error('Error parsing OpenAI response:', parseError);
-      // Fallback to simple text search if AI parsing fails
+      console.log('Raw content:', openAIData.choices[0].message.content);
+      
+      // Fallback to simple text-based search if AI parsing fails
       const queryLower = query.toLowerCase();
+      const searchTerms = queryLower.split(' ').filter(term => term.length > 2);
+      
       matchedIds = candidates?.filter(candidate => {
-        const searchText = `${candidate.first_name} ${candidate.last_name} ${candidate.title} ${candidate.location} ${candidate.skills?.join(' ')} ${candidate.summary}`.toLowerCase();
-        return searchText.includes(queryLower);
+        const searchableText = [
+          candidate.first_name,
+          candidate.last_name,
+          candidate.title,
+          candidate.location,
+          candidate.summary,
+          candidate.education,
+          ...(candidate.skills || [])
+        ].join(' ').toLowerCase();
+        
+        // Check if any search terms match
+        return searchTerms.some(term => searchableText.includes(term));
       }).map(c => c.id) || [];
     }
 
