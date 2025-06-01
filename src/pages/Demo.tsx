@@ -1,4 +1,3 @@
-
 import { Play, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,10 +13,13 @@ const Demo = () => {
   };
 
   const handleWatchNow = () => {
-    const videoSection = document.getElementById('product-walkthrough');
-    if (videoSection) {
-      videoSection.scrollIntoView({ behavior: 'smooth' });
-    }
+    // Small delay to ensure page has loaded before scrolling
+    setTimeout(() => {
+      const videoSection = document.getElementById('product-walkthrough');
+      if (videoSection) {
+        videoSection.scrollIntoView({ behavior: 'smooth' });
+      }
+    }, 100);
   };
 
   return (
