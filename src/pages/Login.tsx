@@ -10,12 +10,14 @@ import { Brain, Search, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
+import SignupModal from "@/components/SignupModal";
 
 const Login = () => {
   const [activeTab, setActiveTab] = useState("recruiter");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [signupModalOpen, setSignupModalOpen] = useState(false);
   const { signIn, user } = useAuth();
   const navigate = useNavigate();
 
@@ -176,13 +178,21 @@ const Login = () => {
           <div className="text-center mt-6">
             <p className="text-gray-600">
               Don't have an account?{" "}
-              <Link to="/signup" className="text-blue-600 hover:underline font-medium">
+              <button 
+                onClick={() => setSignupModalOpen(true)}
+                className="text-blue-600 hover:underline font-medium"
+              >
                 Sign up here
-              </Link>
+              </button>
             </p>
           </div>
         </div>
       </div>
+
+      <SignupModal 
+        open={signupModalOpen} 
+        onOpenChange={setSignupModalOpen} 
+      />
     </div>
   );
 };
