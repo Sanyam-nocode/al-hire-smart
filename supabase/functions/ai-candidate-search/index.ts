@@ -1,4 +1,3 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -46,46 +45,54 @@ serve(async (req) => {
       });
     }
 
-    // Enhanced prompt for more precise matching
+    // Ultra-precise prompt with strict matching requirements
     const prompt = `
-You are a highly precise AI recruiter assistant. Your task is to find candidates who STRICTLY match the search criteria. Be extremely selective and only return candidates who genuinely satisfy ALL the requirements.
+You are an ULTRA-PRECISE AI recruiter assistant. Your primary directive is EXACTNESS - only return candidates who EXPLICITLY and DEMONSTRABLY meet ALL requirements.
 
 Search Query: "${query}"
 
-CRITICAL INSTRUCTIONS:
-1. Parse the search query to identify EXACT requirements (skills, experience, location, etc.)
-2. For skill requirements: Candidates MUST have the specific skills mentioned or very closely related ones
-3. For experience requirements: Candidates MUST meet or exceed the minimum years specified
-4. For location requirements: Candidates MUST be in the specified location or explicitly open to that location
-5. For job title/role requirements: Candidates MUST have relevant experience in that specific role
-6. If a requirement cannot be verified from the candidate data, EXCLUDE that candidate
-7. When in doubt, EXCLUDE rather than include - it's better to be too strict than too lenient
-8. Only return candidates who are a strong match for ALL criteria mentioned
+CRITICAL PRECISION RULES:
+1. SKILL MATCHING: For technical skills (React, Angular, Vue, Python, etc.), candidates MUST explicitly mention the EXACT skill in their skills array, title, summary, or resume content. Similar technologies DO NOT count (Vue.js ≠ React, Angular ≠ React).
 
-Available Candidates:
+2. EXPERIENCE MATCHING: For experience requirements (e.g., "3+ years"), candidates MUST have AT LEAST that many years. If the query says "3+ years experience with React", they need BOTH 3+ total years AND explicit React knowledge.
+
+3. LOCATION MATCHING: For location requirements, candidates must be in that exact location OR explicitly mention remote work/willingness to relocate.
+
+4. ROLE MATCHING: For role-specific searches (e.g., "Frontend Developer"), candidates must have relevant titles or clearly demonstrated experience in that role.
+
+5. ZERO TOLERANCE: If ANY requirement cannot be verified from the candidate's data, EXCLUDE that candidate. When in doubt, EXCLUDE.
+
+6. EXPLICIT EVIDENCE REQUIRED: Don't infer or assume - only match on explicitly stated information.
+
+Available Candidates Data:
 ${candidates?.map(candidate => `
 ID: ${candidate.id}
 Name: ${candidate.first_name} ${candidate.last_name}
 Title: ${candidate.title || 'Not specified'}
 Location: ${candidate.location || 'Not specified'}
-Skills: ${candidate.skills ? candidate.skills.join(', ') : 'Not specified'}
-Experience: ${candidate.experience_years || 'Not specified'} years
-Summary: ${candidate.summary || 'Not specified'}
+Skills Array: ${candidate.skills ? `[${candidate.skills.join(', ')}]` : 'No skills listed'}
+Experience Years: ${candidate.experience_years || 'Not specified'} years
+Summary: ${candidate.summary || 'No summary'}
 Education: ${candidate.education || 'Not specified'}
-Salary Expectation: ${candidate.salary_expectation ? '$' + candidate.salary_expectation.toLocaleString() : 'Not specified'}
-Resume Content: ${candidate.resume_content ? candidate.resume_content.substring(0, 500) + '...' : 'Not available'}
+Resume Content Keywords: ${candidate.resume_content ? candidate.resume_content.substring(0, 800).toLowerCase() : 'No resume content'}
 `).join('\n---\n')}
 
-MATCHING CRITERIA:
-- For technology skills: Only match if the candidate explicitly mentions the technology or demonstrates clear experience with it
-- For experience years: Candidate must have AT LEAST the specified years (if mentioned)
-- For locations: Must be exact match or candidate must indicate flexibility for that location
-- For roles/titles: Must have relevant experience in similar roles or explicitly mention that skill set
-- For seniority levels (junior, mid, senior): Match based on experience years and complexity of past work
+MATCHING ANALYSIS REQUIRED:
+For each requirement in the search query:
+- Extract the EXACT requirement (e.g., "React", "3+ years", "San Francisco")
+- For each candidate, check if they EXPLICITLY meet this requirement
+- Only include candidates who meet ALL requirements with VERIFIABLE evidence
 
-Return ONLY a JSON array of candidate IDs who STRICTLY satisfy ALL the search criteria. If no candidates meet the strict requirements, return an empty array.
+EXAMPLES OF STRICT MATCHING:
+- Query: "React developers" → Only candidates with "React" in skills, title, summary, or resume
+- Query: "3+ years experience" → Only candidates with experience_years >= 3
+- Query: "Frontend developers with React" → Must have BOTH frontend role evidence AND React skills
+- Vue.js, Angular, JavaScript alone DO NOT qualify for "React developers"
 
-Response format: ["id1", "id2", "id3"]
+Return ONLY a JSON array of candidate IDs who have EXPLICIT, VERIFIABLE evidence for ALL search requirements.
+If NO candidates meet the strict criteria, return an empty array.
+
+Response format: ["id1", "id2"]
 `;
 
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -99,11 +106,11 @@ Response format: ["id1", "id2", "id3"]
         messages: [
           { 
             role: 'system', 
-            content: 'You are a precision-focused AI recruiter that only returns candidates who STRICTLY match search criteria. You must be extremely selective and only include candidates who genuinely satisfy ALL requirements. When in doubt, exclude the candidate. Respond ONLY with valid JSON arrays.' 
+            content: 'You are an ULTRA-PRECISE AI recruiter that only matches candidates with EXPLICIT, VERIFIABLE evidence for ALL requirements. Zero tolerance for assumptions or close matches. When in doubt, EXCLUDE the candidate. Respond ONLY with valid JSON arrays of candidate IDs.' 
           },
           { role: 'user', content: prompt }
         ],
-        temperature: 0.1, // Lower temperature for more consistent, precise results
+        temperature: 0.05, // Ultra-low temperature for maximum precision
         max_tokens: 500,
       }),
     });
@@ -137,56 +144,72 @@ Response format: ["id1", "id2", "id3"]
       console.error('Error parsing OpenAI response:', parseError);
       console.log('Raw content:', openAIData.choices[0].message.content);
       
-      // Enhanced fallback search with stricter text-based matching
+      // Ultra-strict fallback search
       const queryLower = query.toLowerCase();
       
-      // Extract potential requirements from query
-      const skillKeywords = extractSkillKeywords(queryLower);
+      // Extract requirements with more precision
+      const skillKeywords = extractTechnicalSkills(queryLower);
       const experienceYears = extractExperienceYears(queryLower);
       const locationKeywords = extractLocationKeywords(queryLower);
       
+      console.log('Fallback search criteria:', { skillKeywords, experienceYears, locationKeywords });
+      
       matchedIds = candidates?.filter(candidate => {
-        let score = 0;
-        let requiredMatches = 0;
+        // All requirements must be met
+        let requirementsMet = 0;
+        let totalRequirements = 0;
         
-        // Skill matching - must have specific skills mentioned
+        // Strict skill matching
         if (skillKeywords.length > 0) {
-          requiredMatches++;
-          const candidateSkills = (candidate.skills || []).join(' ').toLowerCase();
+          totalRequirements++;
+          const candidateSkills = (candidate.skills || []).map(s => s.toLowerCase());
           const candidateText = [
             candidate.title,
             candidate.summary,
             candidate.resume_content
           ].join(' ').toLowerCase();
           
-          const skillMatches = skillKeywords.filter(skill => 
-            candidateSkills.includes(skill) || candidateText.includes(skill)
-          );
+          // ALL specified skills must be present
+          const allSkillsMatch = skillKeywords.every(skill => {
+            const hasSkill = candidateSkills.includes(skill.toLowerCase()) || 
+                           candidateText.includes(skill.toLowerCase());
+            console.log(`Checking skill "${skill}" for ${candidate.first_name} ${candidate.last_name}:`, hasSkill);
+            return hasSkill;
+          });
           
-          if (skillMatches.length >= Math.ceil(skillKeywords.length * 0.8)) {
-            score++;
+          if (allSkillsMatch) {
+            requirementsMet++;
           }
         }
         
-        // Experience matching - must meet minimum requirements
+        // Strict experience matching
         if (experienceYears > 0) {
-          requiredMatches++;
+          totalRequirements++;
           if (candidate.experience_years && candidate.experience_years >= experienceYears) {
-            score++;
+            requirementsMet++;
+            console.log(`Experience requirement met for ${candidate.first_name} ${candidate.last_name}: ${candidate.experience_years} >= ${experienceYears}`);
+          } else {
+            console.log(`Experience requirement NOT met for ${candidate.first_name} ${candidate.last_name}: ${candidate.experience_years} < ${experienceYears}`);
           }
         }
         
-        // Location matching - must be exact or flexible
+        // Strict location matching
         if (locationKeywords.length > 0) {
-          requiredMatches++;
+          totalRequirements++;
           const candidateLocation = (candidate.location || '').toLowerCase();
-          if (locationKeywords.some(loc => candidateLocation.includes(loc))) {
-            score++;
+          const locationMatch = locationKeywords.some(loc => candidateLocation.includes(loc));
+          if (locationMatch) {
+            requirementsMet++;
+            console.log(`Location requirement met for ${candidate.first_name} ${candidate.last_name}`);
+          } else {
+            console.log(`Location requirement NOT met for ${candidate.first_name} ${candidate.last_name}`);
           }
         }
         
-        // Require ALL criteria to be met for strict filtering
-        return requiredMatches === 0 || score === requiredMatches;
+        // ALL requirements must be satisfied
+        const isMatch = totalRequirements === 0 || requirementsMet === totalRequirements;
+        console.log(`Final match result for ${candidate.first_name} ${candidate.last_name}: ${isMatch} (${requirementsMet}/${totalRequirements})`);
+        return isMatch;
       }).map(c => c.id) || [];
     }
 
@@ -195,7 +218,7 @@ Response format: ["id1", "id2", "id3"]
       .map(id => candidates?.find(c => c.id === id))
       .filter(Boolean);
 
-    console.log(`Found ${matchedCandidates.length} strictly matching candidates`);
+    console.log(`Found ${matchedCandidates.length} strictly matching candidates out of ${candidates?.length} total candidates`);
 
     return new Response(JSON.stringify({ 
       candidates: matchedCandidates,
@@ -213,31 +236,54 @@ Response format: ["id1", "id2", "id3"]
   }
 });
 
-// Helper functions for fallback search
-function extractSkillKeywords(query: string): string[] {
-  const skillPatterns = [
-    'react', 'javascript', 'typescript', 'node.js', 'python', 'java', 'c++', 'c#',
-    'angular', 'vue', 'php', 'ruby', 'go', 'rust', 'swift', 'kotlin',
-    'html', 'css', 'sass', 'scss', 'sql', 'mongodb', 'postgresql', 'mysql',
-    'aws', 'azure', 'gcp', 'docker', 'kubernetes', 'git', 'jenkins',
-    'machine learning', 'ai', 'data science', 'blockchain', 'devops',
-    'frontend', 'backend', 'fullstack', 'full-stack', 'mobile', 'web development'
+// Enhanced helper functions for ultra-precise matching
+function extractTechnicalSkills(query: string): string[] {
+  const technicalSkills = [
+    // Frontend Frameworks
+    'react', 'angular', 'vue.js', 'vue', 'svelte', 'ember',
+    // Backend Frameworks  
+    'node.js', 'express', 'django', 'flask', 'spring', 'laravel',
+    // Languages
+    'javascript', 'typescript', 'python', 'java', 'c#', 'c++', 'go', 'rust', 'php', 'ruby', 'swift', 'kotlin',
+    // Databases
+    'mongodb', 'postgresql', 'mysql', 'redis', 'elasticsearch',
+    // Cloud & DevOps
+    'aws', 'azure', 'gcp', 'docker', 'kubernetes', 'jenkins',
+    // Other Technologies
+    'graphql', 'rest', 'sql', 'html', 'css', 'sass', 'scss', 'git'
   ];
   
-  return skillPatterns.filter(skill => query.includes(skill));
+  return technicalSkills.filter(skill => {
+    // More precise matching - look for skill as whole word
+    const regex = new RegExp(`\\b${skill}\\b`, 'i');
+    return regex.test(query);
+  });
 }
 
 function extractExperienceYears(query: string): number {
-  const experienceMatch = query.match(/(\d+)\s*\+?\s*years?\s*(experience|exp)/i);
-  return experienceMatch ? parseInt(experienceMatch[1]) : 0;
+  // More precise experience extraction
+  const patterns = [
+    /(\d+)\s*\+?\s*years?\s*(of\s*)?(experience|exp)/i,
+    /(\d+)\s*\+?\s*year\s*(experience|exp)/i,
+    /(\d+)\s*\+\s*years?/i
+  ];
+  
+  for (const pattern of patterns) {
+    const match = query.match(pattern);
+    if (match) {
+      return parseInt(match[1]);
+    }
+  }
+  return 0;
 }
 
 function extractLocationKeywords(query: string): string[] {
-  const locationPatterns = [
+  const locations = [
     'san francisco', 'new york', 'los angeles', 'chicago', 'boston', 'seattle',
-    'austin', 'denver', 'atlanta', 'dallas', 'remote', 'california', 'texas',
-    'florida', 'washington', 'oregon', 'colorado', 'north carolina'
+    'austin', 'denver', 'atlanta', 'dallas', 'miami', 'philadelphia',
+    'remote', 'california', 'texas', 'florida', 'washington', 'oregon', 
+    'colorado', 'north carolina', 'new jersey', 'massachusetts'
   ];
   
-  return locationPatterns.filter(location => query.includes(location));
+  return locations.filter(location => query.includes(location));
 }

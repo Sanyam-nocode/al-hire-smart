@@ -40,7 +40,7 @@ export const useAISearch = () => {
     setIsSearching(true);
     
     try {
-      console.log('Performing precision AI search with query:', query);
+      console.log('Performing ultra-precise AI search with query:', query);
       
       const { data, error } = await supabase.functions.invoke('ai-candidate-search', {
         body: { query }
@@ -56,11 +56,11 @@ export const useAISearch = () => {
       setSearchResults(result.candidates || []);
       
       if (result.total === 0) {
-        toast.info('No candidates found matching your precise criteria. Try broadening your search terms.');
+        toast.info('No candidates found with exact matches for your criteria. Our search requires precise skill and experience matches - try using broader terms or fewer specific requirements.');
       } else if (result.total === 1) {
-        toast.success('Found 1 candidate who precisely matches your criteria');
+        toast.success('Found 1 candidate who exactly matches all your requirements');
       } else {
-        toast.success(`Found ${result.total} candidates who precisely match your criteria`);
+        toast.success(`Found ${result.total} candidates who exactly match all your requirements`);
       }
       
     } catch (error) {

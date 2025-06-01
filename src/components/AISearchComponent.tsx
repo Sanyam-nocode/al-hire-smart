@@ -48,9 +48,9 @@ const AISearchComponent = ({ onViewProfile, onContact }: AISearchComponentProps)
   const exampleQueries = [
     "React developers with 3+ years experience",
     "Frontend engineers in San Francisco",
-    "Full-stack developers who know Node.js and Python",
-    "Senior software engineers with AI/ML experience",
-    "JavaScript developers open to remote work"
+    "Python developers with Django experience",
+    "Senior JavaScript developers with 5+ years",
+    "Full-stack developers with Node.js and React"
   ];
 
   return (
@@ -59,22 +59,22 @@ const AISearchComponent = ({ onViewProfile, onContact }: AISearchComponentProps)
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-blue-600" />
-            AI-Powered Precision Candidate Search
+            Ultra-Precise AI Candidate Search
           </CardTitle>
           <CardDescription>
-            Use natural language to find candidates who <strong>precisely match</strong> your requirements. Our AI strictly filters candidates based on skills, experience, location, and other criteria. Only candidates who genuinely satisfy ALL your requirements will appear in results.
+            Our AI search requires <strong>exact matches</strong> for all criteria. Candidates must explicitly have the skills, experience, and qualifications you specify. No assumptions or "close enough" matches.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
-            <p className="text-sm text-amber-800">
-              <strong>Precision Search:</strong> Results are strictly filtered - candidates must meet ALL specified criteria. If you see fewer results than expected, try broadening your search terms or reducing specific requirements.
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+            <p className="text-sm text-red-800">
+              <strong>Ultra-Precise Matching:</strong> For technical skills like "React", candidates must explicitly list React in their skills or mention it in their profile. Similar technologies (Vue.js, Angular) do NOT qualify. Experience requirements must be met exactly.
             </p>
           </div>
 
           <div className="flex gap-2">
             <Input
-              placeholder="e.g., 'React developers with 3+ years experience in San Francisco'"
+              placeholder="e.g., 'React developers with 3+ years experience'"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyPress={handleKeyPress}
@@ -97,7 +97,7 @@ const AISearchComponent = ({ onViewProfile, onContact }: AISearchComponentProps)
           </div>
 
           <div className="space-y-2">
-            <p className="text-sm font-medium text-gray-700">Example searches:</p>
+            <p className="text-sm font-medium text-gray-700">Example precise searches:</p>
             <div className="flex flex-wrap gap-2">
               {exampleQueries.map((query, index) => (
                 <Button
@@ -116,7 +116,7 @@ const AISearchComponent = ({ onViewProfile, onContact }: AISearchComponentProps)
           {searchResults.length > 0 && (
             <div className="flex items-center justify-between">
               <p className="text-sm text-gray-600">
-                Found {searchResults.length} candidates who <strong>precisely match</strong> your criteria
+                Found {searchResults.length} candidates with <strong>exact matches</strong> for all criteria
               </p>
               <Button variant="outline" size="sm" onClick={clearResults}>
                 Clear Results
@@ -127,10 +127,11 @@ const AISearchComponent = ({ onViewProfile, onContact }: AISearchComponentProps)
           {searchResults.length === 0 && searchQuery && !isSearching && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-sm text-blue-800">
-                <strong>No precise matches found.</strong> Try:
-                <br />• Reducing specific requirements (e.g., "2+ years" instead of "5+ years")
-                <br />• Using broader skill terms (e.g., "JavaScript" instead of "React.js")
-                <br />• Removing location constraints or adding "remote" option
+                <strong>No exact matches found.</strong> Our search requires precise matches. Try:
+                <br />• Using exact skill names (e.g., "JavaScript" not "JS")
+                <br />• Reducing experience requirements (e.g., "2+ years" instead of "5+ years")
+                <br />• Searching for one skill at a time for better results
+                <br />• Removing location constraints or including "remote"
               </p>
             </div>
           )}
