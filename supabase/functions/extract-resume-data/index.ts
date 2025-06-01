@@ -13,6 +13,102 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper function to calculate years of experience from dates
+function calculateExperienceFromText(text: string): number {
+  console.log('=== CALCULATING EXPERIENCE FROM TEXT ===');
+  console.log('Text sample for calculation:', text.substring(0, 1000));
+  
+  // Current date (June 2025)
+  const currentYear = 2025;
+  const currentMonth = 6;
+  
+  // Patterns to match date ranges
+  const datePatterns = [
+    // MM/YYYY - Present, MM/YYYY - MM/YYYY
+    /(\d{1,2})\/(\d{4})\s*[-–—]\s*(?:present|current|\d{1,2}\/\d{4})/gi,
+    // YYYY - Present, YYYY - YYYY  
+    /(\d{4})\s*[-–—]\s*(?:present|current|\d{4})/gi,
+    // Month YYYY - Present, Month YYYY - Month YYYY
+    /(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{4})\s*[-–—]\s*(?:present|current|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{4})/gi,
+  ];
+  
+  let totalMonths = 0;
+  const processedRanges = new Set();
+  
+  for (const pattern of datePatterns) {
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      const fullMatch = match[0];
+      
+      // Skip if we've already processed this exact range
+      if (processedRanges.has(fullMatch.toLowerCase())) continue;
+      processedRanges.add(fullMatch.toLowerCase());
+      
+      console.log('Found date range:', fullMatch);
+      
+      let startYear: number;
+      let startMonth = 1; // Default to January if month not specified
+      let endYear: number;
+      let endMonth = 12; // Default to December if month not specified
+      
+      if (match[1] && match[2]) {
+        // MM/YYYY format
+        startMonth = parseInt(match[1]);
+        startYear = parseInt(match[2]);
+      } else if (match[1]) {
+        // YYYY format or Month YYYY format
+        if (match[0].toLowerCase().includes('jan')) startMonth = 1;
+        else if (match[0].toLowerCase().includes('feb')) startMonth = 2;
+        else if (match[0].toLowerCase().includes('mar')) startMonth = 3;
+        else if (match[0].toLowerCase().includes('apr')) startMonth = 4;
+        else if (match[0].toLowerCase().includes('may')) startMonth = 5;
+        else if (match[0].toLowerCase().includes('jun')) startMonth = 6;
+        else if (match[0].toLowerCase().includes('jul')) startMonth = 7;
+        else if (match[0].toLowerCase().includes('aug')) startMonth = 8;
+        else if (match[0].toLowerCase().includes('sep')) startMonth = 9;
+        else if (match[0].toLowerCase().includes('oct')) startMonth = 10;
+        else if (match[0].toLowerCase().includes('nov')) startMonth = 11;
+        else if (match[0].toLowerCase().includes('dec')) startMonth = 12;
+        
+        startYear = parseInt(match[2] || match[1]);
+      }
+      
+      // Check if it's a "Present" or "Current" end date
+      if (fullMatch.toLowerCase().includes('present') || fullMatch.toLowerCase().includes('current')) {
+        endYear = currentYear;
+        endMonth = currentMonth;
+      } else {
+        // Extract end date from the match
+        const endDateMatch = fullMatch.match(/[-–—]\s*(\d{1,2}\/)?(\d{4})/);
+        if (endDateMatch) {
+          if (endDateMatch[1]) {
+            endMonth = parseInt(endDateMatch[1].replace('/', ''));
+          }
+          endYear = parseInt(endDateMatch[2]);
+        } else {
+          // If no end date found, assume it's current
+          endYear = currentYear;
+          endMonth = currentMonth;
+        }
+      }
+      
+      // Calculate months for this job
+      const months = (endYear - startYear) * 12 + (endMonth - startMonth + 1);
+      
+      console.log(`Experience period: ${startMonth}/${startYear} to ${endMonth}/${endYear} = ${months} months`);
+      
+      if (months > 0 && months <= 600) { // Sanity check (max 50 years)
+        totalMonths += months;
+      }
+    }
+  }
+  
+  const totalYears = Math.round(totalMonths / 12);
+  console.log(`Total calculated experience: ${totalMonths} months = ${totalYears} years`);
+  
+  return totalYears;
+}
+
 // OCR.space API integration
 async function extractTextWithOCR(resumeUrl: string): Promise<string> {
   try {
@@ -216,27 +312,32 @@ serve(async (req) => {
     console.log('Cleaned text length:', cleanedText.length);
     console.log('Cleaned text sample:', cleanedText.substring(0, 500));
 
-    // Enhanced OpenAI prompt with improved years of experience calculation
-    console.log('=== CALLING OPENAI WITH ENHANCED PROMPT FOR EXPERIENCE CALCULATION ===');
+    // Calculate experience using our fallback method
+    const fallbackExperience = calculateExperienceFromText(cleanedText);
+
+    // Enhanced OpenAI prompt with ultra-specific experience calculation instructions
+    console.log('=== CALLING OPENAI WITH ULTRA-ENHANCED EXPERIENCE PROMPT ===');
     const prompt = `You are an expert resume parsing assistant. Extract information from the following resume text and map it to profile fields.
 
-CRITICAL INSTRUCTIONS:
-1. Extract ONLY information that is clearly present in the resume text
-2. Return ONLY valid JSON, no markdown formatting or explanations
-3. Map data accurately to the specified fields
-4. Use null for missing information, do not guess
-5. CALCULATE experience_years by analyzing ALL employment periods and work experience
+CRITICAL INSTRUCTIONS FOR EXPERIENCE CALCULATION:
+1. MANDATORY: You MUST calculate experience_years by finding ALL employment periods
+2. Look for date patterns like "04/2022 - Present", "2020 - 2023", "Jan 2019 - Dec 2021"
+3. For "Present" or "Current", use June 2025 as the end date
+4. Add up ALL employment periods to get TOTAL experience
+5. Convert to years (round to nearest integer)
+6. Return ONLY valid JSON, no markdown formatting
+
+EXPERIENCE CALCULATION EXAMPLES (FOLLOW EXACTLY):
+- "04/2022 - Present" = April 2022 to June 2025 = 3.2 years ≈ 3 years
+- "2020 - 2023" = 3 years  
+- "Jan 2019 - Dec 2021" = 3 years
+- Multiple jobs: "2018-2020" (2 years) + "2020-Present" (5 years) = 7 years total
 
 FIELD SPECIFICATIONS:
 - phone: Phone number with country code if available (string)
-- location: Current city/location (string, e.g., "New York, NY")
+- location: Current city/location (string)
 - title: Current or most recent job title (string)
-- experience_years: TOTAL years of professional work experience (integer) - IMPORTANT: Calculate this by:
-  * Finding all employment periods (start date to end date or "Present")
-  * Adding up the total duration in years (round to nearest integer)
-  * Include internships and part-time work if mentioned
-  * If dates like "04/2022 - Present" are found, calculate from start date to current date (2025)
-  * Example: "04/2022 - Present" = approximately 3 years (2022 to 2025)
+- experience_years: TOTAL years of work experience (integer) - CALCULATE THIS MANDATORY
 - summary: Professional summary in 2-3 sentences (string)
 - education: Education in format "Degree, Institution, Year" (string)
 - linkedin_url: LinkedIn profile URL (string)
@@ -244,18 +345,12 @@ FIELD SPECIFICATIONS:
 - portfolio_url: Portfolio/website URL (string)
 - skills: Array of technical skills, max 15 items (array of strings)
 
-EXPERIENCE CALCULATION EXAMPLES:
-- "04/2022 - Present" = 3 years (from April 2022 to 2025)
-- "2020 - 2023" = 3 years
-- "Jan 2019 - Dec 2021" = 3 years
-- Multiple jobs: "2018-2020" + "2020-Present" = 2 + 5 = 7 years total
-
 Return this EXACT JSON structure:
 {
   "phone": null,
   "location": null,
   "title": null,
-  "experience_years": null,
+  "experience_years": 0,
   "summary": null,
   "education": null,
   "linkedin_url": null,
@@ -267,7 +362,7 @@ Return this EXACT JSON structure:
 Resume text to analyze:
 "${cleanedText}"
 
-IMPORTANT: Return ONLY the JSON object with no additional text, explanations, or markdown formatting. Pay special attention to calculating experience_years from employment dates.`;
+CRITICAL: You MUST calculate experience_years from employment dates. Do not return null for experience_years. If no clear dates found, estimate based on job titles and descriptions.`;
 
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -280,7 +375,7 @@ IMPORTANT: Return ONLY the JSON object with no additional text, explanations, or
         messages: [
           { 
             role: 'system', 
-            content: 'You are an expert resume parser. Extract information precisely, calculate years of experience from employment dates, and return only valid JSON without any markdown formatting or explanations.'
+            content: 'You are an expert resume parser. Your PRIMARY task is to calculate years of experience from employment dates. NEVER return null for experience_years. Always calculate it from employment history or estimate if unclear.'
           },
           { 
             role: 'user', 
@@ -364,6 +459,16 @@ IMPORTANT: Return ONLY the JSON object with no additional text, explanations, or
       });
     }
 
+    // Enhanced experience validation with fallback
+    console.log('=== VALIDATING AND ENHANCING EXPERIENCE CALCULATION ===');
+    if (!extractedData.experience_years || extractedData.experience_years === null || extractedData.experience_years === 0) {
+      console.log('AI did not calculate experience properly, using fallback calculation');
+      extractedData.experience_years = fallbackExperience;
+      console.log('Fallback experience assigned:', fallbackExperience);
+    } else {
+      console.log('AI calculated experience:', extractedData.experience_years);
+    }
+
     // Update database with extracted data - Enhanced field mapping
     console.log('=== UPDATING DATABASE WITH ENHANCED FIELD MAPPING ===');
     const updateData: any = {
@@ -392,7 +497,7 @@ IMPORTANT: Return ONLY the JSON object with no additional text, explanations, or
       console.log('Mapped title:', updateData.title);
     }
     
-    // Enhanced experience_years mapping with better validation
+    // Enhanced experience_years mapping with guaranteed value
     if (extractedData.experience_years !== null && extractedData.experience_years !== undefined) {
       const experience = parseInt(extractedData.experience_years.toString());
       if (!isNaN(experience) && experience >= 0 && experience <= 50) {
@@ -400,10 +505,16 @@ IMPORTANT: Return ONLY the JSON object with no additional text, explanations, or
         mappedFields.push('experience_years');
         console.log('Mapped experience_years:', updateData.experience_years);
       } else {
-        console.log('Invalid experience_years value:', extractedData.experience_years);
+        console.log('Invalid experience_years value, using fallback:', extractedData.experience_years);
+        updateData.experience_years = fallbackExperience;
+        mappedFields.push('experience_years');
+        console.log('Fallback experience_years mapped:', updateData.experience_years);
       }
     } else {
-      console.log('No experience_years provided by AI');
+      console.log('No experience_years provided by AI, using fallback');
+      updateData.experience_years = fallbackExperience;
+      mappedFields.push('experience_years');
+      console.log('Fallback experience_years mapped:', updateData.experience_years);
     }
     
     if (extractedData.summary && typeof extractedData.summary === 'string' && extractedData.summary.trim()) {
@@ -474,8 +585,9 @@ IMPORTANT: Return ONLY the JSON object with no additional text, explanations, or
       });
     }
 
-    console.log('=== EXTRACTION SUCCESS WITH ENHANCED FIELD MAPPING ===');
+    console.log('=== EXTRACTION SUCCESS WITH ENHANCED EXPERIENCE CALCULATION ===');
     console.log('Profile updated successfully with fields:', mappedFields);
+    console.log('Experience years calculated and mapped:', updateData.experience_years);
 
     return new Response(JSON.stringify({ 
       success: true,
@@ -487,9 +599,11 @@ IMPORTANT: Return ONLY the JSON object with no additional text, explanations, or
         originalTextLength: resumeText.length,
         cleanedTextLength: cleanedText.length,
         fieldsUpdated: mappedFields.length,
-        extractedUsing: extractionMethod
+        extractedUsing: extractionMethod,
+        calculatedExperience: updateData.experience_years,
+        fallbackExperienceUsed: !extractedData.experience_years || extractedData.experience_years === null
       },
-      message: `Resume data extracted and ${mappedFields.length} profile fields updated successfully using ${extractionMethod}`
+      message: `Resume data extracted and ${mappedFields.length} profile fields updated successfully. Experience calculated: ${updateData.experience_years} years.`
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
