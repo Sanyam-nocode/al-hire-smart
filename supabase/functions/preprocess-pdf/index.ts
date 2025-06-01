@@ -11,178 +11,56 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Enhanced PDF text extraction using multiple strategies
+// Advanced PDF text extraction with proper stream parsing
 async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
   try {
-    console.log('=== ENHANCED PDF TEXT EXTRACTION ===');
+    console.log('=== ADVANCED PDF TEXT EXTRACTION ===');
     console.log('PDF buffer size:', pdfBuffer.byteLength);
     
     const uint8Array = new Uint8Array(pdfBuffer);
-    
-    // Strategy 1: Look for readable text in PDF structure
     const extractedTexts = new Set<string>();
     
-    // Convert to string for pattern matching
+    // Convert to string for parsing
     let pdfString = '';
     try {
-      // Try UTF-8 first
-      pdfString = new TextDecoder('utf-8', { fatal: false }).decode(uint8Array);
-    } catch {
-      // Fallback to latin1
-      pdfString = new TextDecoder('latin1').decode(uint8Array);
+      // Try different encodings
+      const decoder = new TextDecoder('latin1');
+      pdfString = decoder.decode(uint8Array);
+    } catch (error) {
+      console.error('Encoding error:', error);
+      return '';
     }
     
-    console.log('PDF string length:', pdfString.length);
+    console.log('PDF content length:', pdfString.length);
+    console.log('PDF content sample:', pdfString.substring(0, 500));
     
-    // Extract text from BT/ET blocks (text objects)
-    const textObjectRegex = /BT\s*([\s\S]*?)\s*ET/g;
-    let textMatch;
+    // Strategy 1: Extract from decompressed streams
+    await extractFromStreams(pdfString, extractedTexts);
     
-    while ((textMatch = textObjectRegex.exec(pdfString)) !== null) {
-      const textContent = textMatch[1];
-      if (textContent) {
-        // Extract parentheses-enclosed text (Tj operations)
-        const tjRegex = /\(([^)]+)\)\s*Tj/g;
-        let tjMatch;
-        while ((tjMatch = tjRegex.exec(textContent)) !== null) {
-          const text = cleanPDFText(tjMatch[1]);
-          if (text && text.length > 2 && isValidText(text)) {
-            extractedTexts.add(text);
-          }
-        }
-        
-        // Extract text arrays (TJ operations)
-        const tjArrayRegex = /\[([^\]]+)\]\s*TJ/g;
-        while ((tjMatch = tjArrayRegex.exec(textContent)) !== null) {
-          const arrayContent = tjMatch[1];
-          // Extract strings from the array
-          const stringRegex = /\(([^)]+)\)/g;
-          let stringMatch;
-          while ((stringMatch = stringRegex.exec(arrayContent)) !== null) {
-            const text = cleanPDFText(stringMatch[1]);
-            if (text && text.length > 2 && isValidText(text)) {
-              extractedTexts.add(text);
-            }
-          }
-        }
-      }
-    }
+    // Strategy 2: Extract from text showing operators
+    extractFromTextOperators(pdfString, extractedTexts);
     
-    // Strategy 2: Look for stream objects with text content
-    const streamRegex = /stream\s*([\s\S]*?)\s*endstream/g;
-    let streamMatch;
-    let streamCount = 0;
+    // Strategy 3: Extract from font and text objects
+    extractFromTextObjects(pdfString, extractedTexts);
     
-    while ((streamMatch = streamRegex.exec(pdfString)) !== null && streamCount < 20) {
-      streamCount++;
-      const streamContent = streamMatch[1];
-      
-      if (streamContent && streamContent.length > 100) {
-        // Try to find readable text patterns
-        const readableTextRegex = /[A-Za-z]{3,}(?:\s+[A-Za-z]{2,}){1,}/g;
-        const matches = streamContent.match(readableTextRegex);
-        
-        if (matches) {
-          matches.forEach(match => {
-            const cleaned = cleanPDFText(match);
-            if (cleaned && cleaned.length > 5 && isValidText(cleaned)) {
-              extractedTexts.add(cleaned);
-            }
-          });
-        }
-      }
-    }
+    // Strategy 4: Pattern-based extraction for common resume elements
+    extractResumePatterns(pdfString, extractedTexts);
     
-    // Strategy 3: Direct pattern matching for common resume elements
-    const patterns = [
-      // Email addresses
-      /\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/g,
-      // Phone numbers
-      /\b(?:\+\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g,
-      // Dates
-      /\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4}\b/gi,
-      /\b\d{4}\s*[-–]\s*(?:\d{4}|Present|Current)\b/g,
-      // Years of experience
-      /\d+\+?\s+years?\s+(?:of\s+)?experience/gi,
-      // Education keywords with context
-      /\b(?:Bachelor|Master|PhD|MBA|BS|BA|MS|MA|BE|BTech|MTech|BSc|MSc|University|College|Institute)\b[^.]{0,100}/gi,
-      // Job titles with context
-      /\b(?:Software|Senior|Junior|Lead|Principal|Manager|Director|Engineer|Developer|Analyst|Consultant|Specialist|Architect|Designer)\s+[A-Za-z\s]{3,50}\b/g,
-      // Skills and technologies
-      /\b(?:JavaScript|TypeScript|Python|Java|React|Angular|Vue|Node\.?js|HTML|CSS|SQL|MongoDB|PostgreSQL|MySQL|AWS|Azure|Docker|Kubernetes|Git|Linux|Windows|C\+\+|C#|PHP|Ruby|Swift|Kotlin|Scala|Go|Rust)\b/g,
-    ];
-    
-    patterns.forEach(pattern => {
-      const matches = pdfString.match(pattern);
-      if (matches) {
-        matches.forEach(match => {
-          const cleaned = cleanPDFText(match);
-          if (cleaned && cleaned.length > 2 && isValidText(cleaned)) {
-            extractedTexts.add(cleaned);
-          }
-        });
-      }
-    });
-    
-    // Strategy 4: Extract text between common PDF delimiters
-    const delimiterPatterns = [
-      /\(([^)]{5,200})\)/g,  // Parentheses
-      /"([^"]{5,200})"/g,    // Quotes
-      /\[([^\]]{10,200})\]/g, // Brackets
-    ];
-    
-    delimiterPatterns.forEach(pattern => {
-      let match;
-      while ((match = pattern.exec(pdfString)) !== null) {
-        const text = cleanPDFText(match[1]);
-        if (text && text.length > 5 && isValidText(text)) {
-          extractedTexts.add(text);
-        }
-      }
-    });
-    
-    // Convert set to array and sort by relevance
+    // Combine and clean extracted texts
     const allTexts = Array.from(extractedTexts)
-      .filter(text => text.length > 3)
+      .filter(text => text && text.length > 2 && isValidText(text))
       .sort((a, b) => calculateRelevanceScore(b) - calculateRelevanceScore(a));
     
-    // Combine texts intelligently
-    let finalText = '';
-    const usedTexts = new Set<string>();
+    console.log('Total extracted segments:', allTexts.length);
+    console.log('Sample segments:', allTexts.slice(0, 10));
     
-    // Prioritize contact info and key details
-    const priorityTexts = allTexts.filter(text => 
-      /@/.test(text) || 
-      /\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/.test(text) ||
-      /(?:Bachelor|Master|PhD|MBA|University|College)/i.test(text) ||
-      /(?:Software|Engineer|Developer|Manager|Director)/i.test(text) ||
-      /(?:JavaScript|Python|Java|React|Angular|Node)/i.test(text)
-    );
+    // Build final text
+    let finalText = allTexts.join(' ').substring(0, 15000);
     
-    priorityTexts.forEach(text => {
-      if (!usedTexts.has(text.toLowerCase())) {
-        finalText += text + ' ';
-        usedTexts.add(text.toLowerCase());
-      }
-    });
+    // Clean and normalize
+    finalText = cleanExtractedText(finalText);
     
-    // Add remaining relevant texts
-    allTexts.forEach(text => {
-      if (!usedTexts.has(text.toLowerCase()) && finalText.length < 10000) {
-        finalText += text + ' ';
-        usedTexts.add(text.toLowerCase());
-      }
-    });
-    
-    // Clean up the final text
-    finalText = finalText
-      .replace(/\s+/g, ' ')
-      .replace(/([.!?])\s*([A-Z])/g, '$1 $2')
-      .trim();
-    
-    console.log('=== EXTRACTION COMPLETE ===');
-    console.log('Total unique segments:', extractedTexts.size);
-    console.log('Final text length:', finalText.length);
+    console.log('Final extracted text length:', finalText.length);
     console.log('Final text preview:', finalText.substring(0, 1000));
     
     return finalText;
@@ -191,6 +69,171 @@ async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
     console.error('PDF extraction error:', error);
     return '';
   }
+}
+
+// Extract text from PDF streams
+async function extractFromStreams(pdfString: string, extractedTexts: Set<string>) {
+  console.log('=== EXTRACTING FROM STREAMS ===');
+  
+  // Find all stream objects
+  const streamRegex = /(\d+\s+\d+\s+obj[\s\S]*?stream\s*\n)([\s\S]*?)(endstream)/g;
+  let streamMatch;
+  let streamCount = 0;
+  
+  while ((streamMatch = streamRegex.exec(pdfString)) !== null && streamCount < 50) {
+    streamCount++;
+    const streamContent = streamMatch[2];
+    
+    if (streamContent && streamContent.length > 10) {
+      // Try to find readable text patterns in the stream
+      const readableText = extractReadableFromStream(streamContent);
+      if (readableText) {
+        extractedTexts.add(readableText);
+      }
+    }
+  }
+  
+  console.log(`Processed ${streamCount} streams`);
+}
+
+// Extract readable text from stream content
+function extractReadableFromStream(streamContent: string): string {
+  const texts: string[] = [];
+  
+  // Look for text between parentheses (common in PDF text streams)
+  const parenthesesRegex = /\(([^)]{3,100})\)/g;
+  let match;
+  while ((match = parenthesesRegex.exec(streamContent)) !== null) {
+    const text = cleanPDFText(match[1]);
+    if (text && isValidText(text)) {
+      texts.push(text);
+    }
+  }
+  
+  // Look for text in arrays (TJ operator)
+  const arrayRegex = /\[([^\]]{10,500})\]/g;
+  while ((match = arrayRegex.exec(streamContent)) !== null) {
+    const arrayContent = match[1];
+    const stringRegex = /\(([^)]{2,100})\)/g;
+    let stringMatch;
+    while ((stringMatch = stringRegex.exec(arrayContent)) !== null) {
+      const text = cleanPDFText(stringMatch[1]);
+      if (text && isValidText(text)) {
+        texts.push(text);
+      }
+    }
+  }
+  
+  // Look for readable ASCII sequences
+  const asciiRegex = /[A-Za-z][A-Za-z0-9\s@.,\-_]{4,100}[A-Za-z0-9]/g;
+  while ((match = asciiRegex.exec(streamContent)) !== null) {
+    const text = cleanPDFText(match[0]);
+    if (text && isValidText(text) && !text.includes('Font') && !text.includes('Encoding')) {
+      texts.push(text);
+    }
+  }
+  
+  return texts.join(' ').trim();
+}
+
+// Extract from text showing operators
+function extractFromTextOperators(pdfString: string, extractedTexts: Set<string>) {
+  console.log('=== EXTRACTING FROM TEXT OPERATORS ===');
+  
+  // BT/ET text objects
+  const textObjectRegex = /BT\s*([\s\S]*?)\s*ET/g;
+  let textMatch;
+  let count = 0;
+  
+  while ((textMatch = textObjectRegex.exec(pdfString)) !== null && count < 100) {
+    count++;
+    const textContent = textMatch[1];
+    
+    // Extract Tj operations
+    const tjRegex = /\(([^)]+)\)\s*Tj/g;
+    let tjMatch;
+    while ((tjMatch = tjRegex.exec(textContent)) !== null) {
+      const text = cleanPDFText(tjMatch[1]);
+      if (text && isValidText(text)) {
+        extractedTexts.add(text);
+      }
+    }
+    
+    // Extract TJ operations (text arrays)
+    const tjArrayRegex = /\[([^\]]+)\]\s*TJ/g;
+    while ((tjMatch = tjArrayRegex.exec(textContent)) !== null) {
+      const arrayContent = tjMatch[1];
+      const stringRegex = /\(([^)]+)\)/g;
+      let stringMatch;
+      while ((stringMatch = stringRegex.exec(arrayContent)) !== null) {
+        const text = cleanPDFText(stringMatch[1]);
+        if (text && isValidText(text)) {
+          extractedTexts.add(text);
+        }
+      }
+    }
+  }
+  
+  console.log(`Processed ${count} text objects`);
+}
+
+// Extract from general text objects and fonts
+function extractFromTextObjects(pdfString: string, extractedTexts: Set<string>) {
+  console.log('=== EXTRACTING FROM TEXT OBJECTS ===');
+  
+  // Look for any parentheses-enclosed text throughout the PDF
+  const globalTextRegex = /\(([^)]{3,200})\)/g;
+  let match;
+  let count = 0;
+  
+  while ((match = globalTextRegex.exec(pdfString)) !== null && count < 1000) {
+    count++;
+    const text = cleanPDFText(match[1]);
+    if (text && isValidText(text)) {
+      extractedTexts.add(text);
+    }
+  }
+  
+  console.log(`Extracted ${count} potential text segments`);
+}
+
+// Extract resume-specific patterns
+function extractResumePatterns(pdfString: string, extractedTexts: Set<string>) {
+  console.log('=== EXTRACTING RESUME PATTERNS ===');
+  
+  const patterns = [
+    // Email addresses
+    /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
+    // Phone numbers (various formats)
+    /(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g,
+    // Years and date ranges
+    /\b(?:19|20)\d{2}\s*[-–]\s*(?:(?:19|20)\d{2}|Present|Current)\b/g,
+    // Educational institutions
+    /\b(?:University|College|Institute|School)\s+(?:of\s+)?[A-Za-z\s]{5,50}/g,
+    // Degree names
+    /\b(?:Bachelor|Master|PhD|MBA|BS|BA|MS|MA|BE|BTech|MTech|BSc|MSc)\s+(?:of\s+)?[A-Za-z\s]{3,30}/g,
+    // Job titles
+    /\b(?:Software|Senior|Junior|Lead|Principal|Manager|Director|Engineer|Developer|Analyst|Consultant|Specialist|Architect|Designer|Intern)\s+[A-Za-z\s]{3,40}/g,
+    // Skills and technologies
+    /\b(?:JavaScript|TypeScript|Python|Java|React|Angular|Vue|Node\.?js|HTML|CSS|SQL|MongoDB|PostgreSQL|MySQL|AWS|Azure|Docker|Kubernetes|Git|Linux|Windows|C\+\+|C#|PHP|Ruby|Swift|Kotlin|Scala|Go|Rust|Flutter|Django|Spring|Laravel|Express)\b/g,
+    // Experience statements
+    /\d+\+?\s+years?\s+(?:of\s+)?(?:experience|exp)\s+(?:in\s+)?[A-Za-z\s]{3,50}/gi,
+    // Company names (look for common patterns)
+    /\b(?:Inc|LLC|Ltd|Corp|Corporation|Company|Technologies|Solutions|Systems|Group|International|Global)\b/g,
+  ];
+  
+  patterns.forEach((pattern, index) => {
+    const matches = pdfString.match(pattern);
+    if (matches) {
+      console.log(`Pattern ${index + 1} found ${matches.length} matches`);
+      matches.forEach(match => {
+        const cleaned = cleanPDFText(match);
+        if (cleaned && isValidText(cleaned)) {
+          extractedTexts.add(cleaned);
+        }
+      });
+    }
+  });
 }
 
 // Clean PDF text artifacts
@@ -222,28 +265,48 @@ function cleanPDFText(text: string): string {
 
 // Check if text is valid resume content
 function isValidText(text: string): boolean {
-  if (!text || text.length < 3) return false;
+  if (!text || text.length < 2) return false;
   
   // Must contain letters
   if (!/[a-zA-Z]/.test(text)) return false;
   
-  // Check letter ratio
+  // Check letter ratio - should be mostly readable
   const letterCount = (text.match(/[a-zA-Z]/g) || []).length;
   const letterRatio = letterCount / text.length;
-  if (letterRatio < 0.3) return false;
+  if (letterRatio < 0.4) return false;
   
-  // Reject PDF artifacts
+  // Reject PDF artifacts and metadata
   const artifacts = [
     /^[^a-zA-Z]*$/,
     /obj|endobj|stream|endstream|xref|trailer|startxref/i,
-    /Font|Encoding|Unicode|FlateDecode|ASCII85/i,
+    /Font|Encoding|Unicode|FlateDecode|ASCII85|Filter|Length|Width|Height/i,
     /^\s*\d+\s*$/,
     /^[A-Z]{8,}$/,
-    /BT|ET|Tj|TJ|Td|TD|Tm|q|Q|re|f|S|s|W|n/,
+    /BT|ET|Tj|TJ|Td|TD|Tm|q|Q|re|f|S|s|W|n|cm|l|m|c|v|y/,
     /^\w{1,2}$/,
+    /^[\d\s.]+$/,
+    /Type\/|Subtype\/|BaseFont/i,
   ];
   
-  return !artifacts.some(pattern => pattern.test(text));
+  if (artifacts.some(pattern => pattern.test(text))) return false;
+  
+  // Reject very short words or gibberish
+  if (text.length < 3 && !/[@\d]/.test(text)) return false;
+  
+  return true;
+}
+
+// Clean the final extracted text
+function cleanExtractedText(text: string): string {
+  return text
+    // Fix common PDF text issues
+    .replace(/([a-z])([A-Z])/g, '$1 $2') // Add spaces between camelCase
+    .replace(/(\d)([A-Za-z])/g, '$1 $2') // Add space between numbers and letters
+    .replace(/([A-Za-z])(\d)/g, '$1 $2') // Add space between letters and numbers
+    .replace(/([.!?])([A-Z])/g, '$1 $2') // Add space after sentences
+    .replace(/\s+/g, ' ') // Normalize whitespace
+    .replace(/\s([,.!?])/g, '$1') // Remove space before punctuation
+    .trim();
 }
 
 // Calculate relevance score for sorting
@@ -252,27 +315,32 @@ function calculateRelevanceScore(text: string): number {
   
   const lowerText = text.toLowerCase();
   
+  // High bonus for contact information
+  if (/@/.test(text)) score += 300;
+  if (/\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/.test(text)) score += 250;
+  
   // Bonus for resume keywords
   const keywords = [
     'experience', 'education', 'skills', 'work', 'university', 'college',
-    'developer', 'engineer', 'manager', 'analyst', 'consultant',
-    'bachelor', 'master', 'degree', 'certification',
-    'javascript', 'python', 'java', 'react', 'angular', 'node'
+    'developer', 'engineer', 'manager', 'analyst', 'consultant', 'designer',
+    'bachelor', 'master', 'degree', 'certification', 'diploma',
+    'javascript', 'python', 'java', 'react', 'angular', 'node', 'sql',
+    'project', 'team', 'lead', 'senior', 'junior', 'intern'
   ];
   
   keywords.forEach(keyword => {
-    if (lowerText.includes(keyword)) score += 50;
+    if (lowerText.includes(keyword)) score += 100;
   });
   
-  // High bonus for contact info
-  if (/@/.test(text)) score += 200;
-  if (/\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/.test(text)) score += 150;
+  // Bonus for years and dates
+  if (/\b(19|20)\d{2}\b/.test(text)) score += 80;
   
-  // Bonus for proper sentence structure
-  if (/^[A-Z].*[.!?]$/.test(text)) score += 30;
+  // Bonus for proper names (capitalized words)
+  const capitalizedWords = (text.match(/\b[A-Z][a-z]{2,}\b/g) || []).length;
+  score += capitalizedWords * 20;
   
-  // Bonus for containing years
-  if (/\b(19|20)\d{2}\b/.test(text)) score += 40;
+  // Penalty for very short text
+  if (text.length < 5) score -= 50;
   
   return score;
 }
@@ -340,16 +408,16 @@ serve(async (req) => {
     const pdfBuffer = await fileData.arrayBuffer();
     const extractedText = await extractTextFromPDF(pdfBuffer);
     
-    console.log('Extracted text length:', extractedText.length);
-    console.log('Extracted text preview:', extractedText.substring(0, 1500));
+    console.log('Final extracted text length:', extractedText.length);
+    console.log('Final extracted text preview:', extractedText.substring(0, 2000));
 
     if (!extractedText || extractedText.length < 50) {
       return new Response(JSON.stringify({ 
-        error: 'Could not extract sufficient readable text from PDF. The PDF might be image-based or have complex formatting.',
+        error: 'Could not extract sufficient readable text from PDF. The PDF might be image-based, encrypted, or have complex formatting.',
         success: false,
         debugInfo: {
           extractedTextLength: extractedText.length,
-          extractedTextSample: extractedText.substring(0, 500)
+          extractedTextSample: extractedText.substring(0, 1000)
         }
       }), {
         status: 400,
@@ -361,7 +429,7 @@ serve(async (req) => {
       success: true,
       extractedText,
       textLength: extractedText.length,
-      message: 'PDF text extracted successfully'
+      message: 'PDF text extracted successfully with advanced parsing'
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
