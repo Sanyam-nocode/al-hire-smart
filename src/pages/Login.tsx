@@ -29,27 +29,11 @@ const Login = () => {
       authLoading 
     });
 
-    // Only redirect if not loading and user exists
+    // Only redirect if not loading and user exists with profiles loaded
     if (!authLoading && user) {
-      console.log('Login page: User authenticated, determining redirect...');
-      
-      // Direct navigation to specific dashboard without going through /dashboard
-      if (recruiterProfile) {
-        console.log('Login page: Redirecting directly to recruiter dashboard');
-        navigate('/recruiter/dashboard', { replace: true });
-      } else if (candidateProfile) {
-        console.log('Login page: Redirecting directly to candidate profile');
-        navigate('/candidate/profile', { replace: true });
-      } else {
-        // If profiles are still loading, wait a bit more
-        console.log('Login page: Profiles not loaded yet, waiting...');
-        const timeout = setTimeout(() => {
-          console.log('Login page: Timeout reached, redirecting to dashboard anyway');
-          navigate('/dashboard', { replace: true });
-        }, 2000); // Wait max 2 seconds for profiles
-        
-        return () => clearTimeout(timeout);
-      }
+      console.log('Login page: User authenticated, redirecting to dashboard');
+      // Always redirect to /dashboard and let DashboardRedirect handle the specific routing
+      navigate('/dashboard', { replace: true });
     }
   }, [user, candidateProfile, recruiterProfile, authLoading, navigate]);
 
