@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -8,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { User, Bell, Shield, Palette, Globe, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,7 +19,7 @@ interface SettingsProps {
   trigger?: React.ReactNode;
 }
 
-const Settings = ({ open, onOpenChange, trigger }: SettingsProps) => {
+const Settings = ({ open = false, onOpenChange, trigger }: SettingsProps) => {
   const { user, recruiterProfile, candidateProfile } = useAuth();
   const queryClient = useQueryClient();
   const [emailNotifications, setEmailNotifications] = useState(true);
@@ -391,38 +390,37 @@ const Settings = ({ open, onOpenChange, trigger }: SettingsProps) => {
     </div>
   );
 
-  if (trigger) {
-    return (
-      <Sheet open={open} onOpenChange={onOpenChange}>
+  // Always render as Sheet, never as standalone content
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      {trigger && (
         <SheetTrigger asChild>
           {trigger}
         </SheetTrigger>
-        <SheetContent 
-          className="w-full sm:max-w-4xl overflow-y-auto" 
-          onClick={(e) => e.stopPropagation()}
-          onPointerDownOutside={(e) => {
-            // Only close if clicking outside the sheet content area
-            const target = e.target as Element;
-            if (!target.closest('[data-radix-popper-content-wrapper]')) {
-              e.preventDefault();
-            }
-          }}
-        >
-          <SheetHeader>
-            <SheetTitle>Settings</SheetTitle>
-            <SheetDescription>
-              Manage your account settings and preferences
-            </SheetDescription>
-          </SheetHeader>
-          <div className="mt-6" onClick={(e) => e.stopPropagation()}>
-            {settingsContent}
-          </div>
-        </SheetContent>
-      </Sheet>
-    );
-  }
-
-  return settingsContent;
+      )}
+      <SheetContent 
+        className="w-full sm:max-w-4xl overflow-y-auto" 
+        onClick={(e) => e.stopPropagation()}
+        onPointerDownOutside={(e) => {
+          // Only close if clicking outside the sheet content area
+          const target = e.target as Element;
+          if (!target.closest('[data-radix-popper-content-wrapper]')) {
+            e.preventDefault();
+          }
+        }}
+      >
+        <SheetHeader>
+          <SheetTitle>Settings</SheetTitle>
+          <SheetDescription>
+            Manage your account settings and preferences
+          </SheetDescription>
+        </SheetHeader>
+        <div className="mt-6" onClick={(e) => e.stopPropagation()}>
+          {settingsContent}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
 };
 
 export default Settings;
