@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -26,7 +25,44 @@ const CandidateProfile = () => {
   const [dragActive, setDragActive] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    location: '',
+    title: '',
+    experienceYears: '',
+    salaryExpectation: '',
+    summary: '',
+    education: '',
+    linkedinUrl: '',
+    githubUrl: '',
+    portfolioUrl: ''
+  });
+  
   const { isExtracting, extractResumeData } = useResumeExtraction();
+
+  // Update form data when candidateProfile changes
+  useEffect(() => {
+    if (candidateProfile) {
+      setFormData({
+        firstName: candidateProfile.first_name || '',
+        lastName: candidateProfile.last_name || '',
+        email: candidateProfile.email || '',
+        phone: candidateProfile.phone || '',
+        location: candidateProfile.location || '',
+        title: candidateProfile.title || '',
+        experienceYears: candidateProfile.experience_years?.toString() || '',
+        salaryExpectation: candidateProfile.salary_expectation?.toString() || '',
+        summary: candidateProfile.summary || '',
+        education: candidateProfile.education || '',
+        linkedinUrl: candidateProfile.linkedin_url || '',
+        githubUrl: candidateProfile.github_url || '',
+        portfolioUrl: candidateProfile.portfolio_url || ''
+      });
+    }
+  }, [candidateProfile]);
 
   // Close settings modal when component unmounts
   useEffect(() => {
@@ -82,6 +118,55 @@ const CandidateProfile = () => {
     } finally {
       setIsRefreshing(false);
     }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!user || !candidateProfile) return;
+
+    try {
+      const updateData = {
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        email: formData.email,
+        phone: formData.phone || null,
+        location: formData.location || null,
+        title: formData.title || null,
+        experience_years: formData.experienceYears ? parseInt(formData.experienceYears) : null,
+        salary_expectation: formData.salaryExpectation ? parseInt(formData.salaryExpectation) : null,
+        summary: formData.summary || null,
+        education: formData.education || null,
+        linkedin_url: formData.linkedinUrl || null,
+        github_url: formData.githubUrl || null,
+        portfolio_url: formData.portfolioUrl || null,
+        updated_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase
+        .from('candidate_profiles')
+        .update(updateData)
+        .eq('id', candidateProfile.id);
+
+      if (error) {
+        console.error('Profile update error:', error);
+        toast.error("Failed to update profile");
+        return;
+      }
+
+      toast.success("Profile updated successfully!");
+      setIsEditing(false);
+      await refreshProfile();
+      
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast.error("Failed to update profile");
+    }
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
   const validateFile = (file: File) => {
@@ -164,6 +249,8 @@ const CandidateProfile = () => {
           setUploadProgress(100);
           // Refresh the profile to show updated data
           toast.info("Refreshing your profile with the extracted data...");
+          
+          // Wait a moment for the backend to complete processing
           setTimeout(async () => {
             await refreshProfile();
             toast.success("Profile updated with extracted resume data!");
@@ -422,7 +509,7 @@ const CandidateProfile = () => {
                   </div>
                   <Button 
                     variant={isEditing ? "default" : "outline"}
-                    onClick={() => setIsEditing(!isEditing)}
+                    onClick={isEditing ? handleSaveProfile : () => setIsEditing(true)}
                   >
                     {isEditing ? "Save Changes" : "Edit Profile"}
                   </Button>
@@ -434,7 +521,8 @@ const CandidateProfile = () => {
                     <Label htmlFor="firstName">First Name</Label>
                     <Input 
                       id="firstName" 
-                      defaultValue={candidateProfile.first_name}
+                      value={formData.firstName}
+                      onChange={(e) => handleInputChange('firstName', e.target.value)}
                       readOnly={!isEditing}
                     />
                   </div>
@@ -442,7 +530,8 @@ const CandidateProfile = () => {
                     <Label htmlFor="lastName">Last Name</Label>
                     <Input 
                       id="lastName" 
-                      defaultValue={candidateProfile.last_name}
+                      value={formData.lastName}
+                      onChange={(e) => handleInputChange('lastName', e.target.value)}
                       readOnly={!isEditing}
                     />
                   </div>
@@ -451,7 +540,8 @@ const CandidateProfile = () => {
                     <Input 
                       id="email" 
                       type="email"
-                      defaultValue={candidateProfile.email}
+                      value={formData.email}
+                      onChange={(e) => handleInputChange('email', e.target.value)}
                       readOnly={!isEditing}
                     />
                   </div>
@@ -459,7 +549,8 @@ const CandidateProfile = () => {
                     <Label htmlFor="phone">Phone</Label>
                     <Input 
                       id="phone" 
-                      defaultValue={candidateProfile.phone || ''}
+                      value={formData.phone}
+                      onChange={(e) => handleInputChange('phone', e.target.value)}
                       readOnly={!isEditing}
                     />
                   </div>
@@ -467,7 +558,8 @@ const CandidateProfile = () => {
                     <Label htmlFor="location">Location</Label>
                     <Input 
                       id="location" 
-                      defaultValue={candidateProfile.location || ''}
+                      value={formData.location}
+                      onChange={(e) => handleInputChange('location', e.target.value)}
                       readOnly={!isEditing}
                     />
                   </div>
@@ -475,7 +567,8 @@ const CandidateProfile = () => {
                     <Label htmlFor="title">Current Title</Label>
                     <Input 
                       id="title" 
-                      defaultValue={candidateProfile.title || ''}
+                      value={formData.title}
+                      onChange={(e) => handleInputChange('title', e.target.value)}
                       readOnly={!isEditing}
                     />
                   </div>
@@ -484,7 +577,8 @@ const CandidateProfile = () => {
                     <Input 
                       id="experience" 
                       type="number"
-                      defaultValue={candidateProfile.experience_years || ''}
+                      value={formData.experienceYears}
+                      onChange={(e) => handleInputChange('experienceYears', e.target.value)}
                       readOnly={!isEditing}
                     />
                   </div>
@@ -493,7 +587,8 @@ const CandidateProfile = () => {
                     <Input 
                       id="salary" 
                       type="number"
-                      defaultValue={candidateProfile.salary_expectation || ''}
+                      value={formData.salaryExpectation}
+                      onChange={(e) => handleInputChange('salaryExpectation', e.target.value)}
                       readOnly={!isEditing}
                     />
                   </div>
@@ -503,7 +598,8 @@ const CandidateProfile = () => {
                   <Label htmlFor="summary">Professional Summary</Label>
                   <Textarea 
                     id="summary" 
-                    defaultValue={candidateProfile.summary || ''}
+                    value={formData.summary}
+                    onChange={(e) => handleInputChange('summary', e.target.value)}
                     readOnly={!isEditing}
                     rows={4}
                   />
@@ -513,7 +609,8 @@ const CandidateProfile = () => {
                   <Label>Education</Label>
                   <Input 
                     id="education" 
-                    defaultValue={candidateProfile.education || ''}
+                    value={formData.education}
+                    onChange={(e) => handleInputChange('education', e.target.value)}
                     readOnly={!isEditing}
                     placeholder="e.g., Bachelor's in Computer Science, XYZ University, 2020"
                   />
@@ -539,7 +636,8 @@ const CandidateProfile = () => {
                     <Label htmlFor="linkedin">LinkedIn URL</Label>
                     <Input 
                       id="linkedin" 
-                      defaultValue={candidateProfile.linkedin_url || ''}
+                      value={formData.linkedinUrl}
+                      onChange={(e) => handleInputChange('linkedinUrl', e.target.value)}
                       readOnly={!isEditing}
                     />
                   </div>
@@ -547,7 +645,8 @@ const CandidateProfile = () => {
                     <Label htmlFor="github">GitHub URL</Label>
                     <Input 
                       id="github" 
-                      defaultValue={candidateProfile.github_url || ''}
+                      value={formData.githubUrl}
+                      onChange={(e) => handleInputChange('githubUrl', e.target.value)}
                       readOnly={!isEditing}
                     />
                   </div>
@@ -555,7 +654,8 @@ const CandidateProfile = () => {
                     <Label htmlFor="portfolio">Portfolio URL</Label>
                     <Input 
                       id="portfolio" 
-                      defaultValue={candidateProfile.portfolio_url || ''}
+                      value={formData.portfolioUrl}
+                      onChange={(e) => handleInputChange('portfolioUrl', e.target.value)}
                       readOnly={!isEditing}
                     />
                   </div>
