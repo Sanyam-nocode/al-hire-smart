@@ -20,11 +20,14 @@ interface CandidateProfile {
   portfolio_url: string | null;
   salary_expectation: number | null;
   resume_content: string | null;
+  ranking?: number;
+  weightedScore?: number;
 }
 
 interface AISearchResult {
   candidates: CandidateProfile[];
   total: number;
+  totalMatched?: number;
 }
 
 export const useAISearch = () => {
@@ -40,7 +43,7 @@ export const useAISearch = () => {
     setIsSearching(true);
     
     try {
-      console.log('Performing strict AI search with query:', query);
+      console.log('Performing strict AI search with weighted ranking:', query);
       
       const { data, error } = await supabase.functions.invoke('ai-candidate-search', {
         body: { query }
@@ -58,7 +61,10 @@ export const useAISearch = () => {
       if (result.total === 0) {
         toast.info('No candidates found matching all your criteria. Try broadening your search terms.');
       } else {
-        toast.success(`Found ${result.total} candidates who meet all your requirements`);
+        const totalMatchedText = result.totalMatched && result.totalMatched > result.total 
+          ? ` (${result.totalMatched} total matches, showing top ${result.total})`
+          : '';
+        toast.success(`Found ${result.total} candidates ranked by best match${totalMatchedText}`);
       }
       
     } catch (error) {

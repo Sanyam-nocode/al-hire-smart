@@ -1,7 +1,8 @@
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Sparkles, MapPin, Calendar, DollarSign, ExternalLink, Bookmark, BookmarkCheck } from "lucide-react";
+import { Sparkles, MapPin, Calendar, DollarSign, ExternalLink, Bookmark, BookmarkCheck, Trophy } from "lucide-react";
 import { useSavedCandidates } from "@/hooks/useSavedCandidates";
 
 interface CandidateProfile {
@@ -21,6 +22,8 @@ interface CandidateProfile {
   portfolio_url: string | null;
   salary_expectation: number | null;
   resume_content: string | null;
+  ranking?: number;
+  weightedScore?: number;
 }
 
 interface EnhancedCandidateCardProps {
@@ -51,16 +54,36 @@ const EnhancedCandidateCard = ({ candidate, onViewProfile, onContact }: Enhanced
     }
   };
 
+  const getRankingColor = (rank: number) => {
+    if (rank === 1) return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+    if (rank === 2) return 'text-gray-600 bg-gray-50 border-gray-200';
+    if (rank === 3) return 'text-orange-600 bg-orange-50 border-orange-200';
+    return 'text-blue-600 bg-blue-50 border-blue-200';
+  };
+
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardContent className="p-6">
         <div className="flex justify-between items-start mb-4">
-          <div>
-            <h3 className="font-semibold text-lg mb-1">
-              {candidate.first_name} {candidate.last_name}
-            </h3>
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="font-semibold text-lg">
+                {candidate.first_name} {candidate.last_name}
+              </h3>
+              {candidate.ranking && (
+                <div className={`flex items-center gap-1 px-2 py-1 rounded-full border ${getRankingColor(candidate.ranking)}`}>
+                  <Trophy className="h-3 w-3" />
+                  <span className="text-xs font-medium">#{candidate.ranking}</span>
+                </div>
+              )}
+            </div>
             {candidate.title && (
               <p className="text-gray-600 font-medium">{candidate.title}</p>
+            )}
+            {candidate.weightedScore && (
+              <p className="text-xs text-gray-500 mt-1">
+                Match Score: {(candidate.weightedScore * 100).toFixed(1)}%
+              </p>
             )}
           </div>
           <div className="flex items-center space-x-2">

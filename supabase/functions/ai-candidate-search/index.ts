@@ -131,6 +131,84 @@ function candidateMeetsLocation(candidate: any, requiredLocation: string): boole
   return candidateLocation.includes(normalizedRequired);
 }
 
+// New weighted ranking function
+function calculateCandidateScore(candidate: any, requiredSkills: string[], minExperience: number | null, requiredLocation: string | null): number {
+  const criteria: Array<{ weight: number; score: number; name: string }> = [];
+  
+  // Skills scoring (each skill gets equal weight if multiple skills required)
+  if (requiredSkills.length > 0) {
+    const skillWeight = 1.0 / (requiredSkills.length + (minExperience ? 1 : 0) + (requiredLocation ? 1 : 0));
+    
+    requiredSkills.forEach(skill => {
+      let skillScore = 0;
+      
+      // Calculate skill match quality (0-1 scale)
+      const candidateSkills = (candidate.skills || []).map((s: string) => s.toLowerCase());
+      const candidateText = [
+        candidate.title || '',
+        candidate.summary || '',
+        candidate.resume_content || ''
+      ].join(' ').toLowerCase();
+      
+      // Exact match in skills array gets highest score
+      if (candidateSkills.some(s => s === skill)) {
+        skillScore = 1.0;
+      } else if (candidateSkills.some(s => s.includes(skill))) {
+        skillScore = 0.8;
+      } else if (candidateText.includes(skill)) {
+        skillScore = 0.6;
+      }
+      
+      criteria.push({ weight: skillWeight, score: skillScore, name: `skill_${skill}` });
+    });
+  }
+  
+  // Experience scoring
+  if (minExperience !== null) {
+    const experienceWeight = 1.0 / (requiredSkills.length + 1 + (requiredLocation ? 1 : 0));
+    let experienceScore = 0;
+    
+    if (candidate.experience_years) {
+      if (candidate.experience_years >= minExperience) {
+        // Score based on how much experience exceeds minimum (capped at 2x minimum for scoring)
+        const maxExperienceForScoring = minExperience * 2;
+        const normalizedExperience = Math.min(candidate.experience_years, maxExperienceForScoring);
+        experienceScore = normalizedExperience / maxExperienceForScoring;
+      }
+    }
+    
+    criteria.push({ weight: experienceWeight, score: experienceScore, name: 'experience' });
+  }
+  
+  // Location scoring
+  if (requiredLocation) {
+    const locationWeight = 1.0 / (requiredSkills.length + (minExperience ? 1 : 0) + 1);
+    let locationScore = 0;
+    
+    if (candidate.location) {
+      const candidateLocation = candidate.location.toLowerCase();
+      const normalizedRequired = requiredLocation.toLowerCase().trim();
+      
+      if (candidateLocation.includes(normalizedRequired)) {
+        locationScore = 1.0;
+      }
+    }
+    
+    criteria.push({ weight: locationWeight, score: locationScore, name: 'location' });
+  }
+  
+  // Calculate weighted average
+  const weightedSum = criteria.reduce((sum, criterion) => sum + (criterion.weight * criterion.score), 0);
+  
+  console.log(`Score calculation for ${candidate.first_name} ${candidate.last_name}:`);
+  criteria.forEach(criterion => {
+    console.log(`  ${criterion.name}: weight=${criterion.weight.toFixed(3)}, score=${criterion.score.toFixed(3)}, contribution=${(criterion.weight * criterion.score).toFixed(3)}`);
+  });
+  console.log(`  Total weighted score: ${weightedSum.toFixed(3)}`);
+  
+  return weightedSum;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -147,7 +225,7 @@ serve(async (req) => {
       });
     }
 
-    console.log('Processing ULTRA-STRICT AI search query:', query);
+    console.log('Processing ULTRA-STRICT AI search query with weighted ranking:', query);
 
     // Create Supabase client
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -216,95 +294,37 @@ serve(async (req) => {
 
     console.log(`Strict local filtering: ${matchedCandidates.length} candidates passed`);
 
-    // If we have too many results, use AI for final ranking and selection
-    if (matchedCandidates.length > 10) {
-      const aiPrompt = `
-You are a strict AI recruiter. You have ${matchedCandidates.length} candidates who have already passed initial filtering for the query: "${query}"
+    // Calculate weighted scores for all matched candidates
+    const candidatesWithScores = matchedCandidates.map(candidate => ({
+      ...candidate,
+      weightedScore: calculateCandidateScore(candidate, requiredSkills, minExperience, requiredLocation)
+    }));
 
-Your job is to rank these candidates and return the TOP 10 most relevant ones.
-
-Requirements extracted:
-- Skills: ${requiredSkills.join(', ') || 'None specified'}
-- Experience: ${minExperience ? `${minExperience}+ years` : 'None specified'}
-- Location: ${requiredLocation || 'None specified'}
-
-ALL candidates below already meet the basic requirements. Rank them by:
-1. How closely their skills match the requirements
-2. Experience level relevance
-3. Overall profile quality
-
-Return ONLY a JSON array of the TOP 10 candidate IDs in order of relevance:
-["id1", "id2", "id3", ...]
-
-Candidates to rank:
-${matchedCandidates.map(candidate => `
-ID: ${candidate.id}
-Name: ${candidate.first_name} ${candidate.last_name}
-Title: ${candidate.title || 'Not specified'}
-Skills: ${candidate.skills ? candidate.skills.join(', ') : 'Not specified'}
-Experience: ${candidate.experience_years || 0} years
-Summary: ${candidate.summary ? candidate.summary.substring(0, 200) : 'Not specified'}
-`).join('\n---\n')}
-`;
-
-      const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openAIApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            { 
-              role: 'system', 
-              content: 'You are a strict AI recruiter ranking pre-filtered candidates. Return ONLY valid JSON arrays of candidate IDs.' 
-            },
-            { role: 'user', content: aiPrompt }
-          ],
-          temperature: 0.1,
-          max_tokens: 300,
-        }),
-      });
-
-      const openAIData = await openAIResponse.json();
-      console.log('AI ranking response:', openAIData);
-
-      if (openAIData.choices && openAIData.choices[0]) {
-        try {
-          let content = openAIData.choices[0].message.content.trim();
-          content = content.replace(/```json\s*/g, '').replace(/```\s*/g, '');
-          const rankedIds = JSON.parse(content);
-          
-          if (Array.isArray(rankedIds)) {
-            matchedCandidates = rankedIds
-              .slice(0, 10)
-              .map(id => matchedCandidates.find(c => c.id === id))
-              .filter(Boolean);
-          }
-        } catch (parseError) {
-          console.error('Error parsing AI ranking:', parseError);
-          // Fall back to first 10 from our strict filtering
-          matchedCandidates = matchedCandidates.slice(0, 10);
-        }
-      } else {
-        matchedCandidates = matchedCandidates.slice(0, 10);
-      }
-    }
-
-    console.log(`Final result: ${matchedCandidates.length} candidates who meet ALL criteria`);
+    // Sort by weighted score (highest first) and assign rankings
+    candidatesWithScores.sort((a, b) => b.weightedScore - a.weightedScore);
     
-    // Log each final candidate for verification
-    matchedCandidates.forEach(candidate => {
-      console.log(`✅ Final candidate: ${candidate.first_name} ${candidate.last_name}`);
-      console.log(`   Skills: ${candidate.skills ? candidate.skills.join(', ') : 'None'}`);
-      console.log(`   Experience: ${candidate.experience_years || 0} years`);
-      console.log(`   Location: ${candidate.location || 'Not specified'}`);
+    const rankedCandidates = candidatesWithScores.map((candidate, index) => ({
+      ...candidate,
+      ranking: index + 1
+    }));
+
+    console.log('\n=== FINAL WEIGHTED RANKINGS ===');
+    rankedCandidates.forEach(candidate => {
+      console.log(`Rank ${candidate.ranking}: ${candidate.first_name} ${candidate.last_name} - Score: ${candidate.weightedScore.toFixed(3)}`);
+      console.log(`  Skills: ${candidate.skills ? candidate.skills.join(', ') : 'None'}`);
+      console.log(`  Experience: ${candidate.experience_years || 0} years`);
+      console.log(`  Location: ${candidate.location || 'Not specified'}`);
     });
 
+    // Limit to top 10 for display
+    const finalResults = rankedCandidates.slice(0, 10);
+
+    console.log(`Final result: ${finalResults.length} top-ranked candidates`);
+
     return new Response(JSON.stringify({ 
-      candidates: matchedCandidates,
-      total: matchedCandidates.length 
+      candidates: finalResults,
+      total: finalResults.length,
+      totalMatched: matchedCandidates.length
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

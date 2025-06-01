@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Search, Sparkles, Loader2 } from 'lucide-react';
+import { Search, Sparkles, Loader2, Trophy } from 'lucide-react';
 import { useAISearch } from '@/hooks/useAISearch';
 import EnhancedCandidateCard from './EnhancedCandidateCard';
 
@@ -24,6 +24,8 @@ interface CandidateProfile {
   portfolio_url: string | null;
   salary_expectation: number | null;
   resume_content: string | null;
+  ranking?: number;
+  weightedScore?: number;
 }
 
 interface AISearchComponentProps {
@@ -59,10 +61,10 @@ const AISearchComponent = ({ onViewProfile, onContact }: AISearchComponentProps)
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-blue-600" />
-            AI Candidate Search
+            AI Candidate Search with Smart Ranking
           </CardTitle>
           <CardDescription>
-            Our AI precisely filters candidates to match your exact requirements. Only candidates who meet your specific criteria for skills, experience, location, and other preferences will be shown in the results.
+            Our AI precisely filters candidates to match your exact requirements and ranks them using a weighted scoring system. Each criterion (skills, experience, location) is weighted equally, and candidates are ranked numerically based on how well they match your specific needs.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -109,9 +111,12 @@ const AISearchComponent = ({ onViewProfile, onContact }: AISearchComponentProps)
 
           {searchResults.length > 0 && (
             <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-600">
-                Found {searchResults.length} candidates matching your criteria
-              </p>
+              <div className="flex items-center gap-2">
+                <Trophy className="h-4 w-4 text-yellow-600" />
+                <p className="text-sm text-gray-600">
+                  Found {searchResults.length} candidates ranked by best match
+                </p>
+              </div>
               <Button variant="outline" size="sm" onClick={clearResults}>
                 Clear Results
               </Button>
