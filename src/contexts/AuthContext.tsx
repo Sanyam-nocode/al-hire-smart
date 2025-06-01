@@ -75,7 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   const fetchProfiles = async (user: User) => {
-    console.log('Fetching profiles for user:', user.id);
+    console.log('AuthContext: Fetching profiles for user:', user.id);
     try {
       // Try to fetch candidate profile
       const { data: candidateData, error: candidateError } = await supabase
@@ -84,10 +84,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('user_id', user.id)
         .maybeSingle();
 
+      console.log('AuthContext: Candidate profile query result:', { candidateData, candidateError });
+
       if (candidateError && candidateError.code !== 'PGRST116') {
-        console.error('Error fetching candidate profile:', candidateError);
+        console.error('AuthContext: Error fetching candidate profile:', candidateError);
       } else if (candidateData) {
-        console.log('Found candidate profile:', candidateData);
+        console.log('AuthContext: Found candidate profile:', candidateData);
         setCandidateProfile(candidateData);
         return;
       }
@@ -99,16 +101,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('user_id', user.id)
         .maybeSingle();
 
+      console.log('AuthContext: Recruiter profile query result:', { recruiterData, recruiterError });
+
       if (recruiterError && recruiterError.code !== 'PGRST116') {
-        console.error('Error fetching recruiter profile:', recruiterError);
+        console.error('AuthContext: Error fetching recruiter profile:', recruiterError);
       } else if (recruiterData) {
-        console.log('Found recruiter profile:', recruiterData);
+        console.log('AuthContext: Found recruiter profile:', recruiterData);
         setRecruiterProfile(recruiterData);
       } else {
-        console.log('No profiles found for user');
+        console.log('AuthContext: No profiles found for user');
       }
     } catch (error) {
-      console.error('Error in fetchProfiles:', error);
+      console.error('AuthContext: Error in fetchProfiles:', error);
     }
   };
 
@@ -162,12 +166,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('AuthContext: Initial session:', session?.user?.email);
       setUser(session?.user ?? null);
       if (session?.user) {
-        // Use setTimeout to defer profile fetching
-        setTimeout(() => {
-          fetchProfiles(session.user);
-        }, 0);
+        fetchProfiles(session.user).finally(() => {
+          console.log('AuthContext: Profile fetch completed, setting loading to false');
+          setLoading(false);
+        });
+      } else {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     // Listen for auth changes
@@ -176,16 +181,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        // Use setTimeout to defer profile fetching and prevent potential deadlocks
-        setTimeout(() => {
-          fetchProfiles(session.user);
-        }, 0);
+        setLoading(true);
+        fetchProfiles(session.user).finally(() => {
+          console.log('AuthContext: Profile fetch completed after auth change, setting loading to false');
+          setLoading(false);
+        });
       } else {
         setCandidateProfile(null);
         setRecruiterProfile(null);
+        setLoading(false);
       }
-      
-      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
