@@ -41,62 +41,102 @@ export const useResumeExtraction = () => {
         console.log('Updated profile:', data.updatedProfile);
         console.log('Extraction method:', data.extractionInfo?.method);
         
-        // Build detailed success message
-        let successMessage = 'Resume analyzed successfully! ';
-        const updates = [];
-        
-        // Add method-specific information
-        if (data.extractionInfo?.method === 'ocr-space') {
-          successMessage = '🔍 Resume processed using advanced OCR technology! ';
-        } else if (data.extractionInfo?.method === 'standard-parser') {
-          successMessage = '📄 Resume processed using PDF parsing! ';
-        }
-        
+        // Display the extracted data in the chat for the user to see
         if (data.extractedData) {
-          const { personal_info, professional_summary, education, skills, work_experience } = data.extractedData;
+          console.log('=== SHOWING EXTRACTED DATA TO USER ===');
+          const extractedInfo = data.extractedData;
           
-          // Check what was extracted
-          if (personal_info?.email) updates.push('contact info');
-          if (personal_info?.location) updates.push('location');
-          if (personal_info?.linkedin_url) updates.push('LinkedIn profile');
-          if (professional_summary?.current_role) updates.push('current role');
-          if (professional_summary?.summary) updates.push('professional summary');
-          if (education?.qualification) updates.push('education details');
+          // Create a detailed summary of what was extracted
+          let extractedSummary = '🎉 Resume successfully processed! Here\'s what I extracted:\n\n';
           
-          // Count all skills
-          const totalSkills = [
-            ...(skills?.technical_skills || []),
-            ...(skills?.programming_languages || []),
-            ...(skills?.tools_and_frameworks || []),
-            ...(skills?.soft_skills || [])
-          ].length;
-          
-          if (totalSkills > 0) updates.push(`${totalSkills} skills`);
-          if (work_experience?.companies?.length > 0) updates.push(`${work_experience.companies.length} companies`);
-          if (work_experience?.roles?.length > 0) updates.push(`${work_experience.roles.length} roles`);
-          
-          if (updates.length > 0) {
-            successMessage += `Extracted: ${updates.join(', ')}.`;
-          } else {
-            successMessage += 'Basic information extracted successfully.';
+          // Personal Information
+          if (extractedInfo.personal_info) {
+            const personal = extractedInfo.personal_info;
+            extractedSummary += '👤 **Personal Information:**\n';
+            if (personal.full_name) extractedSummary += `• Name: ${personal.full_name}\n`;
+            if (personal.email) extractedSummary += `• Email: ${personal.email}\n`;
+            if (personal.phone) extractedSummary += `• Phone: ${personal.phone}\n`;
+            if (personal.location) extractedSummary += `• Location: ${personal.location}\n`;
+            if (personal.linkedin_url) extractedSummary += `• LinkedIn: ${personal.linkedin_url}\n`;
+            if (personal.github_url) extractedSummary += `• GitHub: ${personal.github_url}\n`;
+            if (personal.portfolio_url) extractedSummary += `• Portfolio: ${personal.portfolio_url}\n`;
+            extractedSummary += '\n';
           }
-
-          // Add special note for OCR processing
+          
+          // Professional Summary
+          if (extractedInfo.professional_summary) {
+            const prof = extractedInfo.professional_summary;
+            extractedSummary += '💼 **Professional Summary:**\n';
+            if (prof.current_role) extractedSummary += `• Current Role: ${prof.current_role}\n`;
+            if (prof.total_experience_years) extractedSummary += `• Experience: ${prof.total_experience_years} years\n`;
+            if (prof.industry) extractedSummary += `• Industry: ${prof.industry}\n`;
+            if (prof.summary) extractedSummary += `• Summary: ${prof.summary.substring(0, 200)}${prof.summary.length > 200 ? '...' : ''}\n`;
+            extractedSummary += '\n';
+          }
+          
+          // Skills
+          if (extractedInfo.skills) {
+            const skills = extractedInfo.skills;
+            extractedSummary += '🛠️ **Skills:**\n';
+            if (skills.technical_skills?.length) extractedSummary += `• Technical Skills: ${skills.technical_skills.slice(0, 10).join(', ')}${skills.technical_skills.length > 10 ? '...' : ''}\n`;
+            if (skills.programming_languages?.length) extractedSummary += `• Programming Languages: ${skills.programming_languages.join(', ')}\n`;
+            if (skills.tools_and_frameworks?.length) extractedSummary += `• Tools & Frameworks: ${skills.tools_and_frameworks.slice(0, 10).join(', ')}${skills.tools_and_frameworks.length > 10 ? '...' : ''}\n`;
+            if (skills.soft_skills?.length) extractedSummary += `• Soft Skills: ${skills.soft_skills.join(', ')}\n`;
+            extractedSummary += '\n';
+          }
+          
+          // Education
+          if (extractedInfo.education) {
+            const edu = extractedInfo.education;
+            extractedSummary += '🎓 **Education:**\n';
+            if (edu.qualification) extractedSummary += `• Qualification: ${edu.qualification}\n`;
+            if (edu.institution) extractedSummary += `• Institution: ${edu.institution}\n`;
+            if (edu.graduation_year) extractedSummary += `• Graduation Year: ${edu.graduation_year}\n`;
+            if (edu.additional_qualifications) extractedSummary += `• Additional: ${edu.additional_qualifications}\n`;
+            extractedSummary += '\n';
+          }
+          
+          // Work Experience
+          if (extractedInfo.work_experience) {
+            const work = extractedInfo.work_experience;
+            extractedSummary += '💼 **Work Experience:**\n';
+            if (work.current_company) extractedSummary += `• Current Company: ${work.current_company}\n`;
+            if (work.current_position) extractedSummary += `• Current Position: ${work.current_position}\n`;
+            if (work.companies?.length) extractedSummary += `• Companies: ${work.companies.slice(0, 5).join(', ')}${work.companies.length > 5 ? '...' : ''}\n`;
+            if (work.roles?.length) extractedSummary += `• Roles: ${work.roles.slice(0, 3).join(', ')}${work.roles.length > 3 ? '...' : ''}\n`;
+            if (work.key_achievements?.length) extractedSummary += `• Key Achievements: ${work.key_achievements.slice(0, 2).join(', ')}${work.key_achievements.length > 2 ? '...' : ''}\n`;
+            extractedSummary += '\n';
+          }
+          
+          // Additional Information
+          if (extractedInfo.additional_info) {
+            const additional = extractedInfo.additional_info;
+            extractedSummary += '🏆 **Additional Information:**\n';
+            if (additional.certifications?.length) extractedSummary += `• Certifications: ${additional.certifications.join(', ')}\n`;
+            if (additional.awards?.length) extractedSummary += `• Awards: ${additional.awards.join(', ')}\n`;
+            if (additional.projects?.length) extractedSummary += `• Projects: ${additional.projects.slice(0, 3).join(', ')}${additional.projects.length > 3 ? '...' : ''}\n`;
+            if (additional.languages?.length) extractedSummary += `• Languages: ${additional.languages.join(', ')}\n`;
+            extractedSummary += '\n';
+          }
+          
+          extractedSummary += `✨ Extraction Method: ${data.extractionInfo?.method || 'Unknown'}\n`;
           if (data.extractionInfo?.ocrUsed) {
-            successMessage += ' 🚀 Advanced OCR technology was used to read your resume.';
+            extractedSummary += '🔍 Advanced OCR technology was used to read your resume.\n';
           }
-        }
-        
-        // Show detailed success message
-        toast.success(successMessage, {
-          duration: 12000,
-        });
-
-        // Add additional notification about profile update
-        if (data.updatedProfile) {
+          
+          // Show the extracted data in a success toast
+          toast.success('Resume data extracted successfully!', {
+            duration: 8000,
+          });
+          
+          // Log the extracted summary for the user to see
+          console.log('=== EXTRACTED DATA SUMMARY ===');
+          console.log(extractedSummary);
+          
+          // Display extracted data as a formatted message
           setTimeout(() => {
-            toast.info('Your profile has been automatically updated with the extracted information!', {
-              duration: 8000,
+            toast.info('Your profile has been updated with the extracted information! Check the Profile tab to see the changes.', {
+              duration: 10000,
             });
           }, 2000);
         }
