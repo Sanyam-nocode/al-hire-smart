@@ -14,6 +14,9 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import Settings from "@/components/Settings";
 import { useResumeExtraction } from "@/hooks/useResumeExtraction";
+import ProfileReviewDialog from "@/components/ProfileReviewDialog";
+import ProfileCompletionBanner from "@/components/ProfileCompletionBanner";
+import { validateCandidateProfile } from "@/utils/profileValidation";
 
 const CandidateProfile = () => {
   const { user, candidateProfile, signOut, refreshProfile } = useAuth();
@@ -25,6 +28,8 @@ const CandidateProfile = () => {
   const [dragActive, setDragActive] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [showReviewDialog, setShowReviewDialog] = useState(false);
+  const [reviewFromResume, setReviewFromResume] = useState(false);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -122,11 +127,11 @@ const CandidateProfile = () => {
     }
   };
 
-  const handleSaveProfile = async () => {
+  const handleSaveProfile = async (updateData?: any) => {
     if (!user || !candidateProfile) return;
 
     try {
-      const updateData = {
+      const dataToUpdate = updateData || {
         first_name: formData.firstName,
         last_name: formData.lastName,
         email: formData.email,
@@ -143,9 +148,13 @@ const CandidateProfile = () => {
         updated_at: new Date().toISOString()
       };
 
+      // Add profile completion status
+      const validation = validateCandidateProfile(dataToUpdate);
+      dataToUpdate.profile_complete = validation.isValid;
+
       const { error } = await supabase
         .from('candidate_profiles')
-        .update(updateData)
+        .update(dataToUpdate)
         .eq('id', candidateProfile.id);
 
       if (error) {
@@ -260,11 +269,15 @@ const CandidateProfile = () => {
             await refreshProfile();
             console.log('Profile refreshed after extraction');
             
+            // Show the review dialog for extracted data
+            setReviewFromResume(true);
+            setShowReviewDialog(true);
+            
             // Show detailed success message
             const updatedFields = extractionResult.updatedFields || [];
             if (updatedFields.length > 0) {
-              toast.success(`Profile automatically updated with extracted data from your resume! Updated fields: ${updatedFields.join(', ')}`, {
-                duration: 12000,
+              toast.success(`Profile automatically updated with extracted data from your resume! Please review the information.`, {
+                duration: 8000,
               });
             }
           }, 2000);
@@ -431,6 +444,9 @@ const CandidateProfile = () => {
     );
   }
 
+  // Get current validation status
+  const validation = validateCandidateProfile(candidateProfile);
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -477,6 +493,17 @@ const CandidateProfile = () => {
       </header>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Profile Completion Banner */}
+        <div className="mb-6">
+          <ProfileCompletionBanner 
+            validation={validation} 
+            onEditProfile={() => {
+              setReviewFromResume(false);
+              setShowReviewDialog(true);
+            }} 
+          />
+        </div>
+
         <Tabs defaultValue="profile" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="profile">
@@ -843,6 +870,15 @@ const CandidateProfile = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Profile Review Dialog */}
+      <ProfileReviewDialog
+        open={showReviewDialog}
+        onOpenChange={setShowReviewDialog}
+        candidateProfile={candidateProfile}
+        onSave={handleSaveProfile}
+        extractedFromResume={reviewFromResume}
+      />
     </div>
   );
 };
