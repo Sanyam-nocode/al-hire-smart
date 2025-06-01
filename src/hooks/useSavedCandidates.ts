@@ -12,26 +12,26 @@ interface SavedCandidate {
 }
 
 export const useSavedCandidates = () => {
-  const { user } = useAuth();
+  const { user, recruiterProfile } = useAuth();
   const [savedCandidateIds, setSavedCandidateIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (user) {
+    if (user && recruiterProfile) {
       loadSavedCandidates();
     }
-  }, [user]);
+  }, [user, recruiterProfile]);
 
   const loadSavedCandidates = async () => {
-    if (!user) return;
+    if (!user || !recruiterProfile) return;
 
     try {
-      console.log('Loading saved candidate IDs for user:', user.id);
+      console.log('Loading saved candidate IDs for recruiter:', recruiterProfile.id);
       
       const { data, error } = await supabase
         .from('saved_candidates')
         .select('candidate_id')
-        .eq('recruiter_id', user.id);
+        .eq('recruiter_id', recruiterProfile.id);
 
       if (error) {
         console.error('Error loading saved candidates:', error);
@@ -48,19 +48,19 @@ export const useSavedCandidates = () => {
   };
 
   const saveCandidate = async (candidateId: string) => {
-    if (!user) {
-      toast.error('You must be logged in to save candidates');
+    if (!user || !recruiterProfile) {
+      toast.error('You must be logged in as a recruiter to save candidates');
       return;
     }
 
     setIsLoading(true);
     try {
-      console.log('Saving candidate:', candidateId, 'for recruiter:', user.id);
+      console.log('Saving candidate:', candidateId, 'for recruiter:', recruiterProfile.id);
       
       const { error } = await supabase
         .from('saved_candidates')
         .insert({
-          recruiter_id: user.id,
+          recruiter_id: recruiterProfile.id,
           candidate_id: candidateId,
         });
 
@@ -82,16 +82,16 @@ export const useSavedCandidates = () => {
   };
 
   const unsaveCandidate = async (candidateId: string) => {
-    if (!user) return;
+    if (!user || !recruiterProfile) return;
 
     setIsLoading(true);
     try {
-      console.log('Unsaving candidate:', candidateId, 'for recruiter:', user.id);
+      console.log('Unsaving candidate:', candidateId, 'for recruiter:', recruiterProfile.id);
       
       const { error } = await supabase
         .from('saved_candidates')
         .delete()
-        .eq('recruiter_id', user.id)
+        .eq('recruiter_id', recruiterProfile.id)
         .eq('candidate_id', candidateId);
 
       if (error) {

@@ -31,28 +31,31 @@ interface SavedCandidatesTabProps {
 }
 
 const SavedCandidatesTab = ({ onViewProfile, onContact }: SavedCandidatesTabProps) => {
-  const { user } = useAuth();
+  const { user, recruiterProfile } = useAuth();
   const [savedCandidates, setSavedCandidates] = useState<CandidateProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
+    if (user && recruiterProfile) {
       loadSavedCandidates();
     }
-  }, [user]);
+  }, [user, recruiterProfile]);
 
   const loadSavedCandidates = async () => {
-    if (!user) return;
+    if (!user || !recruiterProfile) {
+      console.log('No user or recruiter profile found');
+      return;
+    }
 
     setIsLoading(true);
     try {
-      console.log('Loading saved candidates for user:', user.id);
+      console.log('Loading saved candidates for recruiter:', recruiterProfile.id);
       
-      // First, let's check if there are any saved candidates records
+      // Use the recruiter profile ID instead of the user ID
       const { data: savedRecords, error: savedError } = await supabase
         .from('saved_candidates')
         .select('*')
-        .eq('recruiter_id', user.id);
+        .eq('recruiter_id', recruiterProfile.id);
 
       console.log('Saved candidates records:', savedRecords);
       console.log('Saved candidates error:', savedError);
