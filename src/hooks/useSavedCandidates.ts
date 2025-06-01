@@ -17,13 +17,23 @@ export const useSavedCandidates = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
+    console.log('useSavedCandidates useEffect triggered');
+    console.log('User:', user?.email);
+    console.log('Recruiter Profile ID:', recruiterProfile?.id);
+    
     if (user && recruiterProfile) {
       loadSavedCandidates();
+    } else {
+      console.log('Clearing saved candidate IDs - no user or recruiter profile');
+      setSavedCandidateIds(new Set());
     }
   }, [user, recruiterProfile]);
 
   const loadSavedCandidates = async () => {
-    if (!user || !recruiterProfile) return;
+    if (!user || !recruiterProfile) {
+      console.log('Cannot load saved candidates - missing user or recruiter profile');
+      return;
+    }
 
     try {
       console.log('Loading saved candidate IDs for recruiter:', recruiterProfile.id);
@@ -33,13 +43,17 @@ export const useSavedCandidates = () => {
         .select('candidate_id')
         .eq('recruiter_id', recruiterProfile.id);
 
+      console.log('useSavedCandidates query result:');
+      console.log('- Data:', data);
+      console.log('- Error:', error);
+
       if (error) {
         console.error('Error loading saved candidates:', error);
         return;
       }
 
       console.log('Loaded saved candidate data:', data);
-      const candidateIds = new Set(data.map(item => item.candidate_id));
+      const candidateIds = new Set(data?.map(item => item.candidate_id) || []);
       console.log('Saved candidate IDs set:', candidateIds);
       setSavedCandidateIds(candidateIds);
     } catch (error) {
@@ -118,6 +132,7 @@ export const useSavedCandidates = () => {
   const isCandidateSaved = (candidateId: string) => {
     const isSaved = savedCandidateIds.has(candidateId);
     console.log('Checking if candidate', candidateId, 'is saved:', isSaved);
+    console.log('Current saved IDs:', Array.from(savedCandidateIds));
     return isSaved;
   };
 

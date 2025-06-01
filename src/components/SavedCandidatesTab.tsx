@@ -36,45 +36,58 @@ const SavedCandidatesTab = ({ onViewProfile, onContact }: SavedCandidatesTabProp
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    console.log('SavedCandidatesTab useEffect triggered');
+    console.log('User:', user?.email);
+    console.log('Recruiter Profile:', recruiterProfile);
+    
     if (user && recruiterProfile) {
       loadSavedCandidates();
+    } else {
+      console.log('Missing user or recruiter profile, not loading saved candidates');
+      setIsLoading(false);
     }
   }, [user, recruiterProfile]);
 
   const loadSavedCandidates = async () => {
     if (!user || !recruiterProfile) {
       console.log('No user or recruiter profile found');
+      setIsLoading(false);
       return;
     }
 
     setIsLoading(true);
     try {
-      console.log('Loading saved candidates for recruiter:', recruiterProfile.id);
+      console.log('Loading saved candidates for recruiter ID:', recruiterProfile.id);
+      console.log('Recruiter profile details:', recruiterProfile);
       
-      // Use the recruiter profile ID instead of the user ID
+      // First, get all saved candidate records for this recruiter
       const { data: savedRecords, error: savedError } = await supabase
         .from('saved_candidates')
         .select('*')
         .eq('recruiter_id', recruiterProfile.id);
 
-      console.log('Saved candidates records:', savedRecords);
-      console.log('Saved candidates error:', savedError);
+      console.log('Saved candidates query result:');
+      console.log('- Records found:', savedRecords?.length || 0);
+      console.log('- Records data:', savedRecords);
+      console.log('- Error:', savedError);
 
       if (savedError) {
         console.error('Error loading saved candidates records:', savedError);
         toast.error('Failed to load saved candidates');
+        setIsLoading(false);
         return;
       }
 
       if (!savedRecords || savedRecords.length === 0) {
-        console.log('No saved candidates found');
+        console.log('No saved candidates found for recruiter:', recruiterProfile.id);
         setSavedCandidates([]);
+        setIsLoading(false);
         return;
       }
 
       // Get the candidate IDs
       const candidateIds = savedRecords.map(record => record.candidate_id);
-      console.log('Candidate IDs to fetch:', candidateIds);
+      console.log('Candidate IDs to fetch profiles for:', candidateIds);
 
       // Now fetch the candidate profiles
       const { data: candidates, error: candidatesError } = await supabase
@@ -82,22 +95,32 @@ const SavedCandidatesTab = ({ onViewProfile, onContact }: SavedCandidatesTabProp
         .select('*')
         .in('id', candidateIds);
 
-      console.log('Fetched candidates:', candidates);
-      console.log('Candidates error:', candidatesError);
+      console.log('Candidate profiles query result:');
+      console.log('- Profiles found:', candidates?.length || 0);
+      console.log('- Profiles data:', candidates);
+      console.log('- Error:', candidatesError);
 
       if (candidatesError) {
         console.error('Error loading candidate profiles:', candidatesError);
         toast.error('Failed to load candidate profiles');
+        setIsLoading(false);
         return;
       }
 
+      console.log('Setting saved candidates state with:', candidates || []);
       setSavedCandidates(candidates || []);
     } catch (error) {
-      console.error('Error loading saved candidates:', error);
+      console.error('Unexpected error loading saved candidates:', error);
       toast.error('Failed to load saved candidates');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Add a manual refresh function for debugging
+  const handleRefresh = () => {
+    console.log('Manual refresh triggered');
+    loadSavedCandidates();
   };
 
   if (isLoading) {
@@ -106,7 +129,7 @@ const SavedCandidatesTab = ({ onViewProfile, onContact }: SavedCandidatesTabProp
         <CardHeader>
           <CardTitle>Saved Candidates</CardTitle>
           <CardDescription>
-            Candidates you've bookmarked for future consideration
+            Loading your saved candidates...
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -122,9 +145,22 @@ const SavedCandidatesTab = ({ onViewProfile, onContact }: SavedCandidatesTabProp
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Saved Candidates</CardTitle>
+          <CardTitle className="flex items-center justify-between">
+            Saved Candidates
+            <button 
+              onClick={handleRefresh}
+              className="text-sm text-blue-600 hover:text-blue-800 underline"
+            >
+              Refresh
+            </button>
+          </CardTitle>
           <CardDescription>
             Candidates you've bookmarked for future consideration ({savedCandidates.length} saved)
+            {recruiterProfile && (
+              <div className="text-xs text-gray-500 mt-1">
+                Recruiter ID: {recruiterProfile.id}
+              </div>
+            )}
           </CardDescription>
         </CardHeader>
       </Card>
@@ -135,6 +171,9 @@ const SavedCandidatesTab = ({ onViewProfile, onContact }: SavedCandidatesTabProp
             <p className="text-gray-600 text-center">
               No saved candidates yet. Start searching to find and save potential hires.
             </p>
+            <div className="text-xs text-gray-400 text-center mt-2">
+              Debug: User logged in: {user ? 'Yes' : 'No'}, Recruiter profile: {recruiterProfile ? 'Yes' : 'No'}
+            </div>
           </CardContent>
         </Card>
       ) : (
