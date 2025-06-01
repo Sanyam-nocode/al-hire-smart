@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -37,6 +38,7 @@ const RecruiterDashboard = () => {
   const { user, recruiterProfile, signOut } = useAuth();
   const navigate = useNavigate();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [profileEditMode, setProfileEditMode] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateProfile | null>(null);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [contactModalOpen, setContactModalOpen] = useState(false);
@@ -68,6 +70,18 @@ const RecruiterDashboard = () => {
     setContactModalOpen(true);
   };
 
+  const handleEditProfile = () => {
+    setProfileEditMode(true);
+    setSettingsOpen(true);
+  };
+
+  const handleSettingsClose = (open: boolean) => {
+    setSettingsOpen(open);
+    if (!open) {
+      setProfileEditMode(false);
+    }
+  };
+
   if (!user || !recruiterProfile) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -95,7 +109,7 @@ const RecruiterDashboard = () => {
               </Button>
               <Settings
                 open={settingsOpen}
-                onOpenChange={setSettingsOpen}
+                onOpenChange={handleSettingsClose}
                 trigger={
                   <Button variant="outline" size="sm">
                     <SettingsIcon className="h-4 w-4" />
@@ -182,7 +196,7 @@ const RecruiterDashboard = () => {
                     </div>
                   )}
                 </div>
-                <Button variant="outline">
+                <Button variant="outline" onClick={handleEditProfile}>
                   Edit Profile
                 </Button>
               </CardContent>
