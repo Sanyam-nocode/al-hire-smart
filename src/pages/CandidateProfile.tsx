@@ -21,7 +21,6 @@ import { validateCandidateProfile } from "@/utils/profileValidation";
 const CandidateProfile = () => {
   const { user, candidateProfile, signOut, refreshProfile } = useAuth();
   const navigate = useNavigate();
-  const [isEditing, setIsEditing] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
@@ -152,6 +151,8 @@ const CandidateProfile = () => {
       const validation = validateCandidateProfile(dataToUpdate);
       dataToUpdate.profile_complete = validation.isValid;
 
+      console.log('Updating profile with data:', dataToUpdate);
+
       const { error } = await supabase
         .from('candidate_profiles')
         .update(dataToUpdate)
@@ -160,16 +161,18 @@ const CandidateProfile = () => {
       if (error) {
         console.error('Profile update error:', error);
         toast.error("Failed to update profile");
-        return;
+        throw error;
       }
 
-      toast.success("Profile updated successfully!");
-      setIsEditing(false);
+      console.log('Profile updated successfully, refreshing...');
+      
+      // Refresh the profile to get the latest data
       await refreshProfile();
       
     } catch (error) {
       console.error('Error updating profile:', error);
       toast.error("Failed to update profile");
+      throw error;
     }
   };
 
@@ -554,8 +557,7 @@ const CandidateProfile = () => {
                     <Input 
                       id="firstName" 
                       value={formData.firstName}
-                      onChange={(e) => handleInputChange('firstName', e.target.value)}
-                      readOnly={!isEditing}
+                      readOnly
                     />
                   </div>
                   <div className="space-y-2">
@@ -563,8 +565,7 @@ const CandidateProfile = () => {
                     <Input 
                       id="lastName" 
                       value={formData.lastName}
-                      onChange={(e) => handleInputChange('lastName', e.target.value)}
-                      readOnly={!isEditing}
+                      readOnly
                     />
                   </div>
                   <div className="space-y-2">
@@ -573,8 +574,7 @@ const CandidateProfile = () => {
                       id="email" 
                       type="email"
                       value={formData.email}
-                      onChange={(e) => handleInputChange('email', e.target.value)}
-                      readOnly={!isEditing}
+                      readOnly
                     />
                   </div>
                   <div className="space-y-2">
@@ -582,8 +582,7 @@ const CandidateProfile = () => {
                     <Input 
                       id="phone" 
                       value={formData.phone}
-                      onChange={(e) => handleInputChange('phone', e.target.value)}
-                      readOnly={!isEditing}
+                      readOnly
                     />
                   </div>
                   <div className="space-y-2">
@@ -591,8 +590,7 @@ const CandidateProfile = () => {
                     <Input 
                       id="location" 
                       value={formData.location}
-                      onChange={(e) => handleInputChange('location', e.target.value)}
-                      readOnly={!isEditing}
+                      readOnly
                     />
                   </div>
                   <div className="space-y-2">
@@ -600,8 +598,7 @@ const CandidateProfile = () => {
                     <Input 
                       id="title" 
                       value={formData.title}
-                      onChange={(e) => handleInputChange('title', e.target.value)}
-                      readOnly={!isEditing}
+                      readOnly
                     />
                   </div>
                   <div className="space-y-2">
@@ -610,8 +607,7 @@ const CandidateProfile = () => {
                       id="experience" 
                       type="number"
                       value={formData.experienceYears}
-                      onChange={(e) => handleInputChange('experienceYears', e.target.value)}
-                      readOnly={!isEditing}
+                      readOnly
                     />
                   </div>
                   <div className="space-y-2">
@@ -620,8 +616,7 @@ const CandidateProfile = () => {
                       id="salary" 
                       type="number"
                       value={formData.salaryExpectation}
-                      onChange={(e) => handleInputChange('salaryExpectation', e.target.value)}
-                      readOnly={!isEditing}
+                      readOnly
                     />
                   </div>
                 </div>
@@ -631,8 +626,7 @@ const CandidateProfile = () => {
                   <Textarea 
                     id="summary" 
                     value={formData.summary}
-                    onChange={(e) => handleInputChange('summary', e.target.value)}
-                    readOnly={!isEditing}
+                    readOnly
                     rows={4}
                   />
                 </div>
@@ -642,8 +636,7 @@ const CandidateProfile = () => {
                   <Input 
                     id="education" 
                     value={formData.education}
-                    onChange={(e) => handleInputChange('education', e.target.value)}
-                    readOnly={!isEditing}
+                    readOnly
                     placeholder="e.g., Bachelor's in Computer Science, XYZ University, 2020"
                   />
                 </div>
@@ -669,8 +662,7 @@ const CandidateProfile = () => {
                     <Input 
                       id="linkedin" 
                       value={formData.linkedinUrl}
-                      onChange={(e) => handleInputChange('linkedinUrl', e.target.value)}
-                      readOnly={!isEditing}
+                      readOnly
                     />
                   </div>
                   <div className="space-y-2">
@@ -678,8 +670,7 @@ const CandidateProfile = () => {
                     <Input 
                       id="github" 
                       value={formData.githubUrl}
-                      onChange={(e) => handleInputChange('githubUrl', e.target.value)}
-                      readOnly={!isEditing}
+                      readOnly
                     />
                   </div>
                   <div className="space-y-2">
@@ -687,8 +678,7 @@ const CandidateProfile = () => {
                     <Input 
                       id="portfolio" 
                       value={formData.portfolioUrl}
-                      onChange={(e) => handleInputChange('portfolioUrl', e.target.value)}
-                      readOnly={!isEditing}
+                      readOnly
                     />
                   </div>
                 </div>

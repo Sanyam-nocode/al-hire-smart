@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Sparkles, AlertCircle, CheckCircle } from "lucide-react";
 import { validateCandidateProfile, ValidationResult } from "@/utils/profileValidation";
+import { toast } from "sonner";
 
 interface ProfileReviewDialogProps {
   open: boolean;
@@ -131,9 +132,11 @@ const ProfileReviewDialog = ({
       };
 
       await onSave(updateData);
+      toast.success("Profile updated successfully!");
       onOpenChange(false);
     } catch (error) {
       console.error('Error saving profile:', error);
+      toast.error("Failed to update profile. Please try again.");
     } finally {
       setIsSaving(false);
     }
