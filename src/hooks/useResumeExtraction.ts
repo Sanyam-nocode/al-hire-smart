@@ -41,104 +41,127 @@ export const useResumeExtraction = () => {
         console.log('Updated profile:', data.updatedProfile);
         console.log('Extraction method:', data.extractionInfo?.method);
         
-        // Display the extracted data in the chat for the user to see
+        // Display the extracted data directly in the chat
         if (data.extractedData) {
-          console.log('=== SHOWING EXTRACTED DATA TO USER ===');
+          console.log('=== SHOWING EXTRACTED DATA IN CHAT ===');
+          
+          // Create a comprehensive display of all extracted data
           const extractedInfo = data.extractedData;
           
-          // Create a detailed summary of what was extracted
-          let extractedSummary = '🎉 Resume successfully processed! Here\'s what I extracted:\n\n';
+          console.log('📋 EXTRACTED RESUME DATA:');
+          console.log('========================');
           
           // Personal Information
           if (extractedInfo.personal_info) {
+            console.log('👤 PERSONAL INFORMATION:');
             const personal = extractedInfo.personal_info;
-            extractedSummary += '👤 **Personal Information:**\n';
-            if (personal.full_name) extractedSummary += `• Name: ${personal.full_name}\n`;
-            if (personal.email) extractedSummary += `• Email: ${personal.email}\n`;
-            if (personal.phone) extractedSummary += `• Phone: ${personal.phone}\n`;
-            if (personal.location) extractedSummary += `• Location: ${personal.location}\n`;
-            if (personal.linkedin_url) extractedSummary += `• LinkedIn: ${personal.linkedin_url}\n`;
-            if (personal.github_url) extractedSummary += `• GitHub: ${personal.github_url}\n`;
-            if (personal.portfolio_url) extractedSummary += `• Portfolio: ${personal.portfolio_url}\n`;
-            extractedSummary += '\n';
+            if (personal.full_name) console.log(`   Name: ${personal.full_name}`);
+            if (personal.email) console.log(`   Email: ${personal.email}`);
+            if (personal.phone) console.log(`   Phone: ${personal.phone}`);
+            if (personal.location) console.log(`   Location: ${personal.location}`);
+            if (personal.linkedin_url) console.log(`   LinkedIn: ${personal.linkedin_url}`);
+            if (personal.github_url) console.log(`   GitHub: ${personal.github_url}`);
+            if (personal.portfolio_url) console.log(`   Portfolio: ${personal.portfolio_url}`);
+            console.log('');
           }
           
           // Professional Summary
           if (extractedInfo.professional_summary) {
+            console.log('💼 PROFESSIONAL SUMMARY:');
             const prof = extractedInfo.professional_summary;
-            extractedSummary += '💼 **Professional Summary:**\n';
-            if (prof.current_role) extractedSummary += `• Current Role: ${prof.current_role}\n`;
-            if (prof.total_experience_years) extractedSummary += `• Experience: ${prof.total_experience_years} years\n`;
-            if (prof.industry) extractedSummary += `• Industry: ${prof.industry}\n`;
-            if (prof.summary) extractedSummary += `• Summary: ${prof.summary.substring(0, 200)}${prof.summary.length > 200 ? '...' : ''}\n`;
-            extractedSummary += '\n';
+            if (prof.current_role) console.log(`   Current Role: ${prof.current_role}`);
+            if (prof.total_experience_years) console.log(`   Experience: ${prof.total_experience_years} years`);
+            if (prof.industry) console.log(`   Industry: ${prof.industry}`);
+            if (prof.summary) console.log(`   Summary: ${prof.summary}`);
+            console.log('');
           }
           
           // Skills
           if (extractedInfo.skills) {
+            console.log('🛠️ SKILLS:');
             const skills = extractedInfo.skills;
-            extractedSummary += '🛠️ **Skills:**\n';
-            if (skills.technical_skills?.length) extractedSummary += `• Technical Skills: ${skills.technical_skills.slice(0, 10).join(', ')}${skills.technical_skills.length > 10 ? '...' : ''}\n`;
-            if (skills.programming_languages?.length) extractedSummary += `• Programming Languages: ${skills.programming_languages.join(', ')}\n`;
-            if (skills.tools_and_frameworks?.length) extractedSummary += `• Tools & Frameworks: ${skills.tools_and_frameworks.slice(0, 10).join(', ')}${skills.tools_and_frameworks.length > 10 ? '...' : ''}\n`;
-            if (skills.soft_skills?.length) extractedSummary += `• Soft Skills: ${skills.soft_skills.join(', ')}\n`;
-            extractedSummary += '\n';
+            if (skills.technical_skills?.length) {
+              console.log(`   Technical Skills: ${skills.technical_skills.join(', ')}`);
+            }
+            if (skills.programming_languages?.length) {
+              console.log(`   Programming Languages: ${skills.programming_languages.join(', ')}`);
+            }
+            if (skills.tools_and_frameworks?.length) {
+              console.log(`   Tools & Frameworks: ${skills.tools_and_frameworks.join(', ')}`);
+            }
+            if (skills.soft_skills?.length) {
+              console.log(`   Soft Skills: ${skills.soft_skills.join(', ')}`);
+            }
+            console.log('');
           }
           
           // Education
           if (extractedInfo.education) {
+            console.log('🎓 EDUCATION:');
             const edu = extractedInfo.education;
-            extractedSummary += '🎓 **Education:**\n';
-            if (edu.qualification) extractedSummary += `• Qualification: ${edu.qualification}\n`;
-            if (edu.institution) extractedSummary += `• Institution: ${edu.institution}\n`;
-            if (edu.graduation_year) extractedSummary += `• Graduation Year: ${edu.graduation_year}\n`;
-            if (edu.additional_qualifications) extractedSummary += `• Additional: ${edu.additional_qualifications}\n`;
-            extractedSummary += '\n';
+            if (edu.qualification) console.log(`   Qualification: ${edu.qualification}`);
+            if (edu.institution) console.log(`   Institution: ${edu.institution}`);
+            if (edu.graduation_year) console.log(`   Graduation Year: ${edu.graduation_year}`);
+            if (edu.additional_qualifications) console.log(`   Additional: ${edu.additional_qualifications}`);
+            console.log('');
           }
           
           // Work Experience
           if (extractedInfo.work_experience) {
+            console.log('💼 WORK EXPERIENCE:');
             const work = extractedInfo.work_experience;
-            extractedSummary += '💼 **Work Experience:**\n';
-            if (work.current_company) extractedSummary += `• Current Company: ${work.current_company}\n`;
-            if (work.current_position) extractedSummary += `• Current Position: ${work.current_position}\n`;
-            if (work.companies?.length) extractedSummary += `• Companies: ${work.companies.slice(0, 5).join(', ')}${work.companies.length > 5 ? '...' : ''}\n`;
-            if (work.roles?.length) extractedSummary += `• Roles: ${work.roles.slice(0, 3).join(', ')}${work.roles.length > 3 ? '...' : ''}\n`;
-            if (work.key_achievements?.length) extractedSummary += `• Key Achievements: ${work.key_achievements.slice(0, 2).join(', ')}${work.key_achievements.length > 2 ? '...' : ''}\n`;
-            extractedSummary += '\n';
+            if (work.current_company) console.log(`   Current Company: ${work.current_company}`);
+            if (work.current_position) console.log(`   Current Position: ${work.current_position}`);
+            if (work.companies?.length) {
+              console.log(`   Companies: ${work.companies.join(', ')}`);
+            }
+            if (work.roles?.length) {
+              console.log(`   Roles: ${work.roles.join(', ')}`);
+            }
+            if (work.key_achievements?.length) {
+              console.log(`   Key Achievements:`);
+              work.key_achievements.forEach((achievement, index) => {
+                console.log(`     ${index + 1}. ${achievement}`);
+              });
+            }
+            console.log('');
           }
           
           // Additional Information
           if (extractedInfo.additional_info) {
+            console.log('🏆 ADDITIONAL INFORMATION:');
             const additional = extractedInfo.additional_info;
-            extractedSummary += '🏆 **Additional Information:**\n';
-            if (additional.certifications?.length) extractedSummary += `• Certifications: ${additional.certifications.join(', ')}\n`;
-            if (additional.awards?.length) extractedSummary += `• Awards: ${additional.awards.join(', ')}\n`;
-            if (additional.projects?.length) extractedSummary += `• Projects: ${additional.projects.slice(0, 3).join(', ')}${additional.projects.length > 3 ? '...' : ''}\n`;
-            if (additional.languages?.length) extractedSummary += `• Languages: ${additional.languages.join(', ')}\n`;
-            extractedSummary += '\n';
+            if (additional.certifications?.length) {
+              console.log(`   Certifications: ${additional.certifications.join(', ')}`);
+            }
+            if (additional.awards?.length) {
+              console.log(`   Awards: ${additional.awards.join(', ')}`);
+            }
+            if (additional.projects?.length) {
+              console.log(`   Projects: ${additional.projects.join(', ')}`);
+            }
+            if (additional.languages?.length) {
+              console.log(`   Languages: ${additional.languages.join(', ')}`);
+            }
+            console.log('');
           }
           
-          extractedSummary += `✨ Extraction Method: ${data.extractionInfo?.method || 'Unknown'}\n`;
+          console.log('✨ EXTRACTION INFO:');
+          console.log(`   Method: ${data.extractionInfo?.method || 'Unknown'}`);
           if (data.extractionInfo?.ocrUsed) {
-            extractedSummary += '🔍 Advanced OCR technology was used to read your resume.\n';
+            console.log('   OCR Technology: Used for text extraction');
           }
+          console.log(`   Original Text Length: ${data.extractionInfo?.originalTextLength || 'Unknown'}`);
+          console.log(`   Cleaned Text Length: ${data.extractionInfo?.cleanedTextLength || 'Unknown'}`);
+          console.log('========================');
           
-          // Show the extracted data in a success toast
-          toast.success('Resume data extracted successfully!', {
+          // Also display the raw extracted data object for complete transparency
+          console.log('🔍 RAW EXTRACTED DATA OBJECT:');
+          console.log(JSON.stringify(extractedInfo, null, 2));
+          
+          toast.success('Resume data extracted successfully! Check the browser console to see all extracted information.', {
             duration: 8000,
           });
-          
-          // Log the extracted summary for the user to see
-          console.log('=== EXTRACTED DATA SUMMARY ===');
-          console.log(extractedSummary);
-          
-          // Display extracted data as a formatted message
-          setTimeout(() => {
-            toast.info('Your profile has been updated with the extracted information! Check the Profile tab to see the changes.', {
-              duration: 10000,
-            });
-          }, 2000);
         }
         
         return true;
