@@ -10,12 +10,12 @@ export const useResumeExtraction = () => {
     setIsExtracting(true);
     
     try {
-      console.log('=== FRONTEND: Starting comprehensive resume extraction ===');
+      console.log('=== FRONTEND: Starting enhanced resume extraction ===');
       console.log('Resume URL:', resumeUrl);
       console.log('Candidate ID:', candidateId);
       
       toast.info('Analyzing your resume with AI to extract comprehensive information...', {
-        duration: 6000,
+        duration: 8000,
       });
 
       const { data, error } = await supabase.functions.invoke('extract-resume-data', {
@@ -37,51 +37,44 @@ export const useResumeExtraction = () => {
 
       if (data?.success) {
         console.log('=== FRONTEND: Success ===');
-        console.log('Comprehensive extracted data:', data.extractedData);
+        console.log('Enhanced extracted data:', data.extractedData);
         
+        // Build success message based on extracted data
         let successMessage = 'Resume analyzed successfully! ';
+        const updates = [];
         
-        // Show comprehensive extraction summary
         if (data.extractedData) {
-          const updates = [];
+          const { personal_info, professional_summary, education, skills, work_experience } = data.extractedData;
           
-          // Personal info
-          if (data.extractedData.personal_info?.email) updates.push('contact info');
-          if (data.extractedData.personal_info?.location) updates.push('location');
+          // Check what was extracted
+          if (personal_info?.email) updates.push('contact info');
+          if (personal_info?.location) updates.push('location');
+          if (professional_summary?.current_role) updates.push('current role');
+          if (professional_summary?.summary) updates.push('professional summary');
+          if (education?.qualification) updates.push('education');
           
-          // Professional info
-          if (data.extractedData.professional_summary?.current_role) updates.push('current role');
-          if (data.extractedData.professional_summary?.total_experience_years) updates.push('experience');
-          if (data.extractedData.professional_summary?.summary) updates.push('professional summary');
-          
-          // Education
-          if (data.extractedData.education?.qualification) updates.push('qualifications');
-          
-          // Skills
-          const skillCount = [
-            ...(data.extractedData.skills?.technical_skills || []),
-            ...(data.extractedData.skills?.programming_languages || []),
-            ...(data.extractedData.skills?.tools_and_frameworks || []),
-            ...(data.extractedData.skills?.soft_skills || [])
+          // Count skills
+          const totalSkills = [
+            ...(skills?.technical_skills || []),
+            ...(skills?.programming_languages || []),
+            ...(skills?.tools_and_frameworks || []),
+            ...(skills?.soft_skills || [])
           ].length;
           
-          if (skillCount > 0) {
-            updates.push(`${skillCount} skills`);
-          }
-          
-          // Work experience
-          if (data.extractedData.work_experience?.companies?.length > 0) {
-            updates.push('work history');
-          }
+          if (totalSkills > 0) updates.push(`${totalSkills} skills`);
+          if (work_experience?.companies?.length > 0) updates.push('work history');
           
           if (updates.length > 0) {
             successMessage += `Extracted: ${updates.join(', ')}.`;
+          } else {
+            successMessage += 'Basic information extracted.';
           }
         }
         
         toast.success(successMessage, {
-          duration: 10000,
+          duration: 8000,
         });
+        
         return true;
       } else {
         console.error('=== FRONTEND: Processing failed ===');
