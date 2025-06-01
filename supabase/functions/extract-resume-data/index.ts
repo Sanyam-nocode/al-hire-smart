@@ -1,4 +1,3 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -13,14 +12,17 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Helper function to calculate years of experience from dates
+// Helper function to calculate years of experience from dates (now dynamic)
 function calculateExperienceFromText(text: string): number {
-  console.log('=== CALCULATING EXPERIENCE FROM TEXT ===');
+  console.log('=== CALCULATING EXPERIENCE FROM TEXT (DYNAMIC DATE) ===');
   console.log('Text sample for calculation:', text.substring(0, 1000));
   
-  // Current date (June 2025)
-  const currentYear = 2025;
-  const currentMonth = 6;
+  // Get current date dynamically (when resume is uploaded)
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth() + 1; // getMonth() returns 0-11, so add 1
+  
+  console.log(`Dynamic current date: ${currentMonth}/${currentYear}`);
   
   // Patterns to match date ranges
   const datePatterns = [
@@ -73,10 +75,11 @@ function calculateExperienceFromText(text: string): number {
         startYear = parseInt(match[2] || match[1]);
       }
       
-      // Check if it's a "Present" or "Current" end date
+      // Check if it's a "Present" or "Current" end date - USE DYNAMIC DATE
       if (fullMatch.toLowerCase().includes('present') || fullMatch.toLowerCase().includes('current')) {
         endYear = currentYear;
         endMonth = currentMonth;
+        console.log(`Using dynamic current date for "Present": ${currentMonth}/${currentYear}`);
       } else {
         // Extract end date from the match
         const endDateMatch = fullMatch.match(/[-–—]\s*(\d{1,2}\/)?(\d{4})/);
@@ -86,9 +89,10 @@ function calculateExperienceFromText(text: string): number {
           }
           endYear = parseInt(endDateMatch[2]);
         } else {
-          // If no end date found, assume it's current
+          // If no end date found, assume it's current (dynamic)
           endYear = currentYear;
           endMonth = currentMonth;
+          console.log(`No end date found, using dynamic current date: ${currentMonth}/${currentYear}`);
         }
       }
       
@@ -184,9 +188,17 @@ serve(async (req) => {
 
   try {
     const { resumeUrl, candidateId } = await req.json();
-    console.log('=== ENHANCED RESUME EXTRACTION WITH IMPROVED PDF PARSING ===');
+    console.log('=== ENHANCED RESUME EXTRACTION WITH DYNAMIC DATE CALCULATION ===');
     console.log('Resume URL:', resumeUrl);
     console.log('Candidate ID:', candidateId);
+
+    // Get current date for dynamic calculations
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth() + 1;
+    const currentMonthYear = `${currentMonth.toString().padStart(2, '0')}/${currentYear}`;
+    
+    console.log(`Dynamic current date for experience calculation: ${currentMonthYear}`);
 
     if (!resumeUrl || !candidateId) {
       console.error('Missing required parameters');
@@ -312,26 +324,26 @@ serve(async (req) => {
     console.log('Cleaned text length:', cleanedText.length);
     console.log('Cleaned text sample:', cleanedText.substring(0, 500));
 
-    // Calculate experience using our fallback method
+    // Calculate experience using our fallback method with dynamic date
     const fallbackExperience = calculateExperienceFromText(cleanedText);
 
-    // Enhanced OpenAI prompt with ultra-specific experience calculation instructions
-    console.log('=== CALLING OPENAI WITH ULTRA-ENHANCED EXPERIENCE PROMPT ===');
+    // Enhanced OpenAI prompt with dynamic current date
+    console.log('=== CALLING OPENAI WITH DYNAMIC DATE PROMPT ===');
     const prompt = `You are an expert resume parsing assistant. Extract information from the following resume text and map it to profile fields.
 
 CRITICAL INSTRUCTIONS FOR EXPERIENCE CALCULATION:
 1. MANDATORY: You MUST calculate experience_years by finding ALL employment periods
 2. Look for date patterns like "04/2022 - Present", "2020 - 2023", "Jan 2019 - Dec 2021"
-3. For "Present" or "Current", use June 2025 as the end date
+3. IMPORTANT: For "Present" or "Current", use ${currentMonthYear} as the end date (this resume is being processed in ${currentMonthYear})
 4. Add up ALL employment periods to get TOTAL experience
 5. Convert to years (round to nearest integer)
 6. Return ONLY valid JSON, no markdown formatting
 
-EXPERIENCE CALCULATION EXAMPLES (FOLLOW EXACTLY):
-- "04/2022 - Present" = April 2022 to June 2025 = 3.2 years ≈ 3 years
+EXPERIENCE CALCULATION EXAMPLES (FOLLOW EXACTLY WITH DYNAMIC DATE):
+- "04/2022 - Present" = April 2022 to ${currentMonthYear} = ${Math.round(((currentYear - 2022) * 12 + (currentMonth - 4) + 1) / 12)} years
 - "2020 - 2023" = 3 years  
 - "Jan 2019 - Dec 2021" = 3 years
-- Multiple jobs: "2018-2020" (2 years) + "2020-Present" (5 years) = 7 years total
+- Multiple jobs: "2018-2020" (2 years) + "2020-Present" (${Math.round(((currentYear - 2020) * 12 + currentMonth) / 12)} years) = ${2 + Math.round(((currentYear - 2020) * 12 + currentMonth) / 12)} years total
 
 FIELD SPECIFICATIONS:
 - phone: Phone number with country code if available (string)
@@ -362,7 +374,7 @@ Return this EXACT JSON structure:
 Resume text to analyze:
 "${cleanedText}"
 
-CRITICAL: You MUST calculate experience_years from employment dates. Do not return null for experience_years. If no clear dates found, estimate based on job titles and descriptions.`;
+CRITICAL: You MUST calculate experience_years from employment dates using ${currentMonthYear} as "Present". Do not return null for experience_years. If no clear dates found, estimate based on job titles and descriptions.`;
 
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -375,7 +387,7 @@ CRITICAL: You MUST calculate experience_years from employment dates. Do not retu
         messages: [
           { 
             role: 'system', 
-            content: 'You are an expert resume parser. Your PRIMARY task is to calculate years of experience from employment dates. NEVER return null for experience_years. Always calculate it from employment history or estimate if unclear.'
+            content: `You are an expert resume parser. Your PRIMARY task is to calculate years of experience from employment dates. NEVER return null for experience_years. Always calculate it from employment history using ${currentMonthYear} as the current date for "Present" positions.`
           },
           { 
             role: 'user', 
@@ -585,9 +597,10 @@ CRITICAL: You MUST calculate experience_years from employment dates. Do not retu
       });
     }
 
-    console.log('=== EXTRACTION SUCCESS WITH ENHANCED EXPERIENCE CALCULATION ===');
+    console.log('=== EXTRACTION SUCCESS WITH DYNAMIC DATE CALCULATION ===');
     console.log('Profile updated successfully with fields:', mappedFields);
-    console.log('Experience years calculated and mapped:', updateData.experience_years);
+    console.log('Experience years calculated using dynamic date:', updateData.experience_years);
+    console.log('Current date used for calculation:', currentMonthYear);
 
     return new Response(JSON.stringify({ 
       success: true,
@@ -601,9 +614,11 @@ CRITICAL: You MUST calculate experience_years from employment dates. Do not retu
         fieldsUpdated: mappedFields.length,
         extractedUsing: extractionMethod,
         calculatedExperience: updateData.experience_years,
-        fallbackExperienceUsed: !extractedData.experience_years || extractedData.experience_years === null
+        fallbackExperienceUsed: !extractedData.experience_years || extractedData.experience_years === null,
+        currentDateUsed: currentMonthYear,
+        uploadDate: currentDate.toISOString()
       },
-      message: `Resume data extracted and ${mappedFields.length} profile fields updated successfully. Experience calculated: ${updateData.experience_years} years.`
+      message: `Resume data extracted and ${mappedFields.length} profile fields updated successfully. Experience calculated: ${updateData.experience_years} years using current date ${currentMonthYear}.`
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
