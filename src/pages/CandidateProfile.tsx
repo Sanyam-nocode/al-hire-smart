@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { User, FileText, Settings as SettingsIcon, LogOut, Upload, X, File, Download, Sparkles, RefreshCw } from "lucide-react";
+import { User, FileText, Settings as SettingsIcon, LogOut, Upload, X, File, Download, Sparkles, RefreshCw, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import Settings from "@/components/Settings";
@@ -17,6 +17,14 @@ import { useResumeExtraction } from "@/hooks/useResumeExtraction";
 import ProfileReviewDialog from "@/components/ProfileReviewDialog";
 import ProfileCompletionBanner from "@/components/ProfileCompletionBanner";
 import { validateCandidateProfile } from "@/utils/profileValidation";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const CandidateProfile = () => {
   const { user, candidateProfile, signOut, refreshProfile } = useAuth();
@@ -29,6 +37,7 @@ const CandidateProfile = () => {
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [showReviewDialog, setShowReviewDialog] = useState(false);
   const [reviewFromResume, setReviewFromResume] = useState(false);
+  const [showExtractionGuideDialog, setShowExtractionGuideDialog] = useState(false);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -277,9 +286,20 @@ const CandidateProfile = () => {
             await refreshProfile();
             console.log('Profile refreshed after extraction');
             
-            // Show the review dialog for extracted data
-            setReviewFromResume(true);
-            setShowReviewDialog(true);
+            // Check if profile is still incomplete after extraction
+            const currentProfile = await getCurrentProfile();
+            if (currentProfile) {
+              const validation = validateCandidateProfile(currentProfile);
+              
+              if (!validation.isValid && validation.missingFields.length > 0) {
+                // Show guide dialog if profile is still incomplete
+                setShowExtractionGuideDialog(true);
+              } else {
+                // Show the review dialog for extracted data
+                setReviewFromResume(true);
+                setShowReviewDialog(true);
+              }
+            }
             
             // Show detailed success message
             const updatedFields = extractionResult.updatedFields || [];
@@ -291,7 +311,17 @@ const CandidateProfile = () => {
           }, 2000);
         } else {
           setUploadProgress(100);
-          toast.info("Resume uploaded but data extraction failed. You can manually update your profile.");
+          
+          // Check if profile is incomplete and show guide
+          const currentProfile = await getCurrentProfile();
+          if (currentProfile) {
+            const validation = validateCandidateProfile(currentProfile);
+            if (!validation.isValid && validation.missingFields.length > 0) {
+              setShowExtractionGuideDialog(true);
+            }
+          }
+          
+          toast.info("Resume uploaded but data extraction was limited. You can manually update your profile.");
         }
       }
 
@@ -301,6 +331,28 @@ const CandidateProfile = () => {
     } finally {
       setIsUploading(false);
       setTimeout(() => setUploadProgress(0), 3000);
+    }
+  };
+
+  const getCurrentProfile = async () => {
+    if (!user) return null;
+    
+    try {
+      const { data, error } = await supabase
+        .from('candidate_profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching current profile:', error);
+        return null;
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Error in getCurrentProfile:', error);
+      return null;
     }
   };
 
@@ -877,6 +929,69 @@ const CandidateProfile = () => {
         onSave={handleSaveProfile}
         extractedFromResume={reviewFromResume}
       />
+
+      {/* Extraction Guide Dialog */}
+      <Dialog open={showExtractionGuideDialog} onOpenChange={setShowExtractionGuideDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <AlertCircle className="h-5 w-5 text-amber-600" />
+              <span>Profile Incomplete</span>
+            </DialogTitle>
+            <DialogDescription>
+              We couldn't extract all required information from your resume.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              To complete your profile and become visible to recruiters, you can:
+            </p>
+            
+            <div className="space-y-3">
+              <div className="flex items-start space-x-3">
+                <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span className="text-blue-600 text-xs font-medium">1</span>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Upload a PDF resume</p>
+                  <p className="text-xs text-gray-500">PDF format works best for automatic data extraction</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start space-x-3">
+                <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span className="text-blue-600 text-xs font-medium">2</span>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Update profile manually</p>
+                  <p className="text-xs text-gray-500">Fill in the missing information directly in your profile</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <DialogFooter className="flex flex-col space-y-2">
+            <Button 
+              onClick={() => {
+                setShowExtractionGuideDialog(false);
+                setReviewFromResume(false);
+                setShowReviewDialog(true);
+              }}
+              className="w-full"
+            >
+              Update Profile Manually
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowExtractionGuideDialog(false)}
+              className="w-full"
+            >
+              Upload Better Resume Later
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
