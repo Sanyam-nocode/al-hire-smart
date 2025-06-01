@@ -540,19 +540,11 @@ const CandidateProfile = () => {
 
             <Card>
               <CardHeader>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <CardTitle>Personal Information</CardTitle>
-                    <CardDescription>
-                      Keep your profile up to date to get better job matches
-                    </CardDescription>
-                  </div>
-                  <Button 
-                    variant={isEditing ? "default" : "outline"}
-                    onClick={isEditing ? handleSaveProfile : () => setIsEditing(true)}
-                  >
-                    {isEditing ? "Save Changes" : "Edit Profile"}
-                  </Button>
+                <div>
+                  <CardTitle>Personal Information</CardTitle>
+                  <CardDescription>
+                    Keep your profile up to date to get better job matches
+                  </CardDescription>
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
