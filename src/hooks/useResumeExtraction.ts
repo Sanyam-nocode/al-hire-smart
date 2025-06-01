@@ -39,13 +39,24 @@ export const useResumeExtraction = () => {
         console.log('=== FRONTEND: Extraction successful ===');
         console.log('Extracted data:', data.extractedData);
         console.log('Updated profile:', data.updatedProfile);
-        console.log('Extraction method:', data.extractionInfo?.method);
+        console.log('Mapped fields:', data.mappedFields);
+        console.log('Fields updated count:', data.extractionInfo?.fieldsUpdated);
         
-        toast.success('Resume data extracted and profile updated successfully!', {
-          duration: 8000,
-        });
+        const fieldsUpdated = data.extractionInfo?.fieldsUpdated || 0;
+        const mappedFields = data.mappedFields || [];
         
-        return true;
+        toast.success(
+          `Resume processed successfully! ${fieldsUpdated} profile fields updated: ${mappedFields.slice(0, 3).join(', ')}${mappedFields.length > 3 ? '...' : ''}`, 
+          {
+            duration: 10000,
+          }
+        );
+        
+        return {
+          success: true,
+          updatedFields: mappedFields,
+          extractedData: data.extractedData
+        };
       } else {
         console.error('=== FRONTEND: Processing failed ===');
         console.error('Error details:', data);

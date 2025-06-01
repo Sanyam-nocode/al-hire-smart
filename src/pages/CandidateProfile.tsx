@@ -46,6 +46,7 @@ const CandidateProfile = () => {
   // Update form data when candidateProfile changes
   useEffect(() => {
     if (candidateProfile) {
+      console.log('Updating form data with candidate profile:', candidateProfile);
       setFormData({
         firstName: candidateProfile.first_name || '',
         lastName: candidateProfile.last_name || '',
@@ -110,6 +111,7 @@ const CandidateProfile = () => {
   const handleRefreshProfile = async () => {
     setIsRefreshing(true);
     try {
+      console.log('Refreshing profile...');
       await refreshProfile();
       toast.success("Profile refreshed successfully!");
     } catch (error) {
@@ -196,6 +198,8 @@ const CandidateProfile = () => {
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}/resume_${Date.now()}.${fileExt}`;
 
+      console.log('Starting resume upload...');
+
       // Upload file to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('resumes')
@@ -210,14 +214,14 @@ const CandidateProfile = () => {
         return;
       }
 
-      setUploadProgress(50);
+      setUploadProgress(30);
 
       // Get public URL
       const { data: urlData } = supabase.storage
         .from('resumes')
         .getPublicUrl(fileName);
 
-      setUploadProgress(75);
+      setUploadProgress(50);
 
       // Update candidate profile with resume information
       const { data: updateData, error: updateError } = await supabase
@@ -238,22 +242,31 @@ const CandidateProfile = () => {
         return;
       }
 
-      setUploadProgress(90);
+      setUploadProgress(70);
 
       // Extract resume data using AI
       if (updateData && updateData.id) {
+        console.log('Starting AI extraction...');
         toast.success("Resume uploaded successfully! Extracting information...");
-        const extractionSuccess = await extractResumeData(urlData.publicUrl, updateData.id);
         
-        if (extractionSuccess) {
+        const extractionResult = await extractResumeData(urlData.publicUrl, updateData.id);
+        
+        if (extractionResult && extractionResult.success) {
           setUploadProgress(100);
-          // Refresh the profile to show updated data
-          toast.info("Refreshing your profile with the extracted data...");
+          console.log('Extraction successful, refreshing profile...');
           
-          // Wait a moment for the backend to complete processing
+          // Force refresh the profile to show updated data
           setTimeout(async () => {
             await refreshProfile();
-            toast.success("Profile updated with extracted resume data!");
+            console.log('Profile refreshed after extraction');
+            
+            // Show detailed success message
+            const updatedFields = extractionResult.updatedFields || [];
+            if (updatedFields.length > 0) {
+              toast.success(`Profile automatically updated with extracted data from your resume! Updated fields: ${updatedFields.join(', ')}`, {
+                duration: 12000,
+              });
+            }
           }, 2000);
         } else {
           setUploadProgress(100);

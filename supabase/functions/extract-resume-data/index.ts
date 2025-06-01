@@ -214,66 +214,46 @@ serve(async (req) => {
     console.log('=== CLEANED TEXT FOR AI ===');
     console.log('Cleaned text length:', cleanedText.length);
 
-    // Enhanced OpenAI prompt optimized for OCR-extracted text
-    console.log('=== CALLING OPENAI WITH OCR-OPTIMIZED PROMPT ===');
-    const prompt = `You are an expert resume parsing assistant. Extract information from the following resume text that may have been extracted using OCR.
+    // Enhanced OpenAI prompt optimized for profile field mapping
+    console.log('=== CALLING OPENAI WITH PROFILE-OPTIMIZED PROMPT ===');
+    const prompt = `You are an expert resume parsing assistant. Extract information from the following resume text and map it specifically to the candidate profile fields.
 
-IMPORTANT: The text below may contain OCR artifacts, formatting issues, or encoding problems. Focus on extracting meaningful information and ignore any garbled text or OCR errors.
+CRITICAL INSTRUCTIONS:
+1. Extract ONLY the information that is clearly present in the resume
+2. Map the data to match the EXACT profile field structure
+3. Return ONLY valid JSON, no markdown or explanations
+4. Focus on accuracy over completeness - leave fields empty if unclear
 
-Extract the following details and return as JSON (return ONLY valid JSON, no markdown or explanations):
+Profile Field Mapping Requirements:
+- phone: Extract phone number (include country code if present)
+- location: Extract current location/city (e.g., "Gurgaon, India", "New York, NY")
+- title: Extract current job title or most recent position
+- experience_years: Calculate total years of experience as INTEGER
+- summary: Create a concise professional summary (2-3 sentences max)
+- education: Format as "Degree, Institution, Year" (e.g., "Bachelor's Computer Science, XYZ University, 2020")
+- linkedin_url: Extract LinkedIn profile URL
+- github_url: Extract GitHub profile URL  
+- portfolio_url: Extract portfolio/website URL
+- skills: Array of technical skills, programming languages, tools (max 20 items)
 
+Return this EXACT JSON structure:
 {
-  "personal_info": {
-    "full_name": "",
-    "email": "",
-    "phone": "",
-    "location": "",
-    "linkedin_url": "",
-    "github_url": "",
-    "portfolio_url": ""
-  },
-  "professional_summary": {
-    "current_role": "",
-    "summary": "",
-    "total_experience_years": "",
-    "industry": ""
-  },
-  "education": {
-    "qualification": "",
-    "institution": "",
-    "graduation_year": "",
-    "additional_qualifications": ""
-  },
-  "skills": {
-    "technical_skills": [],
-    "programming_languages": [],
-    "tools_and_frameworks": [],
-    "soft_skills": []
-  },
-  "work_experience": {
-    "companies": [],
-    "roles": [],
-    "current_company": "",
-    "current_position": "",
-    "key_achievements": []
-  },
-  "additional_info": {
-    "certifications": [],
-    "awards": [],
-    "projects": [],
-    "languages": []
-  }
+  "phone": "",
+  "location": "",
+  "title": "",
+  "experience_years": null,
+  "summary": "",
+  "education": "",
+  "linkedin_url": "",
+  "github_url": "",
+  "portfolio_url": "",
+  "skills": []
 }
 
-Resume text (may contain OCR artifacts):
+Resume text:
 "${cleanedText}"
 
-Instructions:
-- Look for patterns like email addresses, phone numbers, company names, and job titles
-- Ignore OCR artifacts like random characters or formatting symbols
-- Extract meaningful content even if spacing or formatting is incorrect
-- If text is unclear, make reasonable inferences based on context
-- Focus on identifying key resume sections regardless of formatting issues`;
+IMPORTANT: Return ONLY the JSON object. Do not include any explanations, markdown formatting, or additional text.`;
 
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -286,7 +266,7 @@ Instructions:
         messages: [
           { 
             role: 'system', 
-            content: 'You are an expert resume parser specialized in handling OCR-extracted text. Extract information precisely from text that may contain OCR artifacts, formatting issues, or encoding problems. Return only valid JSON without markdown formatting.'
+            content: 'You are an expert resume parser. Extract information precisely and return only valid JSON without any markdown formatting.'
           },
           { 
             role: 'user', 
@@ -294,7 +274,7 @@ Instructions:
           }
         ],
         temperature: 0.1,
-        max_tokens: 4000,
+        max_tokens: 2000,
       }),
     });
 
@@ -331,6 +311,7 @@ Instructions:
     const rawAIContent = openAIData.choices[0].message.content;
     
     console.log('AI content length:', rawAIContent.length);
+    console.log('Raw AI response:', rawAIContent);
     
     try {
       let content = rawAIContent.trim();
@@ -348,7 +329,7 @@ Instructions:
       }
       
       extractedData = JSON.parse(content);
-      console.log('Successfully parsed extracted data');
+      console.log('Successfully parsed extracted data:', extractedData);
       
     } catch (parseError) {
       console.error('JSON parse error:', parseError);
@@ -369,103 +350,77 @@ Instructions:
       });
     }
 
-    // Update database with extracted data
-    console.log('=== UPDATING DATABASE ===');
+    // Update database with extracted data - Direct field mapping
+    console.log('=== UPDATING DATABASE WITH MAPPED DATA ===');
     const updateData: any = {
       resume_content: JSON.stringify(extractedData),
       updated_at: new Date().toISOString(),
     };
 
-    // Map extracted data to profile fields
-    const personal = extractedData.personal_info || {};
-    const professional = extractedData.professional_summary || {};
-    const education = extractedData.education || {};
-    const skills = extractedData.skills || {};
-    const work = extractedData.work_experience || {};
-    const additional = extractedData.additional_info || {};
-
-    // Update profile fields if data exists
-    if (personal.email && typeof personal.email === 'string' && personal.email.includes('@')) {
-      updateData.email = personal.email.trim().substring(0, 255);
+    // Direct mapping from extracted data to database fields
+    if (extractedData.phone && typeof extractedData.phone === 'string' && extractedData.phone.trim()) {
+      updateData.phone = extractedData.phone.trim().substring(0, 20);
+      console.log('Mapping phone:', updateData.phone);
     }
     
-    if (personal.phone && typeof personal.phone === 'string') {
-      updateData.phone = personal.phone.trim().substring(0, 20);
+    if (extractedData.location && typeof extractedData.location === 'string' && extractedData.location.trim()) {
+      updateData.location = extractedData.location.trim().substring(0, 200);
+      console.log('Mapping location:', updateData.location);
     }
     
-    if (personal.location && typeof personal.location === 'string') {
-      updateData.location = personal.location.trim().substring(0, 200);
+    if (extractedData.title && typeof extractedData.title === 'string' && extractedData.title.trim()) {
+      updateData.title = extractedData.title.trim().substring(0, 200);
+      console.log('Mapping title:', updateData.title);
     }
     
-    if (personal.linkedin_url && typeof personal.linkedin_url === 'string') {
-      updateData.linkedin_url = personal.linkedin_url.trim().substring(0, 500);
-    }
-    
-    if (personal.github_url && typeof personal.github_url === 'string') {
-      updateData.github_url = personal.github_url.trim().substring(0, 500);
-    }
-    
-    if (personal.portfolio_url && typeof personal.portfolio_url === 'string') {
-      updateData.portfolio_url = personal.portfolio_url.trim().substring(0, 500);
-    }
-
-    if (professional.current_role && typeof professional.current_role === 'string') {
-      updateData.title = professional.current_role.trim().substring(0, 200);
-    }
-    
-    if (professional.summary && typeof professional.summary === 'string') {
-      updateData.summary = professional.summary.trim().substring(0, 1000);
-    }
-    
-    if (professional.total_experience_years) {
-      const experience = parseInt(professional.total_experience_years);
+    if (extractedData.experience_years && typeof extractedData.experience_years === 'number') {
+      const experience = parseInt(extractedData.experience_years.toString());
       if (!isNaN(experience) && experience > 0 && experience <= 50) {
         updateData.experience_years = experience;
+        console.log('Mapping experience_years:', updateData.experience_years);
       }
     }
-
-    // Combine education information
-    const educationParts = [];
-    if (education.qualification) educationParts.push(education.qualification);
-    if (education.institution) educationParts.push(education.institution);
-    if (education.graduation_year) educationParts.push(education.graduation_year.toString());
-    if (education.additional_qualifications) educationParts.push(education.additional_qualifications);
     
-    if (educationParts.length > 0) {
-      updateData.education = educationParts.join(' | ').substring(0, 500);
-    }
-
-    // Combine all skills
-    const allSkills = [];
-    if (skills.technical_skills && Array.isArray(skills.technical_skills)) {
-      allSkills.push(...skills.technical_skills);
-    }
-    if (skills.programming_languages && Array.isArray(skills.programming_languages)) {
-      allSkills.push(...skills.programming_languages);
-    }
-    if (skills.tools_and_frameworks && Array.isArray(skills.tools_and_frameworks)) {
-      allSkills.push(...skills.tools_and_frameworks);
-    }
-    if (skills.soft_skills && Array.isArray(skills.soft_skills)) {
-      allSkills.push(...skills.soft_skills);
-    }
-    if (additional.certifications && Array.isArray(additional.certifications)) {
-      allSkills.push(...additional.certifications);
+    if (extractedData.summary && typeof extractedData.summary === 'string' && extractedData.summary.trim()) {
+      updateData.summary = extractedData.summary.trim().substring(0, 1000);
+      console.log('Mapping summary:', updateData.summary);
     }
     
-    if (allSkills.length > 0) {
-      const validSkills = allSkills
+    if (extractedData.education && typeof extractedData.education === 'string' && extractedData.education.trim()) {
+      updateData.education = extractedData.education.trim().substring(0, 500);
+      console.log('Mapping education:', updateData.education);
+    }
+    
+    if (extractedData.linkedin_url && typeof extractedData.linkedin_url === 'string' && extractedData.linkedin_url.trim()) {
+      updateData.linkedin_url = extractedData.linkedin_url.trim().substring(0, 500);
+      console.log('Mapping linkedin_url:', updateData.linkedin_url);
+    }
+    
+    if (extractedData.github_url && typeof extractedData.github_url === 'string' && extractedData.github_url.trim()) {
+      updateData.github_url = extractedData.github_url.trim().substring(0, 500);
+      console.log('Mapping github_url:', updateData.github_url);
+    }
+    
+    if (extractedData.portfolio_url && typeof extractedData.portfolio_url === 'string' && extractedData.portfolio_url.trim()) {
+      updateData.portfolio_url = extractedData.portfolio_url.trim().substring(0, 500);
+      console.log('Mapping portfolio_url:', updateData.portfolio_url);
+    }
+
+    // Skills array mapping
+    if (extractedData.skills && Array.isArray(extractedData.skills) && extractedData.skills.length > 0) {
+      const validSkills = extractedData.skills
         .filter(skill => skill && typeof skill === 'string' && skill.trim().length > 1)
         .map(skill => skill.trim())
         .filter((skill, index, arr) => arr.indexOf(skill) === index) // Remove duplicates
-        .slice(0, 50);
+        .slice(0, 20); // Limit to 20 skills
       
       if (validSkills.length > 0) {
         updateData.skills = validSkills;
+        console.log('Mapping skills:', updateData.skills);
       }
     }
 
-    console.log('Final update data prepared');
+    console.log('Final update data:', updateData);
 
     // Update candidate profile
     const { data: updatedProfile, error: updateError } = await supabase
@@ -487,20 +442,22 @@ Instructions:
       });
     }
 
-    console.log('=== EXTRACTION SUCCESS WITH OCR ===');
-    console.log('Profile updated successfully using:', extractionMethod);
+    console.log('=== EXTRACTION SUCCESS WITH FIELD MAPPING ===');
+    console.log('Profile updated successfully with fields:', Object.keys(updateData));
 
     return new Response(JSON.stringify({ 
       success: true,
       extractedData,
       updatedProfile,
+      mappedFields: Object.keys(updateData).filter(key => key !== 'resume_content' && key !== 'updated_at'),
       extractionInfo: {
         method: extractionMethod,
         originalTextLength: resumeText.length,
         cleanedTextLength: cleanedText.length,
+        fieldsUpdated: Object.keys(updateData).length - 2, // Exclude resume_content and updated_at
         ocrUsed: extractionMethod === 'ocr-space'
       },
-      message: `Resume data extracted and profile updated successfully using ${extractionMethod}${extractionMethod === 'ocr-space' ? ' with OCR.space API' : ''}`
+      message: `Resume data extracted and ${Object.keys(updateData).length - 2} profile fields updated successfully using ${extractionMethod}`
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
