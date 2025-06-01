@@ -14,8 +14,8 @@ export const useResumeExtraction = () => {
       console.log('Resume URL:', resumeUrl);
       console.log('Candidate ID:', candidateId);
       
-      toast.info('Analyzing your resume with AI technology...', {
-        duration: 15000,
+      const analysisToastId = toast.info('Analyzing your resume with AI technology...', {
+        duration: Infinity, // Keep it until manually dismissed
       });
 
       const { data, error } = await supabase.functions.invoke('extract-resume-data', {
@@ -28,6 +28,9 @@ export const useResumeExtraction = () => {
       console.log('=== FRONTEND: Extraction response ===');
       console.log('Data:', data);
       console.log('Error:', error);
+
+      // Dismiss the analysis toast
+      toast.dismiss(analysisToastId);
 
       if (error) {
         console.error('Extraction error:', error);
