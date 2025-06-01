@@ -65,6 +65,29 @@ async function extractWithOCR(pdfBuffer: ArrayBuffer): Promise<string> {
   }
 }
 
+// Enhanced text quality assessment
+function assessTextQuality(text: string): number {
+  if (!text || text.length < 20) return 0;
+  
+  const totalChars = text.length;
+  const readableChars = (text.match(/[a-zA-Z0-9\s.,;:!?()@-]/g) || []).length;
+  const readabilityRatio = readableChars / totalChars;
+  
+  // Check for common resume words
+  const resumeWords = ['experience', 'education', 'skills', 'work', 'email', 'phone', 'name'];
+  const foundWords = resumeWords.filter(word => text.toLowerCase().includes(word)).length;
+  
+  // Check for email patterns
+  const hasEmail = /@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(text);
+  
+  // Calculate quality score (0-100)
+  let score = readabilityRatio * 60;
+  score += foundWords * 5;
+  score += hasEmail ? 15 : 0;
+  
+  return Math.min(score, 100);
+}
+
 // Enhanced text cleaning function
 function cleanExtractedText(text: string): string {
   if (!text) return '';
@@ -72,15 +95,16 @@ function cleanExtractedText(text: string): string {
   return text
     // Remove PDF metadata and control characters
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, '')
+    // Remove wkhtmltopdf artifacts
+    .replace(/wkhtmltopdf.*?D:\d+.*?'/g, '')
     // Remove PDF-specific patterns and metadata
-    .replace(/wkhtmltopdf.*?Qt.*?D:\d+.*?'/g, '')
     .replace(/\/[A-Z][a-zA-Z0-9]*\s+/g, ' ')
     .replace(/\b\d+\s+\d+\s+obj\b/g, '')
     .replace(/\bendobj\b/g, '')
     .replace(/\bstream\b[\s\S]*?\bendstream\b/g, '')
     .replace(/\bxref\b[\s\S]*?\btrailer\b/g, '')
     .replace(/\bstartxref\b[\s\S]*$/g, '')
-    // Remove encoded strings and PDF artifacts
+    // Clean up encoded text and artifacts
     .replace(/[^\x20-\x7E\s]/g, ' ')
     .replace(/\s+/g, ' ')
     .replace(/\n\s*\n/g, '\n')
@@ -91,42 +115,13 @@ function cleanExtractedText(text: string): string {
 function isTextMeaningful(text: string): boolean {
   if (!text || text.length < 30) return false;
   
-  // Check for common resume keywords
-  const resumeKeywords = [
-    'experience', 'education', 'skills', 'work', 'job', 'position',
-    'university', 'college', 'degree', 'bachelor', 'master', 'phd',
-    'project', 'software', 'developer', 'engineer', 'manager',
-    'contact', 'email', 'phone', 'address', 'linkedin', 'summary',
-    'objective', 'certification', 'award', 'achievement', 'internship'
-  ];
+  const quality = assessTextQuality(text);
+  console.log('Text quality score:', quality);
   
-  const lowercaseText = text.toLowerCase();
-  const keywordCount = resumeKeywords.filter(keyword => 
-    lowercaseText.includes(keyword)
-  ).length;
-  
-  // Check for contact information patterns
-  const hasEmail = /@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(text);
-  const hasPhone = /(\+?1?[-.\s]?)?\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}/.test(text);
-  const hasYear = /\b(19|20)\d{2}\b/.test(text);
-  
-  // Check for proper sentence structure
-  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 10);
-  const hasProperSentences = sentences.length >= 2;
-  
-  // Text is meaningful if it has multiple indicators
-  const meaningfulIndicators = [
-    keywordCount >= 3,
-    hasEmail,
-    hasPhone,
-    hasYear,
-    hasProperSentences
-  ].filter(Boolean).length;
-  
-  return meaningfulIndicators >= 2;
+  return quality >= 40; // Require at least 40% quality score
 }
 
-// Advanced PDF text extraction with multiple strategies
+// Advanced PDF text extraction with improved quality assessment
 async function extractTextAdvanced(pdfBuffer: ArrayBuffer): Promise<string> {
   const strategies = [];
   
@@ -137,17 +132,19 @@ async function extractTextAdvanced(pdfBuffer: ArrayBuffer): Promise<string> {
     console.log('=== STRATEGY 1: Standard pdf-parse ===');
     const parsed = await pdf(new Uint8Array(pdfBuffer));
     const cleanText = cleanExtractedText(parsed.text);
+    const quality = assessTextQuality(cleanText);
     
     console.log('Strategy 1 - Raw text length:', parsed.text?.length || 0);
     console.log('Strategy 1 - Clean text length:', cleanText.length);
+    console.log('Strategy 1 - Quality score:', quality);
     console.log('Strategy 1 - Text preview:', cleanText.substring(0, 500));
     
-    if (isTextMeaningful(cleanText)) {
+    if (quality >= 40) {
       strategies.push({ 
         method: 'standard', 
         text: cleanText, 
-        score: cleanText.length * 2, // Boost standard parsing
-        quality: 'high'
+        score: quality * cleanText.length,
+        quality: quality >= 70 ? 'high' : 'medium'
       });
     }
   } catch (error) {
@@ -159,52 +156,61 @@ async function extractTextAdvanced(pdfBuffer: ArrayBuffer): Promise<string> {
     console.log('=== STRATEGY 2: pdf-parse with options ===');
     const parsed = await pdf(new Uint8Array(pdfBuffer), {
       normalizeWhitespace: true,
-      disableCombineTextItems: false,
+      disableCombineTextItems: true,
       max: 0
     });
     const cleanText = cleanExtractedText(parsed.text);
+    const quality = assessTextQuality(cleanText);
     
     console.log('Strategy 2 - Text length:', cleanText.length);
+    console.log('Strategy 2 - Quality score:', quality);
     console.log('Strategy 2 - Text preview:', cleanText.substring(0, 500));
     
-    if (isTextMeaningful(cleanText)) {
+    if (quality >= 40) {
       strategies.push({ 
         method: 'with-options', 
         text: cleanText, 
-        score: cleanText.length * 1.8,
-        quality: 'high'
+        score: quality * cleanText.length,
+        quality: quality >= 70 ? 'high' : 'medium'
       });
     }
   } catch (error) {
     console.error('Strategy 2 failed:', error);
   }
   
-  // Strategy 3: OCR extraction (for image-based PDFs)
-  try {
-    console.log('=== STRATEGY 3: OCR extraction ===');
-    const ocrText = await extractWithOCR(pdfBuffer);
-    
-    if (ocrText && ocrText.length > 50) {
-      const cleanText = cleanExtractedText(ocrText);
-      console.log('Strategy 3 - OCR text length:', cleanText.length);
-      console.log('Strategy 3 - OCR text preview:', cleanText.substring(0, 500));
+  // Strategy 3: OCR extraction (try early if standard parsing fails)
+  const shouldTryOCR = strategies.length === 0 || strategies.every(s => s.quality === 'low');
+  
+  if (shouldTryOCR) {
+    try {
+      console.log('=== STRATEGY 3: OCR extraction ===');
+      const ocrText = await extractWithOCR(pdfBuffer);
       
-      if (isTextMeaningful(cleanText)) {
-        strategies.push({ 
-          method: 'ocr', 
-          text: cleanText, 
-          score: cleanText.length * 1.5, // OCR is good for image PDFs
-          quality: 'medium'
-        });
+      if (ocrText && ocrText.length > 50) {
+        const cleanText = cleanExtractedText(ocrText);
+        const quality = assessTextQuality(cleanText);
+        
+        console.log('Strategy 3 - OCR text length:', cleanText.length);
+        console.log('Strategy 3 - OCR quality score:', quality);
+        console.log('Strategy 3 - OCR text preview:', cleanText.substring(0, 500));
+        
+        if (quality >= 30) { // Lower threshold for OCR
+          strategies.push({ 
+            method: 'ocr', 
+            text: cleanText, 
+            score: quality * cleanText.length * 1.2, // Boost OCR slightly
+            quality: quality >= 60 ? 'high' : 'medium'
+          });
+        }
       }
+    } catch (error) {
+      console.error('Strategy 3 OCR failed:', error);
     }
-  } catch (error) {
-    console.error('Strategy 3 OCR failed:', error);
   }
   
-  // Strategy 4: Manual PDF parsing for complex PDFs
+  // Strategy 4: Enhanced manual parsing for text streams
   try {
-    console.log('=== STRATEGY 4: Manual PDF parsing ===');
+    console.log('=== STRATEGY 4: Enhanced manual parsing ===');
     const uint8Array = new Uint8Array(pdfBuffer);
     let pdfString = '';
     
@@ -213,13 +219,13 @@ async function extractTextAdvanced(pdfBuffer: ArrayBuffer): Promise<string> {
       pdfString += String.fromCharCode(uint8Array[i]);
     }
     
-    // Extract text between parentheses and brackets
+    // Enhanced text patterns
     const textPatterns = [
-      /\(([^)]{10,200})\)/g,  // Text in parentheses
-      /\[([^\]]{10,200})\]/g, // Text in brackets
-      /\/Title\s*\(([^)]+)\)/g, // PDF title
-      /\/Subject\s*\(([^)]+)\)/g, // PDF subject
-      /\/Keywords\s*\(([^)]+)\)/g // PDF keywords
+      /\(([^)]{3,})\)\s*Tj/g,  // Text operations
+      /\[([^\]]{3,})\]\s*TJ/g, // Array text operations
+      /BT\s*(.*?)\s*ET/gs,     // Text blocks
+      /\/Title\s*\(([^)]+)\)/g,
+      /\/Subject\s*\(([^)]+)\)/g,
     ];
     
     const extractedTexts = new Set<string>();
@@ -227,72 +233,45 @@ async function extractTextAdvanced(pdfBuffer: ArrayBuffer): Promise<string> {
     textPatterns.forEach(pattern => {
       let match;
       while ((match = pattern.exec(pdfString)) !== null) {
-        const text = cleanExtractedText(match[1]);
-        if (text && text.length > 5 && !/^[^a-zA-Z]*$/.test(text)) {
-          extractedTexts.add(text);
+        let text = match[1];
+        if (text) {
+          // Decode hex strings
+          if (text.includes('<') && text.includes('>')) {
+            text = text.replace(/<([0-9A-Fa-f]+)>/g, (_, hex) => {
+              try {
+                return String.fromCharCode(parseInt(hex, 16));
+              } catch {
+                return '';
+              }
+            });
+          }
+          
+          const cleaned = cleanExtractedText(text);
+          if (cleaned && cleaned.length > 2 && /[a-zA-Z]/.test(cleaned)) {
+            extractedTexts.add(cleaned);
+          }
         }
       }
     });
     
     const combinedText = Array.from(extractedTexts).join(' ');
     const cleanText = cleanExtractedText(combinedText);
+    const quality = assessTextQuality(cleanText);
     
     console.log('Strategy 4 - Manual extraction length:', cleanText.length);
+    console.log('Strategy 4 - Quality score:', quality);
     console.log('Strategy 4 - Text preview:', cleanText.substring(0, 500));
     
-    if (isTextMeaningful(cleanText)) {
+    if (quality >= 25) { // Lower threshold for manual extraction
       strategies.push({ 
         method: 'manual', 
         text: cleanText, 
-        score: cleanText.length,
-        quality: 'low'
+        score: quality * cleanText.length,
+        quality: quality >= 50 ? 'medium' : 'low'
       });
     }
   } catch (error) {
     console.error('Strategy 4 failed:', error);
-  }
-  
-  // Strategy 5: Text stream extraction
-  try {
-    console.log('=== STRATEGY 5: Stream-based extraction ===');
-    const uint8Array = new Uint8Array(pdfBuffer);
-    let pdfString = '';
-    
-    for (let i = 0; i < uint8Array.length; i++) {
-      pdfString += String.fromCharCode(uint8Array[i]);
-    }
-    
-    // Look for BT/ET text blocks and Tj operations
-    const textBlocks = pdfString.match(/BT\s*([\s\S]*?)\s*ET/g) || [];
-    const allTexts = [];
-    
-    for (const block of textBlocks) {
-      // Extract Tj operations
-      const tjMatches = block.match(/\(([^)]+)\)\s*Tj/g) || [];
-      for (const match of tjMatches) {
-        const text = match.match(/\(([^)]+)\)/)?.[1];
-        if (text && text.length > 2 && /[a-zA-Z]/.test(text)) {
-          allTexts.push(cleanExtractedText(text));
-        }
-      }
-    }
-    
-    const combinedText = allTexts.join(' ');
-    const cleanText = cleanExtractedText(combinedText);
-    
-    console.log('Strategy 5 - Stream extraction length:', cleanText.length);
-    console.log('Strategy 5 - Text preview:', cleanText.substring(0, 500));
-    
-    if (isTextMeaningful(cleanText)) {
-      strategies.push({ 
-        method: 'stream', 
-        text: cleanText, 
-        score: cleanText.length * 0.8,
-        quality: 'low'
-      });
-    }
-  } catch (error) {
-    console.error('Strategy 5 failed:', error);
   }
   
   // Choose the best strategy
@@ -300,9 +279,8 @@ async function extractTextAdvanced(pdfBuffer: ArrayBuffer): Promise<string> {
     throw new Error('All text extraction strategies failed to produce meaningful content. The PDF might be corrupted, password-protected, or contain only images without extractable text.');
   }
   
-  // Sort by score and quality
+  // Sort by quality first, then by score
   strategies.sort((a, b) => {
-    // Prioritize by quality first, then by score
     const qualityOrder = { high: 3, medium: 2, low: 1 };
     const qualityDiff = qualityOrder[b.quality] - qualityOrder[a.quality];
     if (qualityDiff !== 0) return qualityDiff;
@@ -327,7 +305,7 @@ serve(async (req) => {
   }
 
   try {
-    console.log('=== ADVANCED PDF PARSE REQUEST ===');
+    console.log('=== ENHANCED PDF PARSE REQUEST ===');
     
     const { resumeUrl } = await req.json();
     
@@ -385,8 +363,8 @@ serve(async (req) => {
     const pdfBuffer = await fileData.arrayBuffer();
     console.log('PDF buffer size:', pdfBuffer.byteLength);
 
-    // Advanced text extraction with multiple strategies including OCR
-    console.log('=== STARTING ADVANCED MULTI-STRATEGY EXTRACTION ===');
+    // Enhanced text extraction with improved quality assessment
+    console.log('=== STARTING ENHANCED MULTI-STRATEGY EXTRACTION ===');
     const extractedText = await extractTextAdvanced(pdfBuffer);
 
     if (!extractedText || extractedText.length < 50) {
@@ -413,13 +391,13 @@ serve(async (req) => {
       success: true,
       text: extractedText,
       textLength: extractedText.length,
-      message: 'PDF text extracted successfully using advanced multi-strategy extraction including OCR'
+      message: 'PDF text extracted successfully using enhanced multi-strategy extraction'
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('=== ADVANCED PDF PARSE ERROR ===');
+    console.error('=== ENHANCED PDF PARSE ERROR ===');
     console.error('Error details:', error);
     return new Response(JSON.stringify({ 
       error: error.message,
