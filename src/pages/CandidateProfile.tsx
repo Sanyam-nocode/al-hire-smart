@@ -24,6 +24,7 @@ const CandidateProfile = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const { isExtracting, extractResumeData } = useResumeExtraction();
 
   // Close settings modal when component unmounts
@@ -34,17 +35,38 @@ const CandidateProfile = () => {
   }, []);
 
   const handleSignOut = async () => {
+    setIsSigningOut(true);
     try {
+      console.log('Starting logout process...');
+      
       // Close settings modal before signing out
       setSettingsOpen(false);
+      
+      // Call the signOut function from context
       const { error } = await signOut();
+      
       if (error) {
-        toast.error("Error signing out");
-      } else {
-        navigate('/');
+        console.error('Sign out error:', error);
+        toast.error("Error signing out. Please try again.");
+        setIsSigningOut(false);
+        return;
       }
+      
+      console.log('Successfully signed out, redirecting to home...');
+      toast.success("Successfully signed out!");
+      
+      // Force navigation to home page
+      navigate('/', { replace: true });
+      
+      // Force a page reload to ensure clean state
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 100);
+      
     } catch (error) {
-      toast.error("Error signing out");
+      console.error('Unexpected error during sign out:', error);
+      toast.error("Unexpected error during sign out");
+      setIsSigningOut(false);
     }
   };
 
@@ -339,8 +361,14 @@ const CandidateProfile = () => {
                   </Button>
                 }
               />
-              <Button variant="outline" size="sm" onClick={handleSignOut}>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleSignOut}
+                disabled={isSigningOut}
+              >
                 <LogOut className="h-4 w-4" />
+                {isSigningOut ? 'Signing out...' : ''}
               </Button>
             </div>
           </div>
