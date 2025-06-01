@@ -75,8 +75,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   const fetchProfiles = async (user: User) => {
-    console.log('AuthContext: Fetching profiles for user:', user.id);
+    console.log('AuthContext: Fetching profiles for user:', user.id, user.email);
     try {
+      // Clear existing profiles first
+      setCandidateProfile(null);
+      setRecruiterProfile(null);
+
       // Try to fetch candidate profile first
       const { data: candidateData, error: candidateError } = await supabase
         .from('candidate_profiles')
@@ -114,11 +118,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshProfile = async () => {
     if (user) {
-      // Clear current profiles
-      setCandidateProfile(null);
-      setRecruiterProfile(null);
-      
-      // Fetch fresh profiles
       await fetchProfiles(user);
     }
   };
@@ -126,11 +125,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signIn = async (email: string, password: string) => {
     try {
       console.log('AuthContext: Attempting sign in for:', email);
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      console.log('AuthContext: Sign in result:', { error });
+      console.log('AuthContext: Sign in result:', { user: data.user?.email, error });
+      
+      if (data.user && !error) {
+        setUser(data.user);
+        // Fetch profiles immediately after successful login
+        await fetchProfiles(data.user);
+      }
+      
       return { error };
     } catch (error) {
       console.error('AuthContext: Sign in error:', error);
@@ -157,31 +163,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     console.log('AuthContext: Setting up auth listeners');
     
+    let mounted = true;
+
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('AuthContext: Initial session:', session?.user?.email);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfiles(session.user);
+    const getInitialSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('AuthContext: Error getting session:', error);
+        }
+        
+        console.log('AuthContext: Initial session user:', session?.user?.email || 'No user');
+        
+        if (mounted) {
+          if (session?.user) {
+            setUser(session.user);
+            await fetchProfiles(session.user);
+          } else {
+            setUser(null);
+            setCandidateProfile(null);
+            setRecruiterProfile(null);
+          }
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('AuthContext: Error in getInitialSession:', error);
+        if (mounted) {
+          setLoading(false);
+        }
       }
-      setLoading(false);
-    });
+    };
+
+    getInitialSession();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('AuthContext: Auth state changed:', event, session?.user?.email);
-      setUser(session?.user ?? null);
+      console.log('AuthContext: Auth state changed:', event, session?.user?.email || 'No user');
+      
+      if (!mounted) return;
       
       if (session?.user && event === 'SIGNED_IN') {
-        // Clear existing profiles first
-        setCandidateProfile(null);
-        setRecruiterProfile(null);
-        
-        // Fetch profiles with a small delay to ensure state is clean
-        setTimeout(() => {
-          fetchProfiles(session.user);
-        }, 100);
+        setUser(session.user);
+        // Fetch profiles after sign in
+        await fetchProfiles(session.user);
       } else if (!session?.user) {
+        setUser(null);
         setCandidateProfile(null);
         setRecruiterProfile(null);
       }
@@ -189,7 +216,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {

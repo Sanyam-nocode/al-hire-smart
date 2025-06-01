@@ -1,5 +1,5 @@
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight, Search, Users, Zap, Brain, CheckCircle, Star } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -11,17 +11,21 @@ import { useAuth } from "@/contexts/AuthContext";
 const Index = () => {
   const { user, recruiterProfile, candidateProfile, loading } = useAuth();
   const navigate = useNavigate();
+  const [redirecting, setRedirecting] = useState(false);
 
   useEffect(() => {
     // Only proceed if auth is not loading and user exists
     if (!loading && user) {
-      console.log('Index: User authenticated, checking profiles...', { 
+      console.log('Index: User authenticated, profiles state:', { 
         user: user.email, 
-        recruiterProfile: recruiterProfile?.id,
-        candidateProfile: candidateProfile?.id 
+        recruiterProfile: recruiterProfile?.id || 'null',
+        candidateProfile: candidateProfile?.id || 'null'
       });
       
-      // Give a small delay to ensure profiles are loaded
+      // Set redirecting state to show loading
+      setRedirecting(true);
+      
+      // Give a moment for profiles to be set, then redirect
       const timeoutId = setTimeout(() => {
         if (recruiterProfile) {
           console.log('Index: Redirecting to recruiter dashboard');
@@ -30,31 +34,38 @@ const Index = () => {
           console.log('Index: Redirecting to candidate profile');
           navigate('/candidate/profile', { replace: true });
         } else {
-          console.log('Index: No profiles found after timeout, redirecting to dashboard');
+          console.log('Index: No profiles found, redirecting to dashboard for profile setup');
           navigate('/dashboard', { replace: true });
         }
-      }, 100);
+      }, 200);
 
       return () => clearTimeout(timeoutId);
+    } else if (!loading && !user) {
+      // User is definitely not authenticated
+      setRedirecting(false);
     }
   }, [user, recruiterProfile, candidateProfile, loading, navigate]);
 
-  // If still loading, show loading state
+  // If still loading auth state, show loading
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-        <p className="ml-4 text-gray-600">Loading...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
       </div>
     );
   }
 
-  // If user is authenticated, show loading while redirect happens
-  if (user) {
+  // If user is authenticated and we're redirecting, show redirect message
+  if (user && redirecting) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-        <p className="ml-4 text-gray-600">Redirecting to dashboard...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Redirecting to your dashboard...</p>
+        </div>
       </div>
     );
   }
