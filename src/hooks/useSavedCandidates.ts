@@ -69,18 +69,59 @@ export const useSavedCandidates = () => {
 
     setIsLoading(true);
     try {
+      console.log('=== SAVE CANDIDATE DEBUG INFO ===');
+      console.log('Current user:', {
+        id: user.id,
+        email: user.email,
+        role: user.role
+      });
+      console.log('Recruiter profile:', {
+        id: recruiterProfile.id,
+        user_id: recruiterProfile.user_id,
+        email: recruiterProfile.email
+      });
+      console.log('Candidate ID to save:', candidateId);
+      
+      // First, let's verify the recruiter profile exists and belongs to the current user
+      const { data: profileCheck, error: profileError } = await supabase
+        .from('recruiter_profiles')
+        .select('*')
+        .eq('id', recruiterProfile.id)
+        .eq('user_id', user.id)
+        .single();
+
+      console.log('Profile check result:', { profileCheck, profileError });
+
+      if (profileError || !profileCheck) {
+        console.error('Recruiter profile validation failed:', profileError);
+        toast.error('Invalid recruiter profile. Please try logging out and back in.');
+        return;
+      }
+
+      // Now try to save the candidate
       console.log('Saving candidate:', candidateId, 'for recruiter:', recruiterProfile.id);
       
-      const { error } = await supabase
+      const { data: insertData, error: insertError } = await supabase
         .from('saved_candidates')
         .insert({
           recruiter_id: recruiterProfile.id,
           candidate_id: candidateId,
-        });
+        })
+        .select();
 
-      if (error) {
-        console.error('Error saving candidate:', error);
-        toast.error('Failed to save candidate');
+      console.log('Insert result:', { insertData, insertError });
+
+      if (insertError) {
+        console.error('Error saving candidate:', insertError);
+        
+        // Provide more specific error messages
+        if (insertError.message.includes('violates row-level security')) {
+          toast.error('Permission denied. Please ensure you are logged in as a recruiter.');
+        } else if (insertError.message.includes('duplicate key')) {
+          toast.error('Candidate is already saved.');
+        } else {
+          toast.error(`Failed to save candidate: ${insertError.message}`);
+        }
         return;
       }
 
@@ -88,7 +129,7 @@ export const useSavedCandidates = () => {
       toast.success('Candidate saved successfully!');
       console.log('Candidate saved successfully');
     } catch (error) {
-      console.error('Error saving candidate:', error);
+      console.error('Unexpected error saving candidate:', error);
       toast.error('Failed to save candidate');
     } finally {
       setIsLoading(false);
