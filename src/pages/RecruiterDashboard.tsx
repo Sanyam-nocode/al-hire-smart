@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -37,6 +38,7 @@ const RecruiterDashboard = () => {
   const { user, recruiterProfile, signOut } = useAuth();
   const navigate = useNavigate();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [profileEditOpen, setProfileEditOpen] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateProfile | null>(null);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [contactModalOpen, setContactModalOpen] = useState(false);
@@ -66,6 +68,10 @@ const RecruiterDashboard = () => {
   const handleContact = (candidate: CandidateProfile) => {
     setSelectedCandidate(candidate);
     setContactModalOpen(true);
+  };
+
+  const handleEditProfile = () => {
+    setProfileEditOpen(true);
   };
 
   if (!user || !recruiterProfile) {
@@ -182,7 +188,7 @@ const RecruiterDashboard = () => {
                     </div>
                   )}
                 </div>
-                <Button variant="outline">
+                <Button variant="outline" onClick={handleEditProfile}>
                   Edit Profile
                 </Button>
               </CardContent>
@@ -203,6 +209,13 @@ const RecruiterDashboard = () => {
         candidate={selectedCandidate}
         open={contactModalOpen}
         onOpenChange={setContactModalOpen}
+      />
+
+      {/* Profile Edit Modal */}
+      <Settings
+        open={profileEditOpen}
+        onOpenChange={setProfileEditOpen}
+        trigger={null}
       />
     </div>
   );
