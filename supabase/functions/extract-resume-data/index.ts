@@ -4,6 +4,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+const ocrSpaceApiKey = Deno.env.get('OCR_SPACE_API_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
@@ -12,6 +13,74 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// OCR.space API integration
+async function extractTextWithOCR(resumeUrl: string): Promise<string> {
+  try {
+    console.log('=== STARTING OCR.SPACE EXTRACTION ===');
+    console.log('Resume URL for OCR:', resumeUrl);
+
+    if (!ocrSpaceApiKey) {
+      throw new Error('OCR.space API key not configured');
+    }
+
+    // Create form data for OCR.space API
+    const formData = new FormData();
+    formData.append('url', resumeUrl);
+    formData.append('language', 'eng');
+    formData.append('isOverlayRequired', 'false');
+    formData.append('detectOrientation', 'true');
+    formData.append('scale', 'true');
+    formData.append('OCREngine', '2'); // Use OCR Engine 2 for better accuracy
+    formData.append('filetype', 'PDF');
+
+    console.log('Calling OCR.space API...');
+    
+    const ocrResponse = await fetch('https://api.ocr.space/parse/image', {
+      method: 'POST',
+      headers: {
+        'apikey': ocrSpaceApiKey,
+      },
+      body: formData,
+    });
+
+    if (!ocrResponse.ok) {
+      throw new Error(`OCR.space API error: ${ocrResponse.status}`);
+    }
+
+    const ocrData = await ocrResponse.json();
+    console.log('=== OCR.SPACE RESPONSE ===');
+    console.log('OCR Response structure:', {
+      hasParseResults: !!ocrData.ParsedResults,
+      resultsCount: ocrData.ParsedResults?.length || 0,
+      isErroredOnProcessing: ocrData.IsErroredOnProcessing,
+      ocrExitCode: ocrData.OCRExitCode,
+      errorMessage: ocrData.ErrorMessage
+    });
+
+    if (ocrData.IsErroredOnProcessing) {
+      throw new Error(`OCR processing failed: ${ocrData.ErrorMessage || 'Unknown OCR error'}`);
+    }
+
+    if (!ocrData.ParsedResults || ocrData.ParsedResults.length === 0) {
+      throw new Error('No parsed results from OCR service');
+    }
+
+    const extractedText = ocrData.ParsedResults[0].ParsedText || '';
+    console.log('=== OCR EXTRACTED TEXT ===');
+    console.log('OCR text length:', extractedText.length);
+    console.log('OCR text preview:', extractedText.substring(0, 1000));
+
+    if (!extractedText || extractedText.trim().length < 50) {
+      throw new Error('OCR extracted insufficient text content');
+    }
+
+    return extractedText.trim();
+  } catch (error) {
+    console.error('OCR extraction failed:', error);
+    throw error;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -19,7 +88,7 @@ serve(async (req) => {
 
   try {
     const { resumeUrl, candidateId } = await req.json();
-    console.log('=== ENHANCED RESUME EXTRACTION REQUEST ===');
+    console.log('=== ENHANCED RESUME EXTRACTION WITH OCR ===');
     console.log('Resume URL:', resumeUrl);
     console.log('Candidate ID:', candidateId);
 
@@ -48,51 +117,61 @@ serve(async (req) => {
     // Create Supabase client
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log('=== CALLING ENHANCED PDF PARSER ===');
+    console.log('=== TRYING STANDARD PDF PARSER FIRST ===');
     
-    // Call the enhanced parseResume function first
+    // Try the enhanced parseResume function first
     const { data: parseData, error: parseError } = await supabase.functions.invoke('parseResume', {
       body: { resumeUrl }
     });
 
-    console.log('=== ENHANCED PARSE RESPONSE ===');
-    console.log('Parse Data:', JSON.stringify(parseData, null, 2));
-    console.log('Parse Error:', parseError);
+    console.log('=== STANDARD PARSE RESPONSE ===');
+    console.log('Parse success:', parseData?.success);
+    console.log('Parse error:', parseError);
 
     let resumeText = '';
     let extractionMethod = 'none';
 
-    if (parseError || !parseData?.success) {
-      console.log('=== STANDARD PARSER FAILED, TRYING PREPROCESSOR ===');
+    if (parseError || !parseData?.success || !parseData?.text || parseData.text.length < 100) {
+      console.log('=== STANDARD PARSER INSUFFICIENT, TRYING OCR.SPACE ===');
       
-      // Try the preprocessing function as fallback
-      const { data: preprocessData, error: preprocessError } = await supabase.functions.invoke('preprocess-pdf', {
-        body: { resumeUrl }
-      });
-
-      console.log('=== PREPROCESSOR RESPONSE ===');
-      console.log('Preprocess Data:', JSON.stringify(preprocessData, null, 2));
-      console.log('Preprocess Error:', preprocessError);
-
-      if (preprocessError || !preprocessData?.success) {
-        console.error('Both parsing methods failed');
-        return new Response(JSON.stringify({ 
-          error: 'All PDF parsing methods failed. The PDF might be corrupted, password-protected, or in an unsupported format.',
-          success: false,
-          debugInfo: {
-            parseError: parseError?.message || parseData?.error,
-            preprocessError: preprocessError?.message || preprocessData?.error,
-            parseData: parseData?.debugInfo,
-            preprocessData: preprocessData?.debugInfo
-          }
-        }), {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      try {
+        resumeText = await extractTextWithOCR(resumeUrl);
+        extractionMethod = 'ocr-space';
+        console.log('OCR.space extraction successful');
+      } catch (ocrError) {
+        console.log('=== OCR.SPACE FAILED, TRYING PREPROCESSOR ===');
+        console.error('OCR error:', ocrError);
+        
+        // Try the preprocessing function as final fallback
+        const { data: preprocessData, error: preprocessError } = await supabase.functions.invoke('preprocess-pdf', {
+          body: { resumeUrl }
         });
-      }
 
-      resumeText = preprocessData.extractedText || '';
-      extractionMethod = 'preprocessor';
+        if (preprocessError || !preprocessData?.success) {
+          console.error('All extraction methods failed');
+          return new Response(JSON.stringify({ 
+            error: 'All PDF extraction methods failed including OCR.space. The PDF might be corrupted, password-protected, or in an unsupported format.',
+            success: false,
+            debugInfo: {
+              parseError: parseError?.message || parseData?.error,
+              ocrError: ocrError.message,
+              preprocessError: preprocessError?.message || preprocessData?.error,
+              suggestions: [
+                'Ensure the PDF is not password-protected',
+                'Try a different PDF format or quality',
+                'Check if the PDF contains selectable text',
+                'Consider converting the PDF to a higher quality format'
+              ]
+            }
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        resumeText = preprocessData.extractedText || '';
+        extractionMethod = 'preprocessor-fallback';
+      }
     } else {
       resumeText = parseData.text || '';
       extractionMethod = 'standard-parser';
@@ -101,25 +180,23 @@ serve(async (req) => {
     console.log('=== FINAL EXTRACTED TEXT ANALYSIS ===');
     console.log('Extraction method used:', extractionMethod);
     console.log('Text length:', resumeText.length);
-    console.log('Text content preview (first 500 chars):', resumeText.substring(0, 500));
-    console.log('Text content preview (middle 500 chars):', resumeText.substring(Math.floor(resumeText.length/2), Math.floor(resumeText.length/2) + 500));
-    console.log('Text content preview (last 500 chars):', resumeText.substring(Math.max(0, resumeText.length - 500)));
+    console.log('Text preview (first 500 chars):', resumeText.substring(0, 500));
 
     // Check if we have enough meaningful text
     if (!resumeText || resumeText.length < 50) {
-      console.error('Insufficient text extracted');
+      console.error('Insufficient text extracted from all methods');
       return new Response(JSON.stringify({ 
-        error: 'Could not extract sufficient readable text from PDF. The PDF might be image-based, password-protected, or heavily formatted.',
+        error: 'Could not extract sufficient readable text from PDF using any method including OCR.space.',
         success: false,
         debugInfo: {
           extractionMethod,
           textLength: resumeText.length,
           textSample: resumeText,
           recommendations: [
-            'Try converting the PDF to text format first',
+            'Try uploading a higher quality PDF',
             'Ensure the PDF is not password-protected',
-            'Check if the PDF contains selectable text (not just images)',
-            'Try a different PDF if possible'
+            'Check if the PDF contains selectable or image-based text',
+            'Consider manually entering the information'
           ]
         }
       }), {
@@ -136,15 +213,14 @@ serve(async (req) => {
 
     console.log('=== CLEANED TEXT FOR AI ===');
     console.log('Cleaned text length:', cleanedText.length);
-    console.log('Cleaned text preview:', cleanedText.substring(0, 1000));
 
-    // Enhanced OpenAI prompt with better instructions
-    console.log('=== CALLING OPENAI WITH ENHANCED PROMPT ===');
-    const prompt = `You are an expert resume parsing assistant. Extract information from the following resume text. 
+    // Enhanced OpenAI prompt optimized for OCR-extracted text
+    console.log('=== CALLING OPENAI WITH OCR-OPTIMIZED PROMPT ===');
+    const prompt = `You are an expert resume parsing assistant. Extract information from the following resume text that may have been extracted using OCR.
 
-IMPORTANT: The text below may contain some formatting artifacts or encoding issues. Please extract the meaningful information and ignore any garbled text.
+IMPORTANT: The text below may contain OCR artifacts, formatting issues, or encoding problems. Focus on extracting meaningful information and ignore any garbled text or OCR errors.
 
-Extract the following details and return as JSON (return ONLY valid JSON, no markdown):
+Extract the following details and return as JSON (return ONLY valid JSON, no markdown or explanations):
 
 {
   "personal_info": {
@@ -189,10 +265,15 @@ Extract the following details and return as JSON (return ONLY valid JSON, no mar
   }
 }
 
-Resume text to parse:
+Resume text (may contain OCR artifacts):
 "${cleanedText}"
 
-Additional context: This text was extracted from a PDF and may contain formatting artifacts. Focus on extracting meaningful information and ignore any garbled characters or encoding issues.`;
+Instructions:
+- Look for patterns like email addresses, phone numbers, company names, and job titles
+- Ignore OCR artifacts like random characters or formatting symbols
+- Extract meaningful content even if spacing or formatting is incorrect
+- If text is unclear, make reasonable inferences based on context
+- Focus on identifying key resume sections regardless of formatting issues`;
 
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -205,7 +286,7 @@ Additional context: This text was extracted from a PDF and may contain formattin
         messages: [
           { 
             role: 'system', 
-            content: 'You are an expert resume parser. Extract information precisely from text that may contain formatting artifacts. Return only valid JSON without markdown formatting.'
+            content: 'You are an expert resume parser specialized in handling OCR-extracted text. Extract information precisely from text that may contain OCR artifacts, formatting issues, or encoding problems. Return only valid JSON without markdown formatting.'
           },
           { 
             role: 'user', 
@@ -232,10 +313,6 @@ Additional context: This text was extracted from a PDF and may contain formattin
 
     const openAIData = await openAIResponse.json();
     console.log('=== OPENAI RESPONSE RECEIVED ===');
-    console.log('OpenAI response structure:', {
-      choices: openAIData.choices?.length || 0,
-      hasContent: !!openAIData.choices?.[0]?.message?.content
-    });
 
     if (!openAIData.choices?.[0]?.message?.content) {
       console.error('Invalid OpenAI response structure');
@@ -249,13 +326,11 @@ Additional context: This text was extracted from a PDF and may contain formattin
     }
 
     // Parse AI response with enhanced error handling
-    console.log('=== PARSING ENHANCED AI RESPONSE ===');
+    console.log('=== PARSING AI RESPONSE ===');
     let extractedData;
     const rawAIContent = openAIData.choices[0].message.content;
     
-    console.log('=== RAW AI RESPONSE ===');
     console.log('AI content length:', rawAIContent.length);
-    console.log('AI content preview:', rawAIContent.substring(0, 2000));
     
     try {
       let content = rawAIContent.trim();
@@ -272,18 +347,15 @@ Additional context: This text was extracted from a PDF and may contain formattin
         content = jsonMatch[0];
       }
       
-      console.log('=== CLEANED AI CONTENT FOR PARSING ===');
-      console.log('Cleaned content:', content.substring(0, 1000));
-      
       extractedData = JSON.parse(content);
-      console.log('Successfully parsed enhanced extracted data:', JSON.stringify(extractedData, null, 2));
+      console.log('Successfully parsed extracted data');
       
     } catch (parseError) {
-      console.error('Enhanced JSON parse error:', parseError);
+      console.error('JSON parse error:', parseError);
       console.error('Content that failed to parse:', rawAIContent);
       
       return new Response(JSON.stringify({ 
-        error: 'Failed to parse enhanced AI response as JSON',
+        error: 'Failed to parse AI response as JSON',
         success: false,
         debugInfo: {
           rawResponse: rawAIContent,
@@ -298,7 +370,7 @@ Additional context: This text was extracted from a PDF and may contain formattin
     }
 
     // Update database with extracted data
-    console.log('=== UPDATING DATABASE WITH ENHANCED DATA ===');
+    console.log('=== UPDATING DATABASE ===');
     const updateData: any = {
       resume_content: JSON.stringify(extractedData),
       updated_at: new Date().toISOString(),
@@ -393,7 +465,7 @@ Additional context: This text was extracted from a PDF and may contain formattin
       }
     }
 
-    console.log('Enhanced final update data:', JSON.stringify(updateData, null, 2));
+    console.log('Final update data prepared');
 
     // Update candidate profile
     const { data: updatedProfile, error: updateError } = await supabase
@@ -415,8 +487,8 @@ Additional context: This text was extracted from a PDF and may contain formattin
       });
     }
 
-    console.log('=== ENHANCED EXTRACTION SUCCESS ===');
-    console.log('Profile updated successfully with enhanced extraction');
+    console.log('=== EXTRACTION SUCCESS WITH OCR ===');
+    console.log('Profile updated successfully using:', extractionMethod);
 
     return new Response(JSON.stringify({ 
       success: true,
@@ -426,17 +498,15 @@ Additional context: This text was extracted from a PDF and may contain formattin
         method: extractionMethod,
         originalTextLength: resumeText.length,
         cleanedTextLength: cleanedText.length,
-        originalTextSample: resumeText.substring(0, 500),
-        cleanedTextSample: cleanedText.substring(0, 500),
-        aiResponseSample: rawAIContent.substring(0, 1000)
+        ocrUsed: extractionMethod === 'ocr-space'
       },
-      message: 'Resume data extracted and profile updated successfully with enhanced debugging'
+      message: `Resume data extracted and profile updated successfully using ${extractionMethod}${extractionMethod === 'ocr-space' ? ' with OCR.space API' : ''}`
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('=== ENHANCED FUNCTION ERROR ===');
+    console.error('=== FUNCTION ERROR ===');
     console.error('Error details:', error);
     return new Response(JSON.stringify({ 
       error: error.message,
