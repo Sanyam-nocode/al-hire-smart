@@ -50,7 +50,7 @@ const CandidateProfile = () => {
   // Update form data when candidateProfile changes
   useEffect(() => {
     if (candidateProfile) {
-      console.log('Updating form data with candidate profile:', candidateProfile);
+      console.log('CandidateProfile: Updating form data with candidate profile:', candidateProfile);
       setFormData({
         firstName: candidateProfile.first_name || '',
         lastName: candidateProfile.last_name || '',
@@ -127,7 +127,12 @@ const CandidateProfile = () => {
   };
 
   const handleSaveProfile = async (updateData?: any) => {
-    if (!user || !candidateProfile) return;
+    if (!user || !candidateProfile) {
+      console.error('CandidateProfile: Missing user or candidateProfile');
+      throw new Error('Missing user or candidateProfile');
+    }
+
+    console.log('CandidateProfile: Starting handleSaveProfile with data:', updateData);
 
     try {
       const dataToUpdate = updateData || {
@@ -147,32 +152,37 @@ const CandidateProfile = () => {
         updated_at: new Date().toISOString()
       };
 
-      // Add profile completion status
+      // Add profile completion status - validate the data that will be saved
       const validation = validateCandidateProfile(dataToUpdate);
       dataToUpdate.profile_complete = validation.isValid;
 
-      console.log('Updating profile with data:', dataToUpdate);
+      console.log('CandidateProfile: Final data to update:', dataToUpdate);
+      console.log('CandidateProfile: Profile ID:', candidateProfile.id);
+      console.log('CandidateProfile: Profile completion status:', validation.isValid);
 
-      const { error } = await supabase
+      const { data: updatedData, error } = await supabase
         .from('candidate_profiles')
         .update(dataToUpdate)
-        .eq('id', candidateProfile.id);
+        .eq('id', candidateProfile.id)
+        .select()
+        .single();
 
       if (error) {
-        console.error('Profile update error:', error);
-        toast.error("Failed to update profile");
+        console.error('CandidateProfile: Supabase update error:', error);
+        toast.error(`Database error: ${error.message}`);
         throw error;
       }
 
-      console.log('Profile updated successfully, refreshing...');
+      console.log('CandidateProfile: Database update successful:', updatedData);
       
       // Refresh the profile to get the latest data
+      console.log('CandidateProfile: Refreshing profile after update...');
       await refreshProfile();
+      console.log('CandidateProfile: Profile refresh completed');
       
     } catch (error) {
-      console.error('Error updating profile:', error);
-      toast.error("Failed to update profile");
-      throw error;
+      console.error('CandidateProfile: Error in handleSaveProfile:', error);
+      throw error; // Re-throw to let the calling component handle the error display
     }
   };
 

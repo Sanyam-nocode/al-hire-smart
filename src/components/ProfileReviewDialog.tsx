@@ -59,6 +59,7 @@ const ProfileReviewDialog = ({
 
   useEffect(() => {
     if (candidateProfile && open) {
+      console.log('ProfileReviewDialog: Setting form data from candidateProfile:', candidateProfile);
       const data = {
         firstName: candidateProfile.first_name || '',
         lastName: candidateProfile.last_name || '',
@@ -78,6 +79,7 @@ const ProfileReviewDialog = ({
       
       // Validate the profile data
       const validationResult = validateCandidateProfile(candidateProfile);
+      console.log('ProfileReviewDialog: Initial validation result:', validationResult);
       setValidation(validationResult);
     }
   }, [candidateProfile, open]);
@@ -99,11 +101,13 @@ const ProfileReviewDialog = ({
       };
       
       const validationResult = validateCandidateProfile(profileData);
+      console.log('ProfileReviewDialog: Form validation result:', validationResult);
       setValidation(validationResult);
     }
   }, [formData, open]);
 
   const handleInputChange = (field: string, value: string) => {
+    console.log(`ProfileReviewDialog: Updating ${field} to:`, value);
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -111,31 +115,39 @@ const ProfileReviewDialog = ({
   };
 
   const handleSave = async () => {
+    console.log('ProfileReviewDialog: Starting save process...');
     setIsSaving(true);
+    
     try {
       const updateData = {
-        first_name: formData.firstName,
-        last_name: formData.lastName,
-        email: formData.email,
-        phone: formData.phone || null,
-        location: formData.location || null,
-        title: formData.title || null,
+        first_name: formData.firstName.trim(),
+        last_name: formData.lastName.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim() || null,
+        location: formData.location.trim() || null,
+        title: formData.title.trim() || null,
         experience_years: formData.experienceYears ? parseInt(formData.experienceYears) : null,
         salary_expectation: formData.salaryExpectation ? parseInt(formData.salaryExpectation) : null,
-        summary: formData.summary || null,
-        education: formData.education || null,
-        linkedin_url: formData.linkedinUrl || null,
-        github_url: formData.githubUrl || null,
-        portfolio_url: formData.portfolioUrl || null,
+        summary: formData.summary.trim() || null,
+        education: formData.education.trim() || null,
+        linkedin_url: formData.linkedinUrl.trim() || null,
+        github_url: formData.githubUrl.trim() || null,
+        portfolio_url: formData.portfolioUrl.trim() || null,
         profile_complete: validation.isValid,
         updated_at: new Date().toISOString()
       };
 
+      console.log('ProfileReviewDialog: Update data prepared:', updateData);
+      console.log('ProfileReviewDialog: Profile complete status:', validation.isValid);
+
       await onSave(updateData);
+      
+      console.log('ProfileReviewDialog: Save completed successfully');
       toast.success("Profile updated successfully!");
       onOpenChange(false);
+      
     } catch (error) {
-      console.error('Error saving profile:', error);
+      console.error('ProfileReviewDialog: Error saving profile:', error);
       toast.error("Failed to update profile. Please try again.");
     } finally {
       setIsSaving(false);
