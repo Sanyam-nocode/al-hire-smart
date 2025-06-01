@@ -9,6 +9,50 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      candidate_interactions: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          details: Json | null
+          id: string
+          interaction_date: string
+          interaction_type: string
+          notes: string | null
+          recruiter_id: string
+          updated_at: string
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          interaction_date?: string
+          interaction_type: string
+          notes?: string | null
+          recruiter_id: string
+          updated_at?: string
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          interaction_date?: string
+          interaction_type?: string
+          notes?: string | null
+          recruiter_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_candidate_interactions_candidate_id"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidate_profiles: {
         Row: {
           created_at: string

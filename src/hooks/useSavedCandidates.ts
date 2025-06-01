@@ -53,6 +53,29 @@ export const useSavedCandidates = () => {
     }
   };
 
+  const addInteractionRecord = async (candidateId: string, interactionType: string, notes?: string) => {
+    if (!user || !recruiterProfile) return;
+
+    try {
+      const { error } = await supabase
+        .from('candidate_interactions')
+        .insert({
+          recruiter_id: recruiterProfile.id,
+          candidate_id: candidateId,
+          interaction_type: interactionType,
+          notes,
+        });
+
+      if (error) {
+        console.error('Error adding interaction record:', error);
+      } else {
+        console.log('useSavedCandidates: Added interaction record:', { candidateId, interactionType });
+      }
+    } catch (error) {
+      console.error('Unexpected error adding interaction record:', error);
+    }
+  };
+
   const saveCandidate = async (candidateId: string) => {
     if (!user || !recruiterProfile) {
       toast.error('You must be logged in as a recruiter to save candidates');
@@ -84,6 +107,10 @@ export const useSavedCandidates = () => {
       }
 
       setSavedCandidateIds(prev => new Set([...prev, candidateId]));
+      
+      // Add interaction record for saving the candidate
+      await addInteractionRecord(candidateId, 'saved', 'Candidate saved to recruiter list');
+      
       toast.success('Candidate saved successfully!');
     } catch (error) {
       console.error('Unexpected error saving candidate:', error);
@@ -138,6 +165,7 @@ export const useSavedCandidates = () => {
     unsaveCandidate,
     isCandidateSaved,
     isLoading,
-    loadSavedCandidates
+    loadSavedCandidates,
+    addInteractionRecord
   };
 };

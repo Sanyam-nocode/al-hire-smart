@@ -12,6 +12,7 @@ import AISearchComponent from "@/components/AISearchComponent";
 import SavedCandidatesTab from "@/components/SavedCandidatesTab";
 import CandidateProfileModal from "@/components/CandidateProfileModal";
 import ContactCandidateModal from "@/components/ContactCandidateModal";
+import ConversationHistoryTab from "@/components/ConversationHistoryTab";
 
 interface CandidateProfile {
   id: string;
@@ -111,7 +112,7 @@ const RecruiterDashboard = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue="search" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="search">
               <Sparkles className="h-4 w-4 mr-2" />
               AI Candidate Search
@@ -119,6 +120,10 @@ const RecruiterDashboard = () => {
             <TabsTrigger value="saved">
               <UserCheck className="h-4 w-4 mr-2" />
               Saved Candidates
+            </TabsTrigger>
+            <TabsTrigger value="history">
+              <Users className="h-4 w-4 mr-2" />
+              Conversation History
             </TabsTrigger>
             <TabsTrigger value="profile">
               <Users className="h-4 w-4 mr-2" />
@@ -132,6 +137,10 @@ const RecruiterDashboard = () => {
 
           <TabsContent value="saved">
             <SavedCandidatesTab onViewProfile={handleViewProfile} onContact={handleContact} />
+          </TabsContent>
+
+          <TabsContent value="history">
+            <ConversationHistoryTab onViewProfile={handleViewProfile} />
           </TabsContent>
 
           <TabsContent value="profile">
