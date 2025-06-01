@@ -29,20 +29,36 @@ const Login = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Prevent multiple submissions
+    if (loading) return;
+    
+    console.log("Starting sign in process...");
     setLoading(true);
 
     try {
+      // Basic validation
+      if (!email || !password) {
+        toast.error("Please enter both email and password");
+        return;
+      }
+
+      console.log("Attempting to sign in with email:", email);
       const { error } = await signIn(email, password);
       
       if (error) {
-        toast.error(error.message);
+        console.error("Sign in error:", error);
+        toast.error(error.message || "Failed to sign in");
       } else {
+        console.log("Sign in successful");
         toast.success("Successfully signed in!");
-        navigate('/dashboard');
+        // Don't navigate here - let the useEffect handle it when user state updates
       }
     } catch (error) {
-      toast.error("An unexpected error occurred");
+      console.error("Unexpected error during sign in:", error);
+      toast.error("An unexpected error occurred. Please try again.");
     } finally {
+      console.log("Resetting loading state");
       setLoading(false);
     }
   };
@@ -102,6 +118,7 @@ const Login = () => {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
+                        disabled={loading}
                       />
                     </div>
                     <div className="space-y-2">
@@ -112,6 +129,7 @@ const Login = () => {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
+                        disabled={loading}
                       />
                     </div>
                     <div className="flex items-center justify-between">
@@ -150,6 +168,7 @@ const Login = () => {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
+                        disabled={loading}
                       />
                     </div>
                     <div className="space-y-2">
@@ -160,6 +179,7 @@ const Login = () => {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
+                        disabled={loading}
                       />
                     </div>
                     <div className="flex items-center justify-between">
@@ -187,6 +207,7 @@ const Login = () => {
                 type="button"
                 onClick={handleSignupClick}
                 className="text-blue-600 hover:underline font-medium cursor-pointer bg-transparent border-none p-0"
+                disabled={loading}
               >
                 Sign up here
               </button>
