@@ -1,3 +1,4 @@
+
 import { Play, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,6 +11,13 @@ const Demo = () => {
 
   const handleScheduleDemo = () => {
     navigate('/book-demo');
+  };
+
+  const handleWatchNow = () => {
+    const videoSection = document.getElementById('product-walkthrough');
+    if (videoSection) {
+      videoSection.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   return (
@@ -48,7 +56,10 @@ const Demo = () => {
                 <p className="text-gray-600 mb-6">
                   See a 5-minute walkthrough of Hire Al's key features and how they can transform your hiring process.
                 </p>
-                <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                <Button 
+                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                  onClick={handleWatchNow}
+                >
                   Watch Now
                 </Button>
               </CardContent>
@@ -79,7 +90,7 @@ const Demo = () => {
       </section>
 
       {/* Video Section */}
-      <section className="py-20 bg-gray-50">
+      <section id="product-walkthrough" className="py-20 bg-gray-50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">Product Walkthrough</h2>
