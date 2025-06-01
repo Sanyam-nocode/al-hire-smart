@@ -21,16 +21,16 @@ const DashboardRedirect = () => {
       // Check which profile exists to determine user type
       if (recruiterProfile) {
         console.log('DashboardRedirect: Redirecting to recruiter dashboard');
-        navigate('/recruiter/dashboard');
+        navigate('/recruiter/dashboard', { replace: true });
       } else if (candidateProfile) {
         console.log('DashboardRedirect: Redirecting to candidate profile');
-        navigate('/candidate/profile');
+        navigate('/candidate/profile', { replace: true });
       } else {
         // If no profile exists yet, wait a bit and then redirect to signup
         console.log('DashboardRedirect: No profiles found, waiting before redirecting to signup...');
         const timeout = setTimeout(() => {
           console.log('DashboardRedirect: Timeout reached, redirecting to signup');
-          navigate('/signup');
+          navigate('/signup', { replace: true });
         }, 3000); // Wait 3 seconds for profiles to load
         
         return () => clearTimeout(timeout);
@@ -38,20 +38,17 @@ const DashboardRedirect = () => {
     } else if (!loading && !user) {
       console.log('DashboardRedirect: No user, redirecting to login');
       // If not logged in, redirect to login
-      navigate('/login');
+      navigate('/login', { replace: true });
     }
   }, [user, recruiterProfile, candidateProfile, loading, navigate]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-        <p className="ml-4 text-gray-600">Loading your profile...</p>
-      </div>
-    );
-  }
-
-  return null;
+  // Always show loading state - never show homepage content
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      <p className="ml-4 text-gray-600 mt-4">Redirecting to your dashboard...</p>
+    </div>
+  );
 };
 
 export default DashboardRedirect;

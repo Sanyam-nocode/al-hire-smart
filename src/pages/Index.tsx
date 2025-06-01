@@ -1,4 +1,3 @@
-
 import { ArrowRight, Search, Users, Zap, Brain, CheckCircle, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -11,14 +10,9 @@ import { useAuth } from "@/contexts/AuthContext";
 const Index = () => {
   const { user, loading } = useAuth();
 
-  // If user is authenticated, only show the DashboardRedirect component
+  // If user is authenticated, ONLY show the DashboardRedirect component
   if (user && !loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-        <Navbar />
-        <DashboardRedirect />
-      </div>
-    );
+    return <DashboardRedirect />;
   }
 
   // If loading, show loading spinner
