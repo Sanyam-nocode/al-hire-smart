@@ -52,7 +52,7 @@ interface AuthContextType {
   candidateProfile: CandidateProfile | null;
   recruiterProfile: RecruiterProfile | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signIn: (email: string, password: string, userType?: 'recruiter' | 'candidate') => Promise<{ error: any }>;
   signUp: (email: string, password: string, userData: any) => Promise<{ error: any }>;
   signOut: () => Promise<{ error: any }>;
   refreshProfile: () => Promise<void>;
@@ -123,15 +123,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string, userType?: 'recruiter' | 'candidate') => {
     try {
-      console.log('AuthContext: Attempting sign in');
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log('AuthContext: Attempting sign in with user type:', userType);
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      console.log('AuthContext: Sign in result:', { error });
-      return { error };
+      
+      if (error) {
+        console.log('AuthContext: Sign in error:', error);
+        return { error };
+      }
+
+      // If userType is specified, check if the user has the correct profile
+      if (userType && data.user) {
+        console.log('AuthContext: Checking user profile for type:', userType);
+        
+        if (userType === 'recruiter') {
+          const { data: recruiterData, error: recruiterError } = await supabase
+            .from('recruiter_profiles')
+            .select('*')
+            .eq('user_id', data.user.id)
+            .maybeSingle();
+
+          if (recruiterError || !recruiterData) {
+            console.log('AuthContext: No recruiter profile found, signing out');
+            await supabase.auth.signOut();
+            return { error: { message: 'No recruiter account found with these credentials. Please check your email and try again.' } };
+          }
+        } else if (userType === 'candidate') {
+          const { data: candidateData, error: candidateError } = await supabase
+            .from('candidate_profiles')
+            .select('*')
+            .eq('user_id', data.user.id)
+            .maybeSingle();
+
+          if (candidateError || !candidateData) {
+            console.log('AuthContext: No candidate profile found, signing out');
+            await supabase.auth.signOut();
+            return { error: { message: 'No candidate account found with these credentials. Please check your email and try again.' } };
+          }
+        }
+      }
+
+      console.log('AuthContext: Sign in successful');
+      return { error: null };
     } catch (error) {
       console.error('AuthContext: Sign in error:', error);
       return { error };

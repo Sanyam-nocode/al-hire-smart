@@ -65,8 +65,8 @@ const Login = () => {
         return;
       }
 
-      console.log("Login page: Attempting to sign in with email:", email);
-      const { error } = await signIn(email, password);
+      console.log("Login page: Attempting to sign in with email:", email, "as:", activeTab);
+      const { error } = await signIn(email, password, activeTab as 'recruiter' | 'candidate');
       
       if (error) {
         console.error("Login page: Sign in error:", error);

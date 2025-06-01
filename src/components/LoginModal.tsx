@@ -37,7 +37,7 @@ const LoginModal = ({ open, onOpenChange }: LoginModalProps) => {
     setLoading(true);
 
     try {
-      const { error } = await signIn(formData.email, formData.password);
+      const { error } = await signIn(formData.email, formData.password, activeTab as 'recruiter' | 'candidate');
       
       if (error) {
         toast.error(error.message);
