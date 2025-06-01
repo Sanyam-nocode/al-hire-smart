@@ -9,14 +9,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Brain, Users, Search, LogIn } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Link } from "react-router-dom";
 
 interface LoginModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSwitchToSignup?: () => void;
 }
 
-const LoginModal = ({ open, onOpenChange }: LoginModalProps) => {
+const LoginModal = ({ open, onOpenChange, onSwitchToSignup }: LoginModalProps) => {
   const [activeTab, setActiveTab] = useState("recruiter");
   const [formData, setFormData] = useState({
     email: "",
@@ -50,6 +50,13 @@ const LoginModal = ({ open, onOpenChange }: LoginModalProps) => {
       toast.error("An unexpected error occurred");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSignupClick = () => {
+    onOpenChange(false);
+    if (onSwitchToSignup) {
+      onSwitchToSignup();
     }
   };
 
@@ -120,9 +127,9 @@ const LoginModal = ({ open, onOpenChange }: LoginModalProps) => {
                     />
                   </div>
                   <div className="flex items-center justify-between">
-                    <Link to="/forgot-password" className="text-sm text-blue-600 hover:underline">
+                    <button type="button" className="text-sm text-blue-600 hover:underline bg-transparent border-none p-0 cursor-pointer">
                       Forgot password?
-                    </Link>
+                    </button>
                   </div>
                   <Button 
                     type="submit"
@@ -173,9 +180,9 @@ const LoginModal = ({ open, onOpenChange }: LoginModalProps) => {
                     />
                   </div>
                   <div className="flex items-center justify-between">
-                    <Link to="/forgot-password" className="text-sm text-blue-600 hover:underline">
+                    <button type="button" className="text-sm text-blue-600 hover:underline bg-transparent border-none p-0 cursor-pointer">
                       Forgot password?
-                    </Link>
+                    </button>
                   </div>
                   <Button 
                     type="submit"
@@ -194,8 +201,9 @@ const LoginModal = ({ open, onOpenChange }: LoginModalProps) => {
           <p className="text-gray-600 text-sm">
             Don't have an account?{" "}
             <button 
-              onClick={() => onOpenChange(false)}
-              className="text-blue-600 hover:underline font-medium"
+              type="button"
+              onClick={handleSignupClick}
+              className="text-blue-600 hover:underline font-medium bg-transparent border-none p-0 cursor-pointer"
             >
               Sign up here
             </button>

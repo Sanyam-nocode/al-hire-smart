@@ -1,353 +1,178 @@
 
-import { useState, useEffect } from "react";
-import { Menu, X, Users, Search, Brain, User, LogOut, Settings as SettingsIcon } from "lucide-react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import SignupModal from "./SignupModal";
-import LoginModal from "./LoginModal";
-import Settings from "./Settings";
+import { Brain, Menu, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import LoginModal from "./LoginModal";
+import SignupModal from "./SignupModal";
 
 const Navbar = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [signupModalOpen, setSignupModalOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const location = useLocation();
+  const [signupModalOpen, setSignupModalOpen] = useState(false);
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const { user, recruiterProfile, candidateProfile, signOut } = useAuth();
-
-  // Close settings modal when route changes
-  useEffect(() => {
-    setSettingsOpen(false);
-  }, [location.pathname]);
-
-  // Close settings modal when user changes (including logout)
-  useEffect(() => {
-    if (!user) {
-      setSettingsOpen(false);
-    }
-  }, [user]);
-
-  const isActive = (path: string) => location.pathname === path;
-
-  const handleMobileNavigation = (path: string) => {
-    setIsOpen(false);
-    navigate(path);
-  };
-
-  const handleGetStarted = () => {
-    setSignupModalOpen(true);
-  };
-
-  const handleMobileGetStarted = () => {
-    setIsOpen(false);
-    setSignupModalOpen(true);
-  };
-
-  const handleSignIn = () => {
-    setLoginModalOpen(true);
-  };
-
-  const handleMobileSignIn = () => {
-    setIsOpen(false);
-    setLoginModalOpen(true);
-  };
 
   const handleSignOut = async () => {
-    // Close settings modal before signing out
-    setSettingsOpen(false);
-    await signOut();
-    navigate('/');
+    try {
+      const { error } = await signOut();
+      if (error) {
+        toast.error("Failed to sign out");
+      } else {
+        toast.success("Successfully signed out");
+        navigate("/");
+      }
+    } catch (error) {
+      toast.error("An unexpected error occurred");
+    }
   };
 
-  const handleSettings = () => {
-    toast.info("Settings functionality coming soon!");
-  };
-
-  const getUserDisplayName = () => {
-    if (recruiterProfile) {
-      return `${recruiterProfile.first_name} ${recruiterProfile.last_name}`;
-    }
-    if (candidateProfile) {
-      return `${candidateProfile.first_name} ${candidateProfile.last_name}`;
-    }
-    return user?.email || 'User';
-  };
-
-  const getUserInitials = () => {
-    if (recruiterProfile) {
-      return `${recruiterProfile.first_name[0]}${recruiterProfile.last_name[0]}`;
-    }
-    if (candidateProfile) {
-      return `${candidateProfile.first_name[0]}${candidateProfile.last_name[0]}`;
-    }
-    if (user?.email) {
-      return user.email.substring(0, 2).toUpperCase();
-    }
-    return 'U';
-  };
-
-  const getUserType = () => {
-    if (recruiterProfile) return 'recruiter';
-    if (candidateProfile) return 'candidate';
-    return 'user';
-  };
-
-  const getDashboardPath = () => {
-    if (recruiterProfile) {
-      return '/recruiter/dashboard';
-    }
-    return '/candidate/profile';
+  const handleSwitchToSignup = () => {
+    setLoginModalOpen(false);
+    setSignupModalOpen(true);
   };
 
   return (
     <>
-      <nav className="bg-white shadow-sm border-b sticky top-0 z-50">
+      <nav className="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <Link to="/" className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                  <Brain className="h-5 w-5 text-white" />
-                </div>
-                <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  Hire Al
-                </span>
-              </Link>
-            </div>
+          <div className="flex justify-between items-center h-16">
+            {/* Logo */}
+            <Link to="/" className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                <Brain className="h-5 w-5 text-white" />
+              </div>
+              <span className="text-xl font-bold text-gray-900">Hire Al</span>
+            </Link>
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-8">
-              {!user ? (
-                <>
-                  <Link
-                    to="/features"
-                    className={`text-sm font-medium transition-colors ${
-                      isActive("/features")
-                        ? "text-blue-600"
-                        : "text-gray-700 hover:text-blue-600"
-                    }`}
-                  >
-                    Features
-                  </Link>
-                  <Link
-                    to="/pricing"
-                    className={`text-sm font-medium transition-colors ${
-                      isActive("/pricing")
-                        ? "text-blue-600"
-                        : "text-gray-700 hover:text-blue-600"
-                    }`}
-                  >
-                    Pricing
-                  </Link>
-                  <Link
-                    to="/about"
-                    className={`text-sm font-medium transition-colors ${
-                      isActive("/about")
-                        ? "text-blue-600"
-                        : "text-gray-700 hover:text-blue-600"
-                    }`}
-                  >
-                    About
-                  </Link>
-                  <div className="flex items-center space-x-4">
-                    <Button 
-                      variant="ghost" 
-                      className="text-gray-700"
-                      onClick={handleSignIn}
-                    >
-                      Sign In
+              <Link to="/features" className="text-gray-700 hover:text-blue-600 transition-colors">
+                Features
+              </Link>
+              <Link to="/about" className="text-gray-700 hover:text-blue-600 transition-colors">
+                About
+              </Link>
+              <Link to="/pricing" className="text-gray-700 hover:text-blue-600 transition-colors">
+                Pricing
+              </Link>
+              
+              {user ? (
+                <div className="flex items-center space-x-4">
+                  <Link to="/dashboard">
+                    <Button variant="outline" size="sm">
+                      Dashboard
                     </Button>
-                    <Button 
-                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                      onClick={handleGetStarted}
-                    >
-                      Get Started
-                    </Button>
-                  </div>
-                </>
+                  </Link>
+                  <Button onClick={handleSignOut} variant="outline" size="sm">
+                    Sign Out
+                  </Button>
+                </div>
               ) : (
-                <>
-                  <Link
-                    to={getDashboardPath()}
-                    className={`text-sm font-medium transition-colors ${
-                      isActive(getDashboardPath())
-                        ? "text-blue-600"
-                        : "text-gray-700 hover:text-blue-600"
-                    }`}
+                <div className="flex items-center space-x-4">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setLoginModalOpen(true)}
                   >
-                    Dashboard
-                  </Link>
-                  
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="flex items-center space-x-2 h-10">
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm">
-                            {getUserInitials()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-gray-700">{getUserDisplayName()}</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
-                      <div className="px-2 py-2">
-                        <p className="text-sm font-medium">{getUserDisplayName()}</p>
-                        <p className="text-xs text-gray-500">{user?.email}</p>
-                        <p className="text-xs text-blue-600 capitalize">{getUserType()}</p>
-                      </div>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => navigate(getDashboardPath())}>
-                        <User className="h-4 w-4 mr-2" />
-                        {recruiterProfile ? 'Dashboard' : 'Profile'}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
-                        <SettingsIcon className="h-4 w-4 mr-2" />
-                        Settings
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handleSignOut}>
-                        <LogOut className="h-4 w-4 mr-2" />
-                        Sign Out
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </>
+                    Sign In
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                    onClick={() => setSignupModalOpen(true)}
+                  >
+                    Get Started
+                  </Button>
+                </div>
               )}
             </div>
 
             {/* Mobile menu button */}
-            <div className="md:hidden flex items-center">
-              <button
-                onClick={() => setIsOpen(!isOpen)}
-                className="text-gray-700 hover:text-blue-600"
+            <div className="md:hidden">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               >
-                {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-              </button>
+                {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </Button>
             </div>
           </div>
-
-          {/* Mobile Navigation */}
-          {isOpen && (
-            <div className="md:hidden py-4 border-t">
-              <div className="flex flex-col space-y-4">
-                {!user ? (
-                  <>
-                    <Link
-                      to="/features"
-                      className="text-gray-700 hover:text-blue-600 px-2 py-1"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      Features
-                    </Link>
-                    <Link
-                      to="/pricing"
-                      className="text-gray-700 hover:text-blue-600 px-2 py-1"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      Pricing
-                    </Link>
-                    <Link
-                      to="/about"
-                      className="text-gray-700 hover:text-blue-600 px-2 py-1"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      About
-                    </Link>
-                    <div className="flex flex-col space-y-2 pt-4 border-t">
-                      <Button 
-                        variant="ghost" 
-                        className="w-full justify-start" 
-                        onClick={handleMobileSignIn}
-                      >
-                        Sign In
-                      </Button>
-                      <Button 
-                        className="w-full bg-gradient-to-r from-blue-600 to-purple-600"
-                        onClick={handleMobileGetStarted}
-                      >
-                        Get Started
-                      </Button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <Link
-                      to={getDashboardPath()}
-                      className="text-gray-700 hover:text-blue-600 px-2 py-1"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      Dashboard
-                    </Link>
-                    <div className="flex flex-col space-y-2 pt-4 border-t">
-                      <div className="px-2 py-2">
-                        <p className="text-sm font-medium">{getUserDisplayName()}</p>
-                        <p className="text-xs text-gray-500">{user?.email}</p>
-                        <p className="text-xs text-blue-600 capitalize">{getUserType()}</p>
-                      </div>
-                      <Button 
-                        variant="ghost" 
-                        className="w-full justify-start" 
-                        onClick={() => {
-                          setIsOpen(false);
-                          navigate(getDashboardPath());
-                        }}
-                      >
-                        <User className="h-4 w-4 mr-2" />
-                        {recruiterProfile ? 'Dashboard' : 'Profile'}
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        className="w-full justify-start"
-                        onClick={() => {
-                          setIsOpen(false);
-                          setSettingsOpen(true);
-                        }}
-                      >
-                        <SettingsIcon className="h-4 w-4 mr-2" />
-                        Settings
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        className="w-full justify-start text-red-600"
-                        onClick={() => {
-                          setIsOpen(false);
-                          handleSignOut();
-                        }}
-                      >
-                        <LogOut className="h-4 w-4 mr-2" />
-                        Sign Out
-                      </Button>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          )}
         </div>
+
+        {/* Mobile Navigation */}
+        {mobileMenuOpen && (
+          <div className="md:hidden bg-white border-t border-gray-200">
+            <div className="px-4 py-4 space-y-4">
+              <Link 
+                to="/features" 
+                className="block text-gray-700 hover:text-blue-600 transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Features
+              </Link>
+              <Link 
+                to="/about" 
+                className="block text-gray-700 hover:text-blue-600 transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                About
+              </Link>
+              <Link 
+                to="/pricing" 
+                className="block text-gray-700 hover:text-blue-600 transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Pricing
+              </Link>
+              
+              {user ? (
+                <div className="space-y-2">
+                  <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)}>
+                    <Button variant="outline" size="sm" className="w-full">
+                      Dashboard
+                    </Button>
+                  </Link>
+                  <Button onClick={() => { handleSignOut(); setMobileMenuOpen(false); }} variant="outline" size="sm" className="w-full">
+                    Sign Out
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full"
+                    onClick={() => { setLoginModalOpen(true); setMobileMenuOpen(false); }}
+                  >
+                    Sign In
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                    onClick={() => { setSignupModalOpen(true); setMobileMenuOpen(false); }}
+                  >
+                    Get Started
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </nav>
 
+      <LoginModal 
+        open={loginModalOpen} 
+        onOpenChange={setLoginModalOpen}
+        onSwitchToSignup={handleSwitchToSignup}
+      />
       <SignupModal 
         open={signupModalOpen} 
         onOpenChange={setSignupModalOpen} 
       />
-      
-      <LoginModal 
-        open={loginModalOpen} 
-        onOpenChange={setLoginModalOpen} 
-      />
-
-      {/* Only show Settings when user is authenticated */}
-      {user && (
-        <Settings
-          open={settingsOpen}
-          onOpenChange={setSettingsOpen}
-        />
-      )}
     </>
   );
 };
