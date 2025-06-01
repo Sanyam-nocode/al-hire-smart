@@ -7,7 +7,31 @@ import { Search, Sparkles, Loader2 } from 'lucide-react';
 import { useAISearch } from '@/hooks/useAISearch';
 import EnhancedCandidateCard from './EnhancedCandidateCard';
 
-const AISearchComponent = () => {
+interface CandidateProfile {
+  id: string;
+  first_name: string;
+  last_name: string;
+  title: string | null;
+  location: string | null;
+  skills: string[] | null;
+  experience_years: number | null;
+  summary: string | null;
+  education: string | null;
+  email: string;
+  phone: string | null;
+  linkedin_url: string | null;
+  github_url: string | null;
+  portfolio_url: string | null;
+  salary_expectation: number | null;
+  resume_content: string | null;
+}
+
+interface AISearchComponentProps {
+  onViewProfile: (candidate: CandidateProfile) => void;
+  onContact: (candidate: CandidateProfile) => void;
+}
+
+const AISearchComponent = ({ onViewProfile, onContact }: AISearchComponentProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const { isSearching, searchResults, performAISearch, clearResults } = useAISearch();
 
@@ -99,7 +123,12 @@ const AISearchComponent = () => {
       {searchResults.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {searchResults.map((candidate) => (
-            <EnhancedCandidateCard key={candidate.id} candidate={candidate} />
+            <EnhancedCandidateCard 
+              key={candidate.id} 
+              candidate={candidate}
+              onViewProfile={onViewProfile}
+              onContact={onContact}
+            />
           ))}
         </div>
       )}

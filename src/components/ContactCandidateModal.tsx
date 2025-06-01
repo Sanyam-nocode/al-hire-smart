@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +28,7 @@ const ContactCandidateModal = ({ candidate, open, onOpenChange }: ContactCandida
   const [isSending, setIsSending] = useState(false);
 
   // Set default subject when candidate changes
-  useState(() => {
+  useEffect(() => {
     if (candidate) {
       setSubject(`Exciting Opportunity - ${candidate.title || 'Position'} Role`);
       setMessage(`Dear ${candidate.first_name},
