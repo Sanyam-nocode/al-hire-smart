@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +18,7 @@ import { usePreScreening } from '@/hooks/usePreScreening';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { Eye, Brain, RefreshCw, FileText } from 'lucide-react';
-import PreScreeningResults from '@/components/PreScreeningResults';
+import PreScreeningResultsModal from '@/components/PreScreeningResultsModal';
 
 interface CandidateProfile {
   id: string;
@@ -43,6 +42,7 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
   const [refreshing, setRefreshing] = useState(false);
   const [selectedPreScreen, setSelectedPreScreen] = useState<any>(null);
   const [preScreenModalOpen, setPreScreenModalOpen] = useState(false);
+  const [selectedCandidateName, setSelectedCandidateName] = useState<string>('');
 
   // Debug logging
   useEffect(() => {
@@ -205,6 +205,9 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
   };
 
   const handleViewPreScreenReport = (candidateId: string) => {
+    const candidate = candidatesMap[candidateId];
+    const candidateName = candidate ? `${candidate.first_name} ${candidate.last_name}` : 'Candidate';
+    
     // First try to get from preScreenResults
     const preScreenResult = getPreScreenForCandidate(candidateId);
     
@@ -214,6 +217,7 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
         flags: preScreenResult.flags || [],
         questions: preScreenResult.questions || []
       });
+      setSelectedCandidateName(candidateName);
       setPreScreenModalOpen(true);
     } else {
       // Try to get from interaction details
@@ -227,6 +231,7 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
           flags: preScreenInteraction.details.flags || [],
           questions: preScreenInteraction.details.questions || []
         });
+        setSelectedCandidateName(candidateName);
         setPreScreenModalOpen(true);
       } else {
         toast.error('No pre-screening report found for this candidate');
@@ -402,11 +407,12 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
 
       {/* Pre-screening Results Modal */}
       {selectedPreScreen && (
-        <PreScreeningResults
+        <PreScreeningResultsModal
           open={preScreenModalOpen}
           onOpenChange={setPreScreenModalOpen}
           flags={selectedPreScreen.flags}
           questions={selectedPreScreen.questions}
+          candidateName={selectedCandidateName}
         />
       )}
     </div>
