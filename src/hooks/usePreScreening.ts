@@ -100,8 +100,8 @@ export const usePreScreening = () => {
         id: result.id,
         candidate_id: result.candidate_id,
         recruiter_id: result.recruiter_id,
-        questions: Array.isArray(result.questions) ? result.questions as PreScreenQuestion[] : [],
-        flags: Array.isArray(result.flags) ? result.flags as PreScreenFlag[] : [],
+        questions: Array.isArray(result.questions) ? (result.questions as unknown as PreScreenQuestion[]) : [],
+        flags: Array.isArray(result.flags) ? (result.flags as unknown as PreScreenFlag[]) : [],
         status: result.status,
         created_at: result.created_at,
         updated_at: result.updated_at
