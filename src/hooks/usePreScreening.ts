@@ -29,7 +29,7 @@ interface PreScreenResult {
   updated_at: string;
 }
 
-export const usePreScreening = (onInteractionAdded?: (candidateId: string, flags: PreScreenFlag[], questions: PreScreenQuestion[]) => void) => {
+export const usePreScreening = () => {
   const { user, recruiterProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [preScreenResults, setPreScreenResults] = useState<PreScreenResult[]>([]);
@@ -40,6 +40,41 @@ export const usePreScreening = (onInteractionAdded?: (candidateId: string, flags
       loadPreScreenResults();
     }
   }, [user, recruiterProfile]);
+
+  const addPreScreeningInteraction = async (candidateId: string, flags: PreScreenFlag[], questions: PreScreenQuestion[]) => {
+    if (!user || !recruiterProfile) {
+      console.log('usePreScreening: No user or recruiter profile for interaction');
+      return;
+    }
+
+    console.log('usePreScreening: Adding pre-screening interaction for candidate:', candidateId);
+    
+    const flagsCount = flags.length;
+    const questionsCount = questions.length;
+    const notes = `Pre-screening completed: ${flagsCount} flag(s) identified, ${questionsCount} question(s) generated`;
+    const details = { flags, questions, flagsCount, questionsCount };
+    
+    try {
+      const { error } = await supabase
+        .from('candidate_interactions')
+        .insert({
+          recruiter_id: recruiterProfile.id,
+          candidate_id: candidateId,
+          interaction_type: 'pre_screening_completed',
+          notes,
+          details,
+        });
+
+      if (error) {
+        console.error('usePreScreening: Error adding pre-screening interaction:', error);
+        return;
+      }
+
+      console.log('usePreScreening: Pre-screening interaction added successfully');
+    } catch (error) {
+      console.error('usePreScreening: Unexpected error adding pre-screening interaction:', error);
+    }
+  };
 
   const runPreScreening = async (candidateId: string, candidateProfile: any, resumeContent: string) => {
     if (!user || !recruiterProfile) {
@@ -71,17 +106,13 @@ export const usePreScreening = (onInteractionAdded?: (candidateId: string, flags
       // Refresh the pre-screening results
       await loadPreScreenResults();
       
-      // Call the interaction callback immediately after successful pre-screening
-      if (onInteractionAdded && data) {
+      // Always add the interaction when pre-screening is completed
+      if (data) {
         const flags = Array.isArray(data.flags) ? data.flags : [];
         const questions = Array.isArray(data.questions) ? data.questions : [];
         
-        console.log('usePreScreening: Calling interaction callback with:', { candidateId, flags, questions });
-        
-        // Use setTimeout to ensure this runs after the current execution context
-        setTimeout(() => {
-          onInteractionAdded(candidateId, flags, questions);
-        }, 100);
+        console.log('usePreScreening: Adding interaction for completed pre-screening');
+        await addPreScreeningInteraction(candidateId, flags, questions);
       }
       
       return data;

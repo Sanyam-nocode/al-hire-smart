@@ -15,10 +15,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCandidateInteractions } from '@/hooks/useCandidateInteractions';
 import { useSavedCandidates } from '@/hooks/useSavedCandidates';
-import { usePreScreening } from '@/hooks/usePreScreening';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { Eye, Plus, Brain } from 'lucide-react';
+import { Eye, Brain } from 'lucide-react';
 
 interface CandidateProfile {
   id: string;
@@ -34,42 +33,40 @@ interface ConversationHistoryTabProps {
 
 const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) => {
   const { user, recruiterProfile } = useAuth();
-  const { interactions, isLoading, addInteraction, loadInteractions } = useCandidateInteractions();
+  const { interactions, isLoading, loadInteractions } = useCandidateInteractions();
   const { savedCandidateIds } = useSavedCandidates();
   const [candidatesMap, setCandidatesMap] = useState<Record<string, CandidateProfile>>({});
   const [loadingCandidates, setLoadingCandidates] = useState(false);
 
-  // Handle pre-screening interactions - this callback will be passed to usePreScreening
-  const handlePreScreeningInteraction = async (candidateId: string, flags: any[], questions: any[]) => {
-    console.log('ConversationHistoryTab: Pre-screening interaction callback triggered:', { candidateId, flags, questions });
-    
-    const flagsCount = flags.length;
-    const questionsCount = questions.length;
-    const notes = `Pre-screening completed: ${flagsCount} flag(s) identified, ${questionsCount} question(s) generated`;
-    const details = { flags, questions, flagsCount, questionsCount };
-    
-    try {
-      await addInteraction(candidateId, 'pre_screening_completed', notes, details);
-      console.log('ConversationHistoryTab: Pre-screening interaction added successfully');
-      
-      // Force reload the interactions to ensure the new one appears
-      await loadInteractions();
-    } catch (error) {
-      console.error('ConversationHistoryTab: Error adding pre-screening interaction:', error);
-    }
-  };
-
-  // Initialize pre-screening hook with the interaction callback
-  const preScreeningHook = usePreScreening(handlePreScreeningInteraction);
-
-  // Listen for changes in pre-screen results to trigger interaction updates
+  // Set up real-time subscription to listen for new interactions
   useEffect(() => {
-    console.log('ConversationHistoryTab: Pre-screen results changed, checking for new interactions');
-    // When pre-screen results change, reload interactions
-    if (user && recruiterProfile) {
-      loadInteractions();
-    }
-  }, [preScreeningHook.preScreenResults, user, recruiterProfile]);
+    if (!user || !recruiterProfile) return;
+
+    console.log('ConversationHistoryTab: Setting up real-time subscription for interactions');
+    
+    const channel = supabase
+      .channel('candidate_interactions_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'candidate_interactions',
+          filter: `recruiter_id=eq.${recruiterProfile.id}`
+        },
+        (payload) => {
+          console.log('ConversationHistoryTab: New interaction detected:', payload);
+          // Reload interactions when a new one is added
+          loadInteractions();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('ConversationHistoryTab: Cleaning up real-time subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [user, recruiterProfile, loadInteractions]);
 
   // Memoize filtered interactions to prevent infinite re-renders
   const filteredInteractions = useMemo(() => {
