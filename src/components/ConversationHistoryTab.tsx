@@ -15,9 +15,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCandidateInteractions } from '@/hooks/useCandidateInteractions';
 import { useSavedCandidates } from '@/hooks/useSavedCandidates';
+import { usePreScreening } from '@/hooks/usePreScreening';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { Eye, Brain, RefreshCw } from 'lucide-react';
+import { Eye, Brain, RefreshCw, FileText } from 'lucide-react';
+import PreScreeningResults from '@/components/PreScreeningResults';
 
 interface CandidateProfile {
   id: string;
@@ -35,9 +37,12 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
   const { user, recruiterProfile } = useAuth();
   const { interactions, isLoading, loadInteractions } = useCandidateInteractions();
   const { savedCandidateIds } = useSavedCandidates();
+  const { getPreScreenForCandidate, preScreenResults } = usePreScreening();
   const [candidatesMap, setCandidatesMap] = useState<Record<string, CandidateProfile>>({});
   const [loadingCandidates, setLoadingCandidates] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedPreScreen, setSelectedPreScreen] = useState<any>(null);
+  const [preScreenModalOpen, setPreScreenModalOpen] = useState(false);
 
   // Debug logging
   useEffect(() => {
@@ -46,7 +51,8 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
     console.log('ConversationHistoryTab: Saved candidates:', savedCandidateIds.size);
     console.log('ConversationHistoryTab: All interactions:', interactions);
     console.log('ConversationHistoryTab: Pre-screening interactions:', interactions.filter(i => i.interaction_type === 'pre_screening_completed'));
-  }, [interactions, savedCandidateIds]);
+    console.log('ConversationHistoryTab: Pre-screen results:', preScreenResults.length);
+  }, [interactions, savedCandidateIds, preScreenResults]);
 
   // Set up real-time subscription to listen for new interactions
   useEffect(() => {
@@ -198,6 +204,36 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
     return interaction.notes || 'Pre-screening analysis completed';
   };
 
+  const handleViewPreScreenReport = (candidateId: string) => {
+    // First try to get from preScreenResults
+    const preScreenResult = getPreScreenForCandidate(candidateId);
+    
+    if (preScreenResult) {
+      console.log('ConversationHistoryTab: Found pre-screen result:', preScreenResult);
+      setSelectedPreScreen({
+        flags: preScreenResult.flags || [],
+        questions: preScreenResult.questions || []
+      });
+      setPreScreenModalOpen(true);
+    } else {
+      // Try to get from interaction details
+      const preScreenInteraction = interactions.find(
+        i => i.candidate_id === candidateId && i.interaction_type === 'pre_screening_completed'
+      );
+      
+      if (preScreenInteraction && preScreenInteraction.details) {
+        console.log('ConversationHistoryTab: Found pre-screen interaction:', preScreenInteraction);
+        setSelectedPreScreen({
+          flags: preScreenInteraction.details.flags || [],
+          questions: preScreenInteraction.details.questions || []
+        });
+        setPreScreenModalOpen(true);
+      } else {
+        toast.error('No pre-screening report found for this candidate');
+      }
+    }
+  };
+
   const handleManualRefresh = async () => {
     console.log('ConversationHistoryTab: Manual refresh triggered');
     setRefreshing(true);
@@ -293,6 +329,8 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
               <TableBody>
                 {filteredInteractions.map((interaction) => {
                   const candidate = candidatesMap[interaction.candidate_id];
+                  const isPreScreening = interaction.interaction_type === 'pre_screening_completed';
+                  
                   return (
                     <TableRow key={interaction.id}>
                       <TableCell>
@@ -329,16 +367,29 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
                         </div>
                       </TableCell>
                       <TableCell>
-                        {candidate && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => onViewProfile(candidate)}
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            View Profile
-                          </Button>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {candidate && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => onViewProfile(candidate)}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              View Profile
+                            </Button>
+                          )}
+                          {isPreScreening && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewPreScreenReport(interaction.candidate_id)}
+                              className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200"
+                            >
+                              <FileText className="h-4 w-4 mr-1" />
+                              View Report
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -347,6 +398,16 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
             </Table>
           </CardContent>
         </Card>
+      )}
+
+      {/* Pre-screening Results Modal */}
+      {selectedPreScreen && (
+        <PreScreeningResults
+          open={preScreenModalOpen}
+          onOpenChange={setPreScreenModalOpen}
+          flags={selectedPreScreen.flags}
+          questions={selectedPreScreen.questions}
+        />
       )}
     </div>
   );

@@ -131,6 +131,12 @@ export const usePreScreening = () => {
       }
 
       console.log('usePreScreening: Pre-screening interaction added successfully:', data);
+      
+      // Trigger a custom event to notify other components
+      window.dispatchEvent(new CustomEvent('preScreeningCompleted', { 
+        detail: { candidateId, recruiterProfile: recruiterProfile.id } 
+      }));
+      
       return true;
     } catch (error) {
       console.error('usePreScreening: Unexpected error adding pre-screening interaction:', error);

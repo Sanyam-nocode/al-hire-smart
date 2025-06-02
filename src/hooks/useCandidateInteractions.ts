@@ -63,6 +63,23 @@ export const useCandidateInteractions = () => {
     loadInteractions();
   }, [loadInteractions]);
 
+  // Listen for custom pre-screening completion events
+  useEffect(() => {
+    const handlePreScreeningCompleted = (event: CustomEvent) => {
+      console.log('useCandidateInteractions: Pre-screening completed event received:', event.detail);
+      // Reload interactions when pre-screening is completed
+      setTimeout(() => {
+        loadInteractions();
+      }, 1000); // Small delay to ensure the database transaction is committed
+    };
+
+    window.addEventListener('preScreeningCompleted', handlePreScreeningCompleted as EventListener);
+
+    return () => {
+      window.removeEventListener('preScreeningCompleted', handlePreScreeningCompleted as EventListener);
+    };
+  }, [loadInteractions]);
+
   const addInteraction = async (
     candidateId: string,
     interactionType: CandidateInteraction['interaction_type'],
