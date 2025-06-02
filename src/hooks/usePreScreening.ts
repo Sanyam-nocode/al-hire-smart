@@ -52,7 +52,14 @@ export const usePreScreening = () => {
     const flagsCount = flags.length;
     const questionsCount = questions.length;
     const notes = `Pre-screening completed: ${flagsCount} flag(s) identified, ${questionsCount} question(s) generated`;
-    const details = { flags, questions, flagsCount, questionsCount };
+    
+    // Convert the complex objects to a Json-compatible format
+    const details = JSON.parse(JSON.stringify({
+      flags,
+      questions,
+      flagsCount,
+      questionsCount
+    }));
     
     try {
       const { error } = await supabase
