@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -53,6 +52,88 @@ const TalentPoolInsightsTab = () => {
   const [metrics, setMetrics] = useState<TalentMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeView, setActiveView] = useState('overview');
+
+  const categorizeIndustry = (title: string | null, skills: string[] | null): string => {
+    if (!title && (!skills || skills.length === 0)) return 'Other';
+    
+    const titleLower = (title || '').toLowerCase();
+    const skillsLower = (skills || []).map(skill => skill.toLowerCase());
+    const combinedText = [titleLower, ...skillsLower].join(' ');
+
+    // Technology & Software
+    const techKeywords = [
+      'developer', 'engineer', 'programmer', 'software', 'tech', 'data', 'ai', 'ml', 
+      'javascript', 'python', 'react', 'node', 'full stack', 'frontend', 'backend',
+      'devops', 'cloud', 'aws', 'azure', 'database', 'api', 'mobile', 'web',
+      'cybersecurity', 'security', 'qa', 'testing', 'scrum', 'agile'
+    ];
+    
+    // Finance & Banking
+    const financeKeywords = [
+      'finance', 'banking', 'accounting', 'financial', 'analyst', 'investment',
+      'portfolio', 'risk', 'audit', 'tax', 'treasury', 'credit', 'loan',
+      'wealth', 'insurance', 'actuary', 'compliance', 'cfa', 'cpa'
+    ];
+    
+    // Healthcare & Medical
+    const healthcareKeywords = [
+      'healthcare', 'medical', 'nurse', 'doctor', 'physician', 'clinical',
+      'hospital', 'patient', 'therapy', 'pharmaceutical', 'biotech',
+      'health', 'medicine', 'surgery', 'dental', 'veterinary', 'lab'
+    ];
+    
+    // Sales & Marketing
+    const marketingKeywords = [
+      'marketing', 'sales', 'digital', 'social', 'campaign', 'brand',
+      'advertising', 'seo', 'sem', 'content', 'email', 'crm',
+      'lead', 'conversion', 'growth', 'acquisition', 'retention'
+    ];
+    
+    // Design & Creative
+    const designKeywords = [
+      'design', 'designer', 'creative', 'ui', 'ux', 'graphic', 'visual',
+      'art', 'illustration', 'animation', 'video', 'photography',
+      'adobe', 'figma', 'sketch', 'photoshop', 'illustrator'
+    ];
+    
+    // Operations & Management
+    const operationsKeywords = [
+      'operations', 'manager', 'coordinator', 'director', 'executive',
+      'admin', 'assistant', 'project', 'program', 'process',
+      'logistics', 'supply chain', 'procurement', 'vendor'
+    ];
+    
+    // Education & Training
+    const educationKeywords = [
+      'education', 'teacher', 'instructor', 'professor', 'training',
+      'curriculum', 'learning', 'academic', 'research', 'university',
+      'school', 'tutor', 'coach', 'mentor'
+    ];
+
+    if (techKeywords.some(keyword => combinedText.includes(keyword))) {
+      return 'Technology';
+    }
+    if (financeKeywords.some(keyword => combinedText.includes(keyword))) {
+      return 'Finance';
+    }
+    if (healthcareKeywords.some(keyword => combinedText.includes(keyword))) {
+      return 'Healthcare';
+    }
+    if (marketingKeywords.some(keyword => combinedText.includes(keyword))) {
+      return 'Marketing & Sales';
+    }
+    if (designKeywords.some(keyword => combinedText.includes(keyword))) {
+      return 'Design & Creative';
+    }
+    if (operationsKeywords.some(keyword => combinedText.includes(keyword))) {
+      return 'Operations';
+    }
+    if (educationKeywords.some(keyword => combinedText.includes(keyword))) {
+      return 'Education';
+    }
+    
+    return 'Other';
+  };
 
   useEffect(() => {
     const fetchTalentMetrics = async () => {
@@ -167,23 +248,17 @@ const TalentPoolInsightsTab = () => {
           { level: 'Other', count: Math.floor(totalCandidates * 0.05) }
         ];
 
-        // Industry experience (based on titles)
-        const industryKeywords = {
-          'Technology': ['developer', 'engineer', 'programmer', 'software', 'tech', 'data', 'ai', 'ml'],
-          'Finance': ['finance', 'banking', 'accounting', 'financial'],
-          'Healthcare': ['healthcare', 'medical', 'nurse', 'doctor'],
-          'Marketing': ['marketing', 'sales', 'digital', 'social'],
-          'Operations': ['operations', 'manager', 'coordinator', 'analyst']
-        };
+        // Improved Industry experience categorization
+        const industryMap = new Map<string, number>();
+        candidates.forEach(c => {
+          const industry = categorizeIndustry(c.title, c.skills);
+          industryMap.set(industry, (industryMap.get(industry) || 0) + 1);
+        });
 
-        const industryExperience = Object.entries(industryKeywords).map(([industry, keywords]) => ({
-          industry,
-          count: candidates.filter(c => 
-            c.title && keywords.some(keyword => 
-              c.title.toLowerCase().includes(keyword.toLowerCase())
-            )
-          ).length
-        }));
+        const industryExperience = Array.from(industryMap.entries())
+          .map(([industry, count]) => ({ industry, count }))
+          .filter(item => item.count > 0) // Only include industries with candidates
+          .sort((a, b) => b.count - a.count); // Sort by count descending
 
         setMetrics({
           totalCandidates,
@@ -272,8 +347,8 @@ const TalentPoolInsightsTab = () => {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-orange-100 text-sm font-medium">Top Skills</p>
-                <p className="text-2xl font-bold">{metrics.topSkills.length}</p>
+                <p className="text-orange-100 text-sm font-medium">Industries</p>
+                <p className="text-2xl font-bold">{metrics.industryExperience.length}</p>
               </div>
               <Code className="h-8 w-8 text-orange-200" />
             </div>
@@ -318,27 +393,68 @@ const TalentPoolInsightsTab = () => {
                   <Target className="h-5 w-5 mr-2" />
                   Industry Experience
                 </CardTitle>
+                <CardDescription>
+                  Distribution of candidates across different industries
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={metrics.industryExperience}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ industry, percent }) => `${industry} (${(percent * 100).toFixed(0)}%)`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="count"
-                    >
-                      {metrics.industryExperience.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
+                {metrics.industryExperience.length > 0 ? (
+                  <div className="space-y-4">
+                    <ResponsiveContainer width="100%" height={250}>
+                      <PieChart>
+                        <Pie
+                          data={metrics.industryExperience}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={40}
+                          outerRadius={80}
+                          paddingAngle={2}
+                          dataKey="count"
+                        >
+                          {metrics.industryExperience.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          formatter={(value, name) => [`${value} candidates`, name]}
+                          labelFormatter={(label) => `Industry: ${label}`}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    
+                    {/* Industry Legend with percentages */}
+                    <div className="grid grid-cols-1 gap-2">
+                      {metrics.industryExperience.map((item, index) => {
+                        const percentage = ((item.count / metrics.totalCandidates) * 100).toFixed(1);
+                        return (
+                          <div key={item.industry} className="flex items-center justify-between p-2 rounded-lg bg-gray-50">
+                            <div className="flex items-center space-x-2">
+                              <div 
+                                className="w-3 h-3 rounded-full" 
+                                style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                              ></div>
+                              <span className="text-sm font-medium">{item.industry}</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm text-gray-600">{item.count} candidates</span>
+                              <Badge variant="outline" className="text-xs">
+                                {percentage}%
+                              </Badge>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-64 text-gray-500">
+                    <div className="text-center">
+                      <Target className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                      <p>No industry data available</p>
+                      <p className="text-sm">Add candidate profiles to see industry distribution</p>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
