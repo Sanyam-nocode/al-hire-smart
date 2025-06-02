@@ -1,17 +1,11 @@
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { 
-  MapPin, 
-  DollarSign, 
-  Calendar, 
-  Eye, 
-  Mail, 
-  ExternalLink,
-  Brain,
-  FileText
-} from 'lucide-react';
+import { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Sparkles, MapPin, Calendar, DollarSign, ExternalLink, Bookmark, BookmarkCheck, Trophy, Brain } from "lucide-react";
+import { useSavedCandidates } from "@/hooks/useSavedCandidates";
+import PreScreeningModal from "./PreScreeningModal";
 
 interface CandidateProfile {
   id: string;
@@ -30,182 +24,213 @@ interface CandidateProfile {
   portfolio_url: string | null;
   salary_expectation: number | null;
   resume_content: string | null;
+  ranking?: number;
+  weightedScore?: number;
 }
 
 interface EnhancedCandidateCardProps {
   candidate: CandidateProfile;
   onViewProfile: (candidate: CandidateProfile) => void;
   onContact: (candidate: CandidateProfile) => void;
-  hasPreScreen?: boolean;
-  onViewPreScreen?: () => void;
 }
 
-const EnhancedCandidateCard = ({ 
-  candidate, 
-  onViewProfile, 
-  onContact,
-  hasPreScreen = false,
-  onViewPreScreen
-}: EnhancedCandidateCardProps) => {
-  const formatSalary = (salary: number) => {
+const EnhancedCandidateCard = ({ candidate, onViewProfile, onContact }: EnhancedCandidateCardProps) => {
+  const hasAIExtractedData = candidate.resume_content !== null;
+  const { saveCandidate, unsaveCandidate, isCandidateSaved, isLoading } = useSavedCandidates();
+  const isSaved = isCandidateSaved(candidate.id);
+  const [preScreeningModalOpen, setPreScreeningModalOpen] = useState(false);
+  
+  const formatSalary = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    }).format(salary);
+    }).format(amount);
+  };
+
+  const handleSaveToggle = async () => {
+    if (isSaved) {
+      await unsaveCandidate(candidate.id);
+    } else {
+      await saveCandidate(candidate.id);
+    }
+  };
+
+  const getRankingColor = (rank: number) => {
+    if (rank === 1) return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+    if (rank === 2) return 'text-gray-600 bg-gray-50 border-gray-200';
+    if (rank === 3) return 'text-orange-600 bg-orange-50 border-orange-200';
+    return 'text-blue-600 bg-blue-50 border-blue-200';
+  };
+
+  const handlePreScreening = () => {
+    console.log('Pre-screening button clicked for candidate:', candidate.id);
+    setPreScreeningModalOpen(true);
   };
 
   return (
-    <Card className="hover:shadow-lg transition-shadow duration-200">
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <CardTitle className="text-lg">
-              {candidate.first_name} {candidate.last_name}
-            </CardTitle>
-            {candidate.title && (
-              <CardDescription className="mt-1">{candidate.title}</CardDescription>
-            )}
-          </div>
-          {hasPreScreen && (
-            <Badge variant="secondary" className="bg-indigo-100 text-indigo-800 flex items-center gap-1">
-              <Brain className="h-3 w-3" />
-              Pre-screened
-            </Badge>
-          )}
-        </div>
-      </CardHeader>
-      
-      <CardContent className="space-y-4">
-        {/* Basic Info */}
-        <div className="space-y-2">
-          {candidate.location && (
-            <div className="flex items-center text-sm text-gray-600">
-              <MapPin className="h-4 w-4 mr-2" />
-              {candidate.location}
-            </div>
-          )}
-          
-          {candidate.experience_years && (
-            <div className="flex items-center text-sm text-gray-600">
-              <Calendar className="h-4 w-4 mr-2" />
-              {candidate.experience_years} years experience
-            </div>
-          )}
-          
-          {candidate.salary_expectation && (
-            <div className="flex items-center text-sm text-gray-600">
-              <DollarSign className="h-4 w-4 mr-2" />
-              {formatSalary(candidate.salary_expectation)}
-            </div>
-          )}
-        </div>
-
-        {/* Skills */}
-        {candidate.skills && candidate.skills.length > 0 && (
-          <div>
-            <div className="text-sm font-medium text-gray-700 mb-2">Skills</div>
-            <div className="flex flex-wrap gap-1">
-              {candidate.skills.slice(0, 5).map((skill, index) => (
-                <Badge key={index} variant="outline" className="text-xs">
-                  {skill}
-                </Badge>
-              ))}
-              {candidate.skills.length > 5 && (
-                <Badge variant="outline" className="text-xs">
-                  +{candidate.skills.length - 5} more
-                </Badge>
+    <>
+      <Card className="hover:shadow-md transition-shadow">
+        <CardContent className="p-6">
+          <div className="flex justify-between items-start mb-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="font-semibold text-lg">
+                  {candidate.first_name} {candidate.last_name}
+                </h3>
+                {candidate.ranking && (
+                  <div className={`flex items-center gap-1 px-2 py-1 rounded-full border ${getRankingColor(candidate.ranking)}`}>
+                    <Trophy className="h-3 w-3" />
+                    <span className="text-xs font-medium">#{candidate.ranking}</span>
+                  </div>
+                )}
+              </div>
+              {candidate.title && (
+                <p className="text-gray-600 font-medium">{candidate.title}</p>
+              )}
+              {candidate.weightedScore && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Match Score: {(candidate.weightedScore * 100).toFixed(1)}%
+                </p>
               )}
             </div>
+            <div className="flex items-center space-x-2">
+              {hasAIExtractedData && (
+                <div className="flex items-center space-x-1 bg-blue-50 text-blue-700 px-2 py-1 rounded-full">
+                  <Sparkles className="h-3 w-3" />
+                  <span className="text-xs font-medium">AI Enhanced</span>
+                </div>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSaveToggle}
+                disabled={isLoading}
+                className={`h-8 w-8 p-0 ${isSaved ? 'bg-blue-50 border-blue-200 text-blue-600' : ''}`}
+              >
+                {isSaved ? (
+                  <BookmarkCheck className="h-4 w-4" />
+                ) : (
+                  <Bookmark className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
           </div>
-        )}
 
-        {/* Summary */}
-        {candidate.summary && (
-          <div>
-            <div className="text-sm font-medium text-gray-700 mb-1">Summary</div>
-            <p className="text-sm text-gray-600 line-clamp-3">
-              {candidate.summary}
-            </p>
-          </div>
-        )}
+          <div className="space-y-3 mb-4">
+            {candidate.location && (
+              <div className="flex items-center text-sm text-gray-600">
+                <MapPin className="h-4 w-4 mr-2" />
+                {candidate.location}
+              </div>
+            )}
+            
+            {candidate.experience_years && (
+              <div className="flex items-center text-sm text-gray-600">
+                <Calendar className="h-4 w-4 mr-2" />
+                {candidate.experience_years} years experience
+              </div>
+            )}
 
-        {/* External Links */}
-        {(candidate.linkedin_url || candidate.github_url || candidate.portfolio_url) && (
-          <div className="flex flex-wrap gap-2">
-            {candidate.linkedin_url && (
-              <a
-                href={candidate.linkedin_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
-              >
-                <ExternalLink className="h-3 w-3 mr-1" />
-                LinkedIn
-              </a>
-            )}
-            {candidate.github_url && (
-              <a
-                href={candidate.github_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-gray-600 hover:text-gray-800 text-sm flex items-center"
-              >
-                <ExternalLink className="h-3 w-3 mr-1" />
-                GitHub
-              </a>
-            )}
-            {candidate.portfolio_url && (
-              <a
-                href={candidate.portfolio_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-purple-600 hover:text-purple-800 text-sm flex items-center"
-              >
-                <ExternalLink className="h-3 w-3 mr-1" />
-                Portfolio
-              </a>
+            {candidate.salary_expectation && (
+              <div className="flex items-center text-sm text-gray-600">
+                <DollarSign className="h-4 w-4 mr-2" />
+                {formatSalary(candidate.salary_expectation)} expected
+              </div>
             )}
           </div>
-        )}
 
-        {/* Action Buttons */}
-        <div className="flex gap-2 pt-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onViewProfile(candidate)}
-            className="flex-1"
-          >
-            <Eye className="h-4 w-4 mr-1" />
-            View Profile
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onContact(candidate)}
-            className="flex-1"
-          >
-            <Mail className="h-4 w-4 mr-1" />
-            Contact
-          </Button>
-          
-          {hasPreScreen && onViewPreScreen && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onViewPreScreen}
-              className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200"
-            >
-              <FileText className="h-4 w-4 mr-1" />
-              Report
-            </Button>
+          {candidate.summary && (
+            <div className="mb-4">
+              <p className="text-sm text-gray-700 line-clamp-3">
+                {candidate.summary}
+              </p>
+            </div>
           )}
-        </div>
-      </CardContent>
-    </Card>
+
+          {candidate.education && (
+            <div className="mb-4">
+              <p className="text-sm text-gray-600">
+                <span className="font-medium">Education:</span> {candidate.education}
+              </p>
+            </div>
+          )}
+
+          {candidate.skills && candidate.skills.length > 0 && (
+            <div className="mb-4">
+              <div className="flex flex-wrap gap-1">
+                {candidate.skills.slice(0, 6).map((skill, index) => (
+                  <Badge key={index} variant="secondary" className="text-xs">
+                    {skill}
+                  </Badge>
+                ))}
+                {candidate.skills.length > 6 && (
+                  <Badge variant="outline" className="text-xs">
+                    +{candidate.skills.length - 6} more
+                  </Badge>
+                )}
+              </div>
+            </div>
+          )}
+
+          {candidate.linkedin_url || candidate.github_url || candidate.portfolio_url ? (
+            <div className="flex flex-wrap gap-2 mb-4">
+              {candidate.linkedin_url && (
+                <Button variant="outline" size="sm" asChild>
+                  <a href={candidate.linkedin_url} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-3 w-3 mr-1" />
+                    LinkedIn
+                  </a>
+                </Button>
+              )}
+              {candidate.github_url && (
+                <Button variant="outline" size="sm" asChild>
+                  <a href={candidate.github_url} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-3 w-3 mr-1" />
+                    GitHub
+                  </a>
+                </Button>
+              )}
+              {candidate.portfolio_url && (
+                <Button variant="outline" size="sm" asChild>
+                  <a href={candidate.portfolio_url} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-3 w-3 mr-1" />
+                    Portfolio
+                  </a>
+                </Button>
+              )}
+            </div>
+          ) : null}
+
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2">
+              <Button size="sm" className="flex-1" onClick={() => onViewProfile(candidate)}>
+                View Full Profile
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => onContact(candidate)}>
+                Contact
+              </Button>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handlePreScreening}
+              className="w-full flex items-center justify-center gap-2 bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"
+            >
+              <Brain className="h-4 w-4" />
+              AI Pre-Screen Analysis
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <PreScreeningModal
+        isOpen={preScreeningModalOpen}
+        onClose={() => setPreScreeningModalOpen(false)}
+        candidate={candidate}
+      />
+    </>
   );
 };
 

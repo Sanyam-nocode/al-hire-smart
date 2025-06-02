@@ -1,11 +1,10 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { usePreScreening } from '@/hooks/usePreScreening';
 import { toast } from 'sonner';
 import EnhancedCandidateCard from './EnhancedCandidateCard';
-import PreScreeningResultsModal from './PreScreeningResultsModal';
 
 interface CandidateProfile {
   id: string;
@@ -33,12 +32,8 @@ interface SavedCandidatesTabProps {
 
 const SavedCandidatesTab = ({ onViewProfile, onContact }: SavedCandidatesTabProps) => {
   const { user, recruiterProfile } = useAuth();
-  const { getPreScreenForCandidate } = usePreScreening();
   const [savedCandidates, setSavedCandidates] = useState<CandidateProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedPreScreen, setSelectedPreScreen] = useState<any>(null);
-  const [preScreenModalOpen, setPreScreenModalOpen] = useState(false);
-  const [selectedCandidateName, setSelectedCandidateName] = useState<string>('');
 
   useEffect(() => {
     if (user && recruiterProfile) {
@@ -111,29 +106,6 @@ const SavedCandidatesTab = ({ onViewProfile, onContact }: SavedCandidatesTabProp
     }
   };
 
-  const handleViewPreScreenReport = (candidate: CandidateProfile) => {
-    const candidateName = `${candidate.first_name} ${candidate.last_name}`;
-    
-    console.log('SavedCandidatesTab: Opening pre-screen report for candidate:', candidate.id, candidate);
-    
-    // Get pre-screening data for this candidate
-    const preScreenResult = getPreScreenForCandidate(candidate.id);
-    
-    if (preScreenResult) {
-      console.log('SavedCandidatesTab: Found pre-screen result:', preScreenResult);
-      setSelectedPreScreen({
-        flags: preScreenResult.flags || [],
-        questions: preScreenResult.questions || [],
-        candidateId: candidate.id,
-        candidate: candidate
-      });
-      setSelectedCandidateName(candidateName);
-      setPreScreenModalOpen(true);
-    } else {
-      toast.error('No pre-screening report found for this candidate');
-    }
-  };
-
   if (!user || !recruiterProfile) {
     return (
       <Card>
@@ -186,35 +158,15 @@ const SavedCandidatesTab = ({ onViewProfile, onContact }: SavedCandidatesTabProp
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {savedCandidates.map((candidate) => {
-            const preScreenResult = getPreScreenForCandidate(candidate.id);
-            const hasPreScreen = !!preScreenResult;
-            
-            return (
-              <EnhancedCandidateCard
-                key={candidate.id}
-                candidate={candidate}
-                onViewProfile={onViewProfile}
-                onContact={onContact}
-                hasPreScreen={hasPreScreen}
-                onViewPreScreen={hasPreScreen ? () => handleViewPreScreenReport(candidate) : undefined}
-              />
-            );
-          })}
+          {savedCandidates.map((candidate) => (
+            <EnhancedCandidateCard
+              key={candidate.id}
+              candidate={candidate}
+              onViewProfile={onViewProfile}
+              onContact={onContact}
+            />
+          ))}
         </div>
-      )}
-
-      {/* Pre-screening Results Modal */}
-      {selectedPreScreen && (
-        <PreScreeningResultsModal
-          open={preScreenModalOpen}
-          onOpenChange={setPreScreenModalOpen}
-          flags={selectedPreScreen.flags}
-          questions={selectedPreScreen.questions}
-          candidateName={selectedCandidateName}
-          candidateId={selectedPreScreen.candidateId}
-          candidate={selectedPreScreen.candidate}
-        />
       )}
     </div>
   );
