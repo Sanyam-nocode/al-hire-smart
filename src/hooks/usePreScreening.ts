@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -33,6 +33,13 @@ export const usePreScreening = () => {
   const { user, recruiterProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [preScreenResults, setPreScreenResults] = useState<PreScreenResult[]>([]);
+
+  // Load pre-screening results when the hook initializes
+  useEffect(() => {
+    if (user && recruiterProfile) {
+      loadPreScreenResults();
+    }
+  }, [user, recruiterProfile]);
 
   const runPreScreening = async (candidateId: string, candidateProfile: any, resumeContent: string) => {
     if (!user || !recruiterProfile) {
