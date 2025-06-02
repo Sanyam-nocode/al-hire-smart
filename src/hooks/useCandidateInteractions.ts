@@ -8,7 +8,7 @@ interface CandidateInteraction {
   id: string;
   recruiter_id: string;
   candidate_id: string;
-  interaction_type: 'saved' | 'email_sent' | 'response_received' | 'interview_scheduled' | 'rejected' | 'hired';
+  interaction_type: 'saved' | 'email_sent' | 'response_received' | 'interview_scheduled' | 'rejected' | 'hired' | 'pre_screening_completed';
   interaction_date: string;
   details: any;
   notes: string | null;

@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,9 +15,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCandidateInteractions } from '@/hooks/useCandidateInteractions';
 import { useSavedCandidates } from '@/hooks/useSavedCandidates';
+import { usePreScreening } from '@/hooks/usePreScreening';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { Eye, Plus } from 'lucide-react';
+import { Eye, Plus, Brain } from 'lucide-react';
 
 interface CandidateProfile {
   id: string;
@@ -32,10 +34,23 @@ interface ConversationHistoryTabProps {
 
 const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) => {
   const { user, recruiterProfile } = useAuth();
-  const { interactions, isLoading } = useCandidateInteractions();
+  const { interactions, isLoading, addInteraction } = useCandidateInteractions();
   const { savedCandidateIds } = useSavedCandidates();
   const [candidatesMap, setCandidatesMap] = useState<Record<string, CandidateProfile>>({});
   const [loadingCandidates, setLoadingCandidates] = useState(false);
+
+  // Handle pre-screening interactions
+  const handlePreScreeningInteraction = async (candidateId: string, flags: any[], questions: any[]) => {
+    const flagsCount = flags.length;
+    const questionsCount = questions.length;
+    const notes = `Pre-screening completed: ${flagsCount} flag(s) identified, ${questionsCount} question(s) generated`;
+    const details = { flags, questions, flagsCount, questionsCount };
+    
+    await addInteraction(candidateId, 'pre_screening_completed', notes, details);
+  };
+
+  // Initialize pre-screening hook with interaction callback
+  usePreScreening(handlePreScreeningInteraction);
 
   // Memoize filtered interactions to prevent infinite re-renders
   const filteredInteractions = useMemo(() => {
@@ -94,7 +109,8 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
       response_received: 'Response Received',
       interview_scheduled: 'Interview Scheduled',
       rejected: 'Rejected',
-      hired: 'Hired'
+      hired: 'Hired',
+      pre_screening_completed: 'Pre-Screening Completed'
     };
     return labels[type as keyof typeof labels] || type;
   };
@@ -106,9 +122,17 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
       response_received: 'bg-purple-100 text-purple-800',
       interview_scheduled: 'bg-yellow-100 text-yellow-800',
       rejected: 'bg-red-100 text-red-800',
-      hired: 'bg-emerald-100 text-emerald-800'
+      hired: 'bg-emerald-100 text-emerald-800',
+      pre_screening_completed: 'bg-purple-100 text-purple-800'
     };
     return colors[type as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getInteractionIcon = (type: string) => {
+    if (type === 'pre_screening_completed') {
+      return <Brain className="h-4 w-4" />;
+    }
+    return null;
   };
 
   if (!user || !recruiterProfile) {
@@ -196,8 +220,9 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
                       <TableCell>
                         <Badge 
                           variant="secondary" 
-                          className={getInteractionTypeColor(interaction.interaction_type)}
+                          className={`${getInteractionTypeColor(interaction.interaction_type)} flex items-center gap-1`}
                         >
+                          {getInteractionIcon(interaction.interaction_type)}
                           {getInteractionTypeLabel(interaction.interaction_type)}
                         </Badge>
                       </TableCell>

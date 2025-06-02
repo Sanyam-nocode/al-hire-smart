@@ -29,7 +29,7 @@ interface PreScreenResult {
   updated_at: string;
 }
 
-export const usePreScreening = () => {
+export const usePreScreening = (onInteractionAdded?: (candidateId: string, flags: PreScreenFlag[], questions: PreScreenQuestion[]) => void) => {
   const { user, recruiterProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [preScreenResults, setPreScreenResults] = useState<PreScreenResult[]>([]);
@@ -70,6 +70,13 @@ export const usePreScreening = () => {
       
       // Refresh the pre-screening results
       await loadPreScreenResults();
+      
+      // Notify parent component about the interaction if callback is provided
+      if (onInteractionAdded && data) {
+        const flags = data.flags || [];
+        const questions = data.questions || [];
+        onInteractionAdded(candidateId, flags, questions);
+      }
       
       return data;
     } catch (error) {
