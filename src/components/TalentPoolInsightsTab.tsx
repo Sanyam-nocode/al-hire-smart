@@ -373,17 +373,74 @@ const TalentPoolInsightsTab = () => {
                   <MapPin className="h-5 w-5 mr-2" />
                   Geographic Distribution
                 </CardTitle>
+                <CardDescription>
+                  Top locations where candidates are based
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={metrics.locationDistribution}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="location" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="count" fill="#3B82F6" />
-                  </BarChart>
-                </ResponsiveContainer>
+                {metrics.locationDistribution.length > 0 ? (
+                  <div className="space-y-4">
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={metrics.locationDistribution} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
+                        <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                        <XAxis 
+                          dataKey="location" 
+                          tick={{ fontSize: 12 }}
+                          angle={-45}
+                          textAnchor="end"
+                          height={60}
+                        />
+                        <YAxis tick={{ fontSize: 12 }} />
+                        <Tooltip 
+                          formatter={(value) => [`${value} candidates`, 'Count']}
+                          labelFormatter={(label) => `Location: ${label}`}
+                          contentStyle={{
+                            backgroundColor: '#f8fafc',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '8px'
+                          }}
+                        />
+                        <Bar 
+                          dataKey="count" 
+                          fill="#3B82F6" 
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                    
+                    {/* Location summary */}
+                    <div className="grid grid-cols-1 gap-2">
+                      {metrics.locationDistribution.map((item, index) => {
+                        const percentage = ((item.count / metrics.totalCandidates) * 100).toFixed(1);
+                        return (
+                          <div key={item.location} className="flex items-center justify-between p-2 rounded-lg bg-gray-50">
+                            <div className="flex items-center space-x-2">
+                              <div 
+                                className="w-3 h-3 rounded-full" 
+                                style={{ backgroundColor: '#3B82F6' }}
+                              ></div>
+                              <span className="text-sm font-medium">{item.location}</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm text-gray-600">{item.count} candidates</span>
+                              <Badge variant="outline" className="text-xs">
+                                {percentage}%
+                              </Badge>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-64 text-gray-500">
+                    <div className="text-center">
+                      <MapPin className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                      <p>No location data available</p>
+                      <p className="text-sm">Add candidate profiles to see geographic distribution</p>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -400,14 +457,14 @@ const TalentPoolInsightsTab = () => {
               <CardContent>
                 {metrics.industryExperience.length > 0 ? (
                   <div className="space-y-4">
-                    <ResponsiveContainer width="100%" height={250}>
+                    <ResponsiveContainer width="100%" height={200}>
                       <PieChart>
                         <Pie
                           data={metrics.industryExperience}
                           cx="50%"
                           cy="50%"
-                          innerRadius={40}
-                          outerRadius={80}
+                          innerRadius={30}
+                          outerRadius={70}
                           paddingAngle={2}
                           dataKey="count"
                         >
@@ -503,12 +560,19 @@ const TalentPoolInsightsTab = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={metrics.experienceDistribution}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="range" />
-                    <YAxis />
-                    <Tooltip />
+                <ResponsiveContainer width="100%" height={220}>
+                  <AreaChart data={metrics.experienceDistribution} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                    <XAxis dataKey="range" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} />
+                    <Tooltip 
+                      formatter={(value) => [`${value} candidates`, 'Count']}
+                      contentStyle={{
+                        backgroundColor: '#f8fafc',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '8px'
+                      }}
+                    />
                     <Area type="monotone" dataKey="count" stroke="#10B981" fill="#10B981" fillOpacity={0.6} />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -527,14 +591,14 @@ const TalentPoolInsightsTab = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={200}>
                   <PieChart>
                     <Pie
                       data={metrics.educationLevels}
                       cx="50%"
                       cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
+                      innerRadius={40}
+                      outerRadius={70}
                       paddingAngle={5}
                       dataKey="count"
                     >
@@ -565,7 +629,7 @@ const TalentPoolInsightsTab = () => {
                 <CardDescription>Monthly candidate acquisition trends</CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={200}>
                   <LineChart data={[
                     { month: 'Jan', candidates: 45 },
                     { month: 'Feb', candidates: 52 },
@@ -573,11 +637,17 @@ const TalentPoolInsightsTab = () => {
                     { month: 'Apr', candidates: 61 },
                     { month: 'May', candidates: 58 },
                     { month: 'Jun', candidates: 67 }
-                  ]}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip />
+                  ]} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                    <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} />
+                    <Tooltip 
+                      contentStyle={{
+                        backgroundColor: '#f8fafc',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '8px'
+                      }}
+                    />
                     <Line type="monotone" dataKey="candidates" stroke="#8B5CF6" strokeWidth={3} />
                   </LineChart>
                 </ResponsiveContainer>
@@ -596,15 +666,22 @@ const TalentPoolInsightsTab = () => {
               <CardDescription>Distribution of candidate salary expectations</CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={metrics.salaryDistribution} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="range" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="count" fill="#F59E0B" />
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={metrics.salaryDistribution} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                  <XAxis dataKey="range" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip 
+                    formatter={(value) => [`${value} candidates`, 'Count']}
+                    contentStyle={{
+                      backgroundColor: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px'
+                    }}
+                  />
+                  <Bar dataKey="count" fill="#F59E0B" radius={[4, 4, 0, 0]} />
                 </BarChart>
-              </ResponsiveContainer>
+              </CardContent>
             </CardContent>
           </Card>
         </TabsContent>
