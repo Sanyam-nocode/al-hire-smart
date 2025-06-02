@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
@@ -23,7 +24,6 @@ interface DemoInviteRequest {
 const handler = async (req: Request): Promise<Response> => {
   console.log("=== Demo invite function called ===");
   console.log("Request method:", req.method);
-  console.log("Request headers:", Object.fromEntries(req.headers.entries()));
 
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -107,14 +107,14 @@ const handler = async (req: Request): Promise<Response> => {
     });
     console.log("Email HTML created, length:", emailHTML.length);
 
-    // Send confirmation email with calendar invite
+    // Send confirmation email with calendar invite using Resend's verified domain
     console.log("=== Sending email via Resend ===");
-    console.log("From: Hire Al <demo@hireal.ai>");
+    console.log("From: Hire Al <onboarding@resend.dev>");
     console.log("To:", [email]);
     console.log("Subject: Your Hire Al Demo is Confirmed -", formatDate(demoDate), "at", demoTime, timezone);
 
     const emailResponse = await resend.emails.send({
-      from: "Hire Al <demo@hireal.ai>",
+      from: "Hire Al <onboarding@resend.dev>", // Using Resend's verified domain
       to: [email],
       subject: `Your Hire Al Demo is Confirmed - ${formatDate(demoDate)} at ${demoTime} ${timezone}`,
       html: emailHTML,
