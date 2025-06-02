@@ -16,6 +16,7 @@ import ProfileCompletionBanner from "@/components/ProfileCompletionBanner";
 import ExtractedResumeData from "@/components/ExtractedResumeData";
 import ProfileReviewDialog from "@/components/ProfileReviewDialog";
 import FreeTrialBanner from "@/components/FreeTrialBanner";
+import { validateProfile } from "@/utils/profileValidation";
 
 const CandidateProfile = () => {
   const { user, candidateProfile, signOut } = useAuth();
@@ -201,6 +202,8 @@ const CandidateProfile = () => {
     );
   }
 
+  const validation = validateProfile(candidateProfile);
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -241,8 +244,8 @@ const CandidateProfile = () => {
 
         {/* Profile Completion Banner */}
         <ProfileCompletionBanner 
-          candidateProfile={candidateProfile}
-          onComplete={() => setIsEditing(true)}
+          validation={validation}
+          onEditProfile={() => setIsEditing(true)}
         />
 
         <Tabs defaultValue="profile" className="space-y-6">
@@ -382,8 +385,8 @@ const CandidateProfile = () => {
                 <div>
                   <Label className="text-sm font-medium text-gray-700">Skills</Label>
                   <ExtractedResumeData
-                    skills={profileData.skills}
-                    onSkillsChange={handleSkillsChange}
+                    data={{ skills: profileData.skills }}
+                    onSkillsUpdate={handleSkillsChange}
                     disabled={!isEditing}
                   />
                 </div>
@@ -464,8 +467,12 @@ const CandidateProfile = () => {
       <ProfileReviewDialog
         open={reviewDialogOpen}
         onOpenChange={setReviewDialogOpen}
-        extractedData={extractedData}
-        onApply={handleApplyExtractedData}
+        data={extractedData}
+        onApprove={handleApplyExtractedData}
+        onReject={() => {
+          setExtractedData(null);
+          setReviewDialogOpen(false);
+        }}
       />
     </div>
   );
