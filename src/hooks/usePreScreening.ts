@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -53,10 +52,9 @@ export const usePreScreening = () => {
       const { data, error } = await supabase
         .from('pre_screens')
         .insert({
-          recruiter_id: recruiterProfile.id,
           candidate_id: candidateId,
-          flags: flags,
-          questions: questions,
+          flags: JSON.parse(JSON.stringify(flags)),
+          questions: JSON.parse(JSON.stringify(questions)),
           status: 'completed'
         })
         .select()
@@ -91,10 +89,10 @@ export const usePreScreening = () => {
     
     const notes = `Pre-screening analysis completed: ${flagsCount} flag(s) identified (${highSeverityFlags} high, ${mediumSeverityFlags} medium, ${lowSeverityFlags} low severity), ${questionsCount} interview question(s) generated`;
     
-    // Create a comprehensive details object
-    const details = {
-      flags,
-      questions,
+    // Create a comprehensive details object and properly serialize it for Json type
+    const detailsObject = {
+      flags: flags,
+      questions: questions,
       summary: {
         totalFlags: flagsCount,
         totalQuestions: questionsCount,
@@ -122,7 +120,7 @@ export const usePreScreening = () => {
           candidate_id: candidateId,
           interaction_type: 'pre_screening_completed',
           notes,
-          details,
+          details: JSON.parse(JSON.stringify(detailsObject)),
         })
         .select();
 
