@@ -254,6 +254,8 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
     const candidate = candidatesMap[candidateId];
     const candidateName = candidate ? `${candidate.first_name} ${candidate.last_name}` : 'Candidate';
     
+    console.log('ConversationHistoryTab: Opening pre-screen report for candidate:', candidateId, candidate);
+    
     // First try to get from preScreenResults
     const preScreenResult = getPreScreenForCandidate(candidateId);
     

@@ -42,9 +42,12 @@ const PreScreeningResultsModal: React.FC<PreScreeningResultsModalProps> = ({
   const { runPreScreening, isLoading } = usePreScreening();
 
   const handleRegenerateReport = async () => {
-    if (!candidateId || !candidate) return;
+    if (!candidateId || !candidate) {
+      console.log('PreScreeningResultsModal: Missing candidateId or candidate data for regeneration');
+      return;
+    }
     
-    console.log('Regenerating pre-screening for candidate:', candidateId);
+    console.log('PreScreeningResultsModal: Regenerating pre-screening for candidate:', candidateId, candidate);
     
     await runPreScreening(
       candidateId,
@@ -54,30 +57,43 @@ const PreScreeningResultsModal: React.FC<PreScreeningResultsModalProps> = ({
     );
   };
 
+  // Show regenerate button if we have the required data
+  const canRegenerate = candidateId && candidate;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
-            <span>Pre-Screening Report</span>
-            {candidateId && candidate && (
+            <span>Pre-Screening Report - {candidateName}</span>
+            {canRegenerate && (
               <Button 
                 onClick={handleRegenerateReport}
                 disabled={isLoading}
                 variant="outline"
                 size="sm"
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
               >
                 {isLoading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <RefreshCw className="w-4 h-4" />
                 )}
-                Regenerate Report
+                {isLoading ? 'Regenerating...' : 'Regenerate Report'}
               </Button>
             )}
           </DialogTitle>
         </DialogHeader>
+        
+        {/* Show a message if regeneration is not available */}
+        {!canRegenerate && (
+          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-sm text-yellow-800">
+              Note: Report regeneration is not available for this view. Open from the candidate profile to regenerate.
+            </p>
+          </div>
+        )}
+        
         <PreScreeningResults
           flags={flags}
           questions={questions}
