@@ -95,7 +95,19 @@ export const usePreScreening = () => {
         return;
       }
 
-      setPreScreenResults(data || []);
+      // Transform the database results to match our interface
+      const transformedResults: PreScreenResult[] = (data || []).map(result => ({
+        id: result.id,
+        candidate_id: result.candidate_id,
+        recruiter_id: result.recruiter_id,
+        questions: Array.isArray(result.questions) ? result.questions as PreScreenQuestion[] : [],
+        flags: Array.isArray(result.flags) ? result.flags as PreScreenFlag[] : [],
+        status: result.status,
+        created_at: result.created_at,
+        updated_at: result.updated_at
+      }));
+
+      setPreScreenResults(transformedResults);
     } catch (error) {
       console.error('Unexpected error loading pre-screening results:', error);
       toast.error('Failed to load pre-screening results');
