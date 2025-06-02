@@ -53,6 +53,7 @@ export const usePreScreening = () => {
         .from('pre_screens')
         .insert({
           candidate_id: candidateId,
+          recruiter_id: recruiterProfile.id,
           flags: JSON.parse(JSON.stringify(flags)),
           questions: JSON.parse(JSON.stringify(questions)),
           status: 'completed'
