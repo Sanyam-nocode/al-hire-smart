@@ -44,7 +44,7 @@ export const usePreScreening = () => {
   const addPreScreeningInteraction = async (candidateId: string, flags: PreScreenFlag[], questions: PreScreenQuestion[]) => {
     if (!user || !recruiterProfile) {
       console.log('usePreScreening: No user or recruiter profile for interaction');
-      return;
+      return false;
     }
 
     console.log('usePreScreening: Adding pre-screening interaction for candidate:', candidateId);
@@ -62,7 +62,7 @@ export const usePreScreening = () => {
     }));
     
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('candidate_interactions')
         .insert({
           recruiter_id: recruiterProfile.id,
@@ -70,16 +70,19 @@ export const usePreScreening = () => {
           interaction_type: 'pre_screening_completed',
           notes,
           details,
-        });
+        })
+        .select();
 
       if (error) {
         console.error('usePreScreening: Error adding pre-screening interaction:', error);
-        return;
+        return false;
       }
 
-      console.log('usePreScreening: Pre-screening interaction added successfully');
+      console.log('usePreScreening: Pre-screening interaction added successfully:', data);
+      return true;
     } catch (error) {
       console.error('usePreScreening: Unexpected error adding pre-screening interaction:', error);
+      return false;
     }
   };
 
@@ -108,10 +111,6 @@ export const usePreScreening = () => {
       }
 
       console.log('usePreScreening: Pre-screening completed successfully:', data);
-      toast.success('Pre-screening analysis completed successfully!');
-      
-      // Refresh the pre-screening results
-      await loadPreScreenResults();
       
       // Always add the interaction when pre-screening is completed
       if (data) {
@@ -119,8 +118,19 @@ export const usePreScreening = () => {
         const questions = Array.isArray(data.questions) ? data.questions : [];
         
         console.log('usePreScreening: Adding interaction for completed pre-screening');
-        await addPreScreeningInteraction(candidateId, flags, questions);
+        const interactionAdded = await addPreScreeningInteraction(candidateId, flags, questions);
+        
+        if (interactionAdded) {
+          console.log('usePreScreening: Interaction successfully added to database');
+          toast.success('Pre-screening analysis completed and recorded!');
+        } else {
+          console.log('usePreScreening: Failed to add interaction to database');
+          toast.success('Pre-screening analysis completed!');
+        }
       }
+      
+      // Refresh the pre-screening results
+      await loadPreScreenResults();
       
       return data;
     } catch (error) {

@@ -38,6 +38,14 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
   const [candidatesMap, setCandidatesMap] = useState<Record<string, CandidateProfile>>({});
   const [loadingCandidates, setLoadingCandidates] = useState(false);
 
+  // Debug logging
+  useEffect(() => {
+    console.log('ConversationHistoryTab: Component mounted/updated');
+    console.log('ConversationHistoryTab: Total interactions:', interactions.length);
+    console.log('ConversationHistoryTab: Saved candidates:', savedCandidateIds.size);
+    console.log('ConversationHistoryTab: All interactions:', interactions);
+  }, [interactions, savedCandidateIds]);
+
   // Set up real-time subscription to listen for new interactions
   useEffect(() => {
     if (!user || !recruiterProfile) return;
@@ -55,7 +63,7 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
           filter: `recruiter_id=eq.${recruiterProfile.id}`
         },
         (payload) => {
-          console.log('ConversationHistoryTab: New interaction detected:', payload);
+          console.log('ConversationHistoryTab: New interaction detected via realtime:', payload);
           // Reload interactions when a new one is added
           loadInteractions();
         }
@@ -68,6 +76,18 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
     };
   }, [user, recruiterProfile, loadInteractions]);
 
+  // Reload interactions every 5 seconds to ensure we catch any missed updates
+  useEffect(() => {
+    if (!user || !recruiterProfile) return;
+
+    const interval = setInterval(() => {
+      console.log('ConversationHistoryTab: Periodic refresh of interactions');
+      loadInteractions();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [user, recruiterProfile, loadInteractions]);
+
   // Memoize filtered interactions to prevent infinite re-renders
   const filteredInteractions = useMemo(() => {
     console.log('ConversationHistoryTab: Filtering interactions. Total:', interactions.length, 'Saved candidates:', savedCandidateIds.size);
@@ -75,6 +95,7 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
       savedCandidateIds.has(interaction.candidate_id)
     );
     console.log('ConversationHistoryTab: Filtered interactions:', filtered.length);
+    console.log('ConversationHistoryTab: Filtered interactions details:', filtered);
     return filtered;
   }, [interactions, savedCandidateIds]);
 
@@ -154,6 +175,12 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
     return null;
   };
 
+  const handleManualRefresh = () => {
+    console.log('ConversationHistoryTab: Manual refresh triggered');
+    loadInteractions();
+    toast.info('Refreshing interaction history...');
+  };
+
   if (!user || !recruiterProfile) {
     return (
       <Card>
@@ -189,7 +216,12 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Conversation History</CardTitle>
+          <CardTitle className="flex items-center justify-between">
+            Conversation History
+            <Button variant="outline" size="sm" onClick={handleManualRefresh}>
+              Refresh
+            </Button>
+          </CardTitle>
           <CardDescription>
             Track interactions with your saved candidates ({filteredInteractions.length} interactions)
           </CardDescription>
@@ -202,6 +234,9 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
             <p className="text-gray-600 text-center">
               No interactions with saved candidates yet. Save some candidates and start interacting with them to see history here.
             </p>
+            <div className="mt-4 text-sm text-gray-500 text-center">
+              <p>Debug info: Total interactions: {interactions.length}, Saved candidates: {savedCandidateIds.size}</p>
+            </div>
           </CardContent>
         </Card>
       ) : (
