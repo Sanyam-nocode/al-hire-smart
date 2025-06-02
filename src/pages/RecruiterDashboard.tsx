@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -14,6 +13,7 @@ import SavedCandidatesTab from "@/components/SavedCandidatesTab";
 import CandidateProfileModal from "@/components/CandidateProfileModal";
 import ContactCandidateModal from "@/components/ContactCandidateModal";
 import ConversationHistoryTab from "@/components/ConversationHistoryTab";
+import FreeTrialBanner from "@/components/FreeTrialBanner";
 
 interface CandidateProfile {
   id: string;
@@ -125,6 +125,9 @@ const RecruiterDashboard = () => {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Free Trial Banner */}
+        <FreeTrialBanner userType="recruiter" daysRemaining={14} />
+
         <Tabs defaultValue="search" className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="search">
