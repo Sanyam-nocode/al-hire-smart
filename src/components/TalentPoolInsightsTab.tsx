@@ -681,7 +681,7 @@ const TalentPoolInsightsTab = () => {
                   />
                   <Bar dataKey="count" fill="#F59E0B" radius={[4, 4, 0, 0]} />
                 </BarChart>
-              </CardContent>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
         </TabsContent>
