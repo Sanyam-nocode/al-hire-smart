@@ -28,6 +28,9 @@ verify_jwt = false
 [functions.extract-resume-data]
 verify_jwt = false
 
+[functions.ai-candidate-prescreening]
+verify_jwt = false
+
 [studio]
 enabled = true
 port = 54323

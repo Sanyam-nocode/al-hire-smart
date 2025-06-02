@@ -134,6 +134,54 @@ export type Database = {
         }
         Relationships: []
       }
+      pre_screens: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          flags: Json
+          id: string
+          questions: Json
+          recruiter_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          flags?: Json
+          id?: string
+          questions?: Json
+          recruiter_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          flags?: Json
+          id?: string
+          questions?: Json
+          recruiter_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pre_screens_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pre_screens_recruiter_id_fkey"
+            columns: ["recruiter_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recruiter_profiles: {
         Row: {
           company: string
@@ -213,6 +261,48 @@ export type Database = {
             columns: ["candidate_id"]
             isOneToOne: false
             referencedRelation: "candidate_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      screening_responses: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          id: string
+          pre_screen_id: string
+          responses: Json
+          submitted_at: string
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          id?: string
+          pre_screen_id: string
+          responses?: Json
+          submitted_at?: string
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          id?: string
+          pre_screen_id?: string
+          responses?: Json
+          submitted_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "screening_responses_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "screening_responses_pre_screen_id_fkey"
+            columns: ["pre_screen_id"]
+            isOneToOne: false
+            referencedRelation: "pre_screens"
             referencedColumns: ["id"]
           },
         ]
