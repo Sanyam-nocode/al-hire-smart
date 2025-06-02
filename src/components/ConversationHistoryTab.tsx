@@ -17,7 +17,7 @@ import { useCandidateInteractions } from '@/hooks/useCandidateInteractions';
 import { useSavedCandidates } from '@/hooks/useSavedCandidates';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { Eye, Brain } from 'lucide-react';
+import { Eye, Brain, RefreshCw } from 'lucide-react';
 
 interface CandidateProfile {
   id: string;
@@ -37,6 +37,7 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
   const { savedCandidateIds } = useSavedCandidates();
   const [candidatesMap, setCandidatesMap] = useState<Record<string, CandidateProfile>>({});
   const [loadingCandidates, setLoadingCandidates] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Debug logging
   useEffect(() => {
@@ -44,6 +45,7 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
     console.log('ConversationHistoryTab: Total interactions:', interactions.length);
     console.log('ConversationHistoryTab: Saved candidates:', savedCandidateIds.size);
     console.log('ConversationHistoryTab: All interactions:', interactions);
+    console.log('ConversationHistoryTab: Pre-screening interactions:', interactions.filter(i => i.interaction_type === 'pre_screening_completed'));
   }, [interactions, savedCandidateIds]);
 
   // Set up real-time subscription to listen for new interactions
@@ -68,24 +70,26 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
           loadInteractions();
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'candidate_interactions',
+          filter: `recruiter_id=eq.${recruiterProfile.id}`
+        },
+        (payload) => {
+          console.log('ConversationHistoryTab: Updated interaction detected via realtime:', payload);
+          // Reload interactions when one is updated
+          loadInteractions();
+        }
+      )
       .subscribe();
 
     return () => {
       console.log('ConversationHistoryTab: Cleaning up real-time subscription');
       supabase.removeChannel(channel);
     };
-  }, [user, recruiterProfile, loadInteractions]);
-
-  // Reload interactions every 5 seconds to ensure we catch any missed updates
-  useEffect(() => {
-    if (!user || !recruiterProfile) return;
-
-    const interval = setInterval(() => {
-      console.log('ConversationHistoryTab: Periodic refresh of interactions');
-      loadInteractions();
-    }, 5000);
-
-    return () => clearInterval(interval);
   }, [user, recruiterProfile, loadInteractions]);
 
   // Memoize filtered interactions to prevent infinite re-renders
@@ -150,7 +154,7 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
       interview_scheduled: 'Interview Scheduled',
       rejected: 'Rejected',
       hired: 'Hired',
-      pre_screening_completed: 'Pre-Screening Completed'
+      pre_screening_completed: 'Pre-Screening Analysis'
     };
     return labels[type as keyof typeof labels] || type;
   };
@@ -163,7 +167,7 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
       interview_scheduled: 'bg-yellow-100 text-yellow-800',
       rejected: 'bg-red-100 text-red-800',
       hired: 'bg-emerald-100 text-emerald-800',
-      pre_screening_completed: 'bg-purple-100 text-purple-800'
+      pre_screening_completed: 'bg-indigo-100 text-indigo-800'
     };
     return colors[type as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
@@ -175,10 +179,36 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
     return null;
   };
 
-  const handleManualRefresh = () => {
+  const formatPreScreeningNotes = (interaction: any) => {
+    if (interaction.interaction_type !== 'pre_screening_completed') {
+      return interaction.notes || '-';
+    }
+
+    // Try to extract summary from details
+    if (interaction.details && interaction.details.summary) {
+      const summary = interaction.details.summary;
+      const flagsText = summary.totalFlags > 0 
+        ? `${summary.totalFlags} flag(s) (${summary.flagsBySeverity?.high || 0} high, ${summary.flagsBySeverity?.medium || 0} medium, ${summary.flagsBySeverity?.low || 0} low)`
+        : 'No flags';
+      const questionsText = `${summary.totalQuestions || 0} question(s)`;
+      return `Analysis: ${flagsText}, ${questionsText} generated`;
+    }
+
+    // Fallback to notes
+    return interaction.notes || 'Pre-screening analysis completed';
+  };
+
+  const handleManualRefresh = async () => {
     console.log('ConversationHistoryTab: Manual refresh triggered');
-    loadInteractions();
-    toast.info('Refreshing interaction history...');
+    setRefreshing(true);
+    try {
+      await loadInteractions();
+      toast.success('Interaction history refreshed!');
+    } catch (error) {
+      toast.error('Failed to refresh interaction history');
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   if (!user || !recruiterProfile) {
@@ -218,7 +248,14 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             Conversation History
-            <Button variant="outline" size="sm" onClick={handleManualRefresh}>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleManualRefresh} 
+              disabled={refreshing}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
           </CardTitle>
@@ -236,6 +273,7 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
             </p>
             <div className="mt-4 text-sm text-gray-500 text-center">
               <p>Debug info: Total interactions: {interactions.length}, Saved candidates: {savedCandidateIds.size}</p>
+              <p>Pre-screening interactions: {interactions.filter(i => i.interaction_type === 'pre_screening_completed').length}</p>
             </div>
           </CardContent>
         </Card>
@@ -248,7 +286,7 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
                   <TableHead>Candidate</TableHead>
                   <TableHead>Interaction Type</TableHead>
                   <TableHead>Date</TableHead>
-                  <TableHead>Notes</TableHead>
+                  <TableHead>Details</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -284,8 +322,10 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
                         {format(new Date(interaction.interaction_date), 'MMM d, yyyy HH:mm')}
                       </TableCell>
                       <TableCell>
-                        <div className="max-w-xs truncate">
-                          {interaction.notes || '-'}
+                        <div className="max-w-xs">
+                          <div className="text-sm">
+                            {formatPreScreeningNotes(interaction)}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>

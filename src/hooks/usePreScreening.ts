@@ -41,6 +41,40 @@ export const usePreScreening = () => {
     }
   }, [user, recruiterProfile]);
 
+  const savePreScreeningToDatabase = async (candidateId: string, flags: PreScreenFlag[], questions: PreScreenQuestion[]) => {
+    if (!user || !recruiterProfile) {
+      console.log('usePreScreening: No user or recruiter profile for saving to database');
+      return null;
+    }
+
+    console.log('usePreScreening: Saving pre-screening to database for candidate:', candidateId);
+    
+    try {
+      const { data, error } = await supabase
+        .from('pre_screens')
+        .insert({
+          recruiter_id: recruiterProfile.id,
+          candidate_id: candidateId,
+          flags: flags,
+          questions: questions,
+          status: 'completed'
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('usePreScreening: Error saving pre-screening to database:', error);
+        return null;
+      }
+
+      console.log('usePreScreening: Pre-screening saved to database successfully:', data);
+      return data;
+    } catch (error) {
+      console.error('usePreScreening: Unexpected error saving pre-screening to database:', error);
+      return null;
+    }
+  };
+
   const addPreScreeningInteraction = async (candidateId: string, flags: PreScreenFlag[], questions: PreScreenQuestion[]) => {
     if (!user || !recruiterProfile) {
       console.log('usePreScreening: No user or recruiter profile for interaction');
@@ -51,15 +85,34 @@ export const usePreScreening = () => {
     
     const flagsCount = flags.length;
     const questionsCount = questions.length;
-    const notes = `Pre-screening completed: ${flagsCount} flag(s) identified, ${questionsCount} question(s) generated`;
+    const highSeverityFlags = flags.filter(flag => flag.severity === 'high').length;
+    const mediumSeverityFlags = flags.filter(flag => flag.severity === 'medium').length;
+    const lowSeverityFlags = flags.filter(flag => flag.severity === 'low').length;
     
-    // Convert the complex objects to a Json-compatible format
-    const details = JSON.parse(JSON.stringify({
+    const notes = `Pre-screening analysis completed: ${flagsCount} flag(s) identified (${highSeverityFlags} high, ${mediumSeverityFlags} medium, ${lowSeverityFlags} low severity), ${questionsCount} interview question(s) generated`;
+    
+    // Create a comprehensive details object
+    const details = {
       flags,
       questions,
-      flagsCount,
-      questionsCount
-    }));
+      summary: {
+        totalFlags: flagsCount,
+        totalQuestions: questionsCount,
+        flagsBySeverity: {
+          high: highSeverityFlags,
+          medium: mediumSeverityFlags,
+          low: lowSeverityFlags
+        },
+        flagsByType: flags.reduce((acc, flag) => {
+          acc[flag.type] = (acc[flag.type] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>),
+        questionsByCategory: questions.reduce((acc, question) => {
+          acc[question.category] = (acc[question.category] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>)
+      }
+    };
     
     try {
       const { data, error } = await supabase
@@ -112,25 +165,32 @@ export const usePreScreening = () => {
 
       console.log('usePreScreening: Pre-screening completed successfully:', data);
       
-      // Always add the interaction when pre-screening is completed
       if (data) {
         const flags = Array.isArray(data.flags) ? data.flags : [];
         const questions = Array.isArray(data.questions) ? data.questions : [];
         
-        console.log('usePreScreening: Adding interaction for completed pre-screening');
+        console.log('usePreScreening: Processing pre-screening results - flags:', flags.length, 'questions:', questions.length);
+        
+        // Save to pre_screens table
+        const savedPreScreen = await savePreScreeningToDatabase(candidateId, flags, questions);
+        
+        // Add interaction record
         const interactionAdded = await addPreScreeningInteraction(candidateId, flags, questions);
         
-        if (interactionAdded) {
-          console.log('usePreScreening: Interaction successfully added to database');
+        if (savedPreScreen && interactionAdded) {
+          console.log('usePreScreening: Pre-screening saved and interaction added successfully');
           toast.success('Pre-screening analysis completed and recorded!');
+        } else if (interactionAdded) {
+          console.log('usePreScreening: Interaction added but pre-screening save failed');
+          toast.success('Pre-screening analysis completed!');
         } else {
-          console.log('usePreScreening: Failed to add interaction to database');
+          console.log('usePreScreening: Failed to save pre-screening or add interaction');
           toast.success('Pre-screening analysis completed!');
         }
+        
+        // Refresh the pre-screening results
+        await loadPreScreenResults();
       }
-      
-      // Refresh the pre-screening results
-      await loadPreScreenResults();
       
       return data;
     } catch (error) {

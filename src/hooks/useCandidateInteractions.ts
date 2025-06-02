@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -21,17 +21,10 @@ export const useCandidateInteractions = () => {
   const [interactions, setInteractions] = useState<CandidateInteraction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    if (user && recruiterProfile) {
-      loadInteractions();
-    } else {
-      setInteractions([]);
-    }
-  }, [user, recruiterProfile]);
-
-  const loadInteractions = async () => {
+  const loadInteractions = useCallback(async () => {
     if (!user || !recruiterProfile) {
       console.log('useCandidateInteractions: No user or recruiter profile');
+      setInteractions([]);
       return;
     }
 
@@ -45,7 +38,7 @@ export const useCandidateInteractions = () => {
         .eq('recruiter_id', recruiterProfile.id)
         .order('interaction_date', { ascending: false });
 
-      console.log('useCandidateInteractions: Query result:', { data, error });
+      console.log('useCandidateInteractions: Query result:', { data: data?.length, error });
 
       if (error) {
         console.error('useCandidateInteractions: Error loading interactions:', error);
@@ -56,6 +49,7 @@ export const useCandidateInteractions = () => {
       // Type assertion since we know the database enforces the correct interaction_type values
       const loadedInteractions = (data as CandidateInteraction[]) || [];
       console.log('useCandidateInteractions: Setting interactions:', loadedInteractions.length);
+      console.log('useCandidateInteractions: Pre-screening interactions found:', loadedInteractions.filter(i => i.interaction_type === 'pre_screening_completed').length);
       setInteractions(loadedInteractions);
     } catch (error) {
       console.error('useCandidateInteractions: Unexpected error loading interactions:', error);
@@ -63,7 +57,11 @@ export const useCandidateInteractions = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user, recruiterProfile]);
+
+  useEffect(() => {
+    loadInteractions();
+  }, [loadInteractions]);
 
   const addInteraction = async (
     candidateId: string,
