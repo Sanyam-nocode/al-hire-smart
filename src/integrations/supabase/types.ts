@@ -134,6 +134,66 @@ export type Database = {
         }
         Relationships: []
       }
+      demo_bookings: {
+        Row: {
+          calendar_event_id: string | null
+          company: string
+          created_at: string
+          current_process: string | null
+          demo_date: string
+          demo_time: string
+          email: string
+          first_name: string
+          id: string
+          job_title: string
+          last_name: string
+          meeting_url: string | null
+          specific_needs: string | null
+          status: string | null
+          team_size: string | null
+          timezone: string | null
+          updated_at: string
+        }
+        Insert: {
+          calendar_event_id?: string | null
+          company: string
+          created_at?: string
+          current_process?: string | null
+          demo_date: string
+          demo_time: string
+          email: string
+          first_name: string
+          id?: string
+          job_title: string
+          last_name: string
+          meeting_url?: string | null
+          specific_needs?: string | null
+          status?: string | null
+          team_size?: string | null
+          timezone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          calendar_event_id?: string | null
+          company?: string
+          created_at?: string
+          current_process?: string | null
+          demo_date?: string
+          demo_time?: string
+          email?: string
+          first_name?: string
+          id?: string
+          job_title?: string
+          last_name?: string
+          meeting_url?: string | null
+          specific_needs?: string | null
+          status?: string | null
+          team_size?: string | null
+          timezone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       pre_screens: {
         Row: {
           candidate_id: string

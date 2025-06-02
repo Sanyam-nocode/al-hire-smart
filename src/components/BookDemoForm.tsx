@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +12,7 @@ import { CalendarIcon, Clock, Users, Video, CheckCircle, Star, ArrowRight } from
 import { format, addDays, isSameDay, isAfter, isBefore } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const BookDemoForm = () => {
   const [selectedDate, setSelectedDate] = useState<Date>();
@@ -70,13 +70,57 @@ const BookDemoForm = () => {
 
     setIsSubmitting(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false);
-      toast({
-        title: "Demo Booked Successfully!",
-        description: `Your demo is scheduled for ${format(selectedDate, "MMMM d, yyyy")} at ${selectedTime}. Check your email for confirmation.`,
+    try {
+      // Save booking to database
+      const { data: booking, error: bookingError } = await supabase
+        .from('demo_bookings')
+        .insert({
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          email: formData.email,
+          company: formData.company,
+          job_title: formData.title,
+          team_size: formData.teamSize,
+          current_process: formData.currentProcess,
+          specific_needs: formData.specificNeeds,
+          demo_date: format(selectedDate, "yyyy-MM-dd"),
+          demo_time: selectedTime,
+          timezone: 'EST'
+        })
+        .select()
+        .single();
+
+      if (bookingError) {
+        console.error('Error saving booking:', bookingError);
+        throw new Error('Failed to save booking');
+      }
+
+      // Send calendar invite and confirmation email
+      const { error: emailError } = await supabase.functions.invoke('send-demo-invite', {
+        body: {
+          bookingId: booking.id,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          company: formData.company,
+          demoDate: format(selectedDate, "yyyy-MM-dd"),
+          demoTime: selectedTime,
+          timezone: 'EST'
+        }
       });
+
+      if (emailError) {
+        console.error('Error sending email:', emailError);
+        toast({
+          title: "Booking Saved",
+          description: "Your demo has been scheduled, but there was an issue sending the confirmation email. We'll contact you shortly.",
+        });
+      } else {
+        toast({
+          title: "Demo Booked Successfully!",
+          description: `Your demo is scheduled for ${format(selectedDate, "MMMM d, yyyy")} at ${selectedTime}. Check your email for confirmation and calendar invite.`,
+        });
+      }
       
       // Reset form
       setFormData({
@@ -91,7 +135,16 @@ const BookDemoForm = () => {
       });
       setSelectedDate(undefined);
       setSelectedTime("");
-    }, 2000);
+    } catch (error) {
+      console.error('Error booking demo:', error);
+      toast({
+        title: "Booking Failed",
+        description: "There was an error booking your demo. Please try again or contact support.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const isDateDisabled = (date: Date) => {
