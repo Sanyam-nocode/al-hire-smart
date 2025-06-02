@@ -56,6 +56,11 @@ const handler = async (req: Request): Promise<Response> => {
       attendeeName: `${firstName} ${lastName}`
     });
 
+    // Convert ICS content to base64 using Deno's built-in btoa
+    const encoder = new TextEncoder();
+    const data = encoder.encode(icsContent);
+    const base64ICS = btoa(String.fromCharCode(...data));
+
     // Send confirmation email with calendar invite
     const emailResponse = await resend.emails.send({
       from: "Hire Al <demo@hireal.ai>",
@@ -73,7 +78,7 @@ const handler = async (req: Request): Promise<Response> => {
       attachments: [
         {
           filename: "demo-invite.ics",
-          content: Buffer.from(icsContent).toString('base64'),
+          content: base64ICS,
           content_type: "text/calendar",
         },
       ],
