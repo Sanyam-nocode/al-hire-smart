@@ -109,10 +109,56 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
     return filtered;
   }, [interactions, savedCandidateIds]);
 
+  // Group interactions by candidate and prioritize the most important one
+  const groupedInteractions = useMemo(() => {
+    const grouped = filteredInteractions.reduce((acc, interaction) => {
+      const candidateId = interaction.candidate_id;
+      
+      if (!acc[candidateId]) {
+        acc[candidateId] = [];
+      }
+      
+      acc[candidateId].push(interaction);
+      return acc;
+    }, {} as Record<string, any[]>);
+
+    // For each candidate, select the most important interaction
+    const prioritizedInteractions = Object.entries(grouped).map(([candidateId, candidateInteractions]) => {
+      // Sort by priority: pre_screening_completed > other types, then by date (newest first)
+      const sortedInteractions = candidateInteractions.sort((a, b) => {
+        // Priority order
+        const priorityOrder = {
+          'pre_screening_completed': 0,
+          'hired': 1,
+          'interview_scheduled': 2,
+          'response_received': 3,
+          'email_sent': 4,
+          'rejected': 5,
+          'saved': 6
+        };
+        
+        const aPriority = priorityOrder[a.interaction_type as keyof typeof priorityOrder] ?? 7;
+        const bPriority = priorityOrder[b.interaction_type as keyof typeof priorityOrder] ?? 7;
+        
+        if (aPriority !== bPriority) {
+          return aPriority - bPriority;
+        }
+        
+        // If same priority, sort by date (newest first)
+        return new Date(b.interaction_date).getTime() - new Date(a.interaction_date).getTime();
+      });
+      
+      return sortedInteractions[0]; // Return the highest priority interaction
+    });
+
+    console.log('ConversationHistoryTab: Grouped and prioritized interactions:', prioritizedInteractions.length);
+    return prioritizedInteractions;
+  }, [filteredInteractions]);
+
   // Memoize candidate IDs to prevent unnecessary re-fetching
   const candidateIds = useMemo(() => {
-    return Array.from(new Set(filteredInteractions.map(i => i.candidate_id)));
-  }, [filteredInteractions]);
+    return Array.from(new Set(groupedInteractions.map(i => i.candidate_id)));
+  }, [groupedInteractions]);
 
   useEffect(() => {
     if (candidateIds.length > 0) {
@@ -301,12 +347,12 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
             </Button>
           </CardTitle>
           <CardDescription>
-            Track interactions with your saved candidates ({filteredInteractions.length} interactions)
+            Track interactions with your saved candidates ({groupedInteractions.length} candidates)
           </CardDescription>
         </CardHeader>
       </Card>
 
-      {filteredInteractions.length === 0 ? (
+      {groupedInteractions.length === 0 ? (
         <Card>
           <CardContent className="py-8">
             <p className="text-gray-600 text-center">
@@ -332,7 +378,7 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredInteractions.map((interaction) => {
+                {groupedInteractions.map((interaction) => {
                   const candidate = candidatesMap[interaction.candidate_id];
                   const isPreScreening = interaction.interaction_type === 'pre_screening_completed';
                   
