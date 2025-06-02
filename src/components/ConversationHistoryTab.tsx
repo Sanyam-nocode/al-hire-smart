@@ -265,7 +265,9 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
         flags: preScreenResult.flags || [],
         questions: preScreenResult.questions || [],
         candidateId: candidateId,
-        candidate: candidate
+        candidate: candidate,
+        createdAt: preScreenResult.created_at,
+        updatedAt: preScreenResult.updated_at
       });
       setSelectedCandidateName(candidateName);
       setPreScreenModalOpen(true);
@@ -281,7 +283,9 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
           flags: preScreenInteraction.details.flags || [],
           questions: preScreenInteraction.details.questions || [],
           candidateId: candidateId,
-          candidate: candidate
+          candidate: candidate,
+          createdAt: preScreenInteraction.interaction_date,
+          updatedAt: preScreenInteraction.updated_at
         });
         setSelectedCandidateName(candidateName);
         setPreScreenModalOpen(true);
@@ -289,6 +293,20 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
         toast.error('No pre-screening report found for this candidate');
       }
     }
+  };
+
+  // Helper function to get the report generation date for display
+  const getReportDate = (candidateId: string) => {
+    const preScreenResult = getPreScreenForCandidate(candidateId);
+    if (preScreenResult) {
+      return preScreenResult.updated_at || preScreenResult.created_at;
+    }
+    
+    const preScreenInteraction = interactions.find(
+      i => i.candidate_id === candidateId && i.interaction_type === 'pre_screening_completed'
+    );
+    
+    return preScreenInteraction?.interaction_date;
   };
 
   const handleManualRefresh = async () => {
@@ -387,6 +405,7 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
                 {groupedInteractions.map((interaction) => {
                   const candidate = candidatesMap[interaction.candidate_id];
                   const isPreScreening = interaction.interaction_type === 'pre_screening_completed';
+                  const reportDate = isPreScreening ? getReportDate(interaction.candidate_id) : null;
                   
                   return (
                     <TableRow key={interaction.id}>
@@ -435,7 +454,23 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
                               View Profile
                             </Button>
                           )}
-                          {isPreScreening && (
+                          {isPreScreening && reportDate && (
+                            <div className="flex flex-col gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleViewPreScreenReport(interaction.candidate_id)}
+                                className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200"
+                              >
+                                <FileText className="h-4 w-4 mr-1" />
+                                View Report
+                              </Button>
+                              <div className="text-xs text-gray-500 text-center">
+                                Generated: {format(new Date(reportDate), 'MMM d, HH:mm')}
+                              </div>
+                            </div>
+                          )}
+                          {isPreScreening && !reportDate && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -467,6 +502,8 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
           candidateName={selectedCandidateName}
           candidateId={selectedPreScreen.candidateId}
           candidate={selectedPreScreen.candidate}
+          createdAt={selectedPreScreen.createdAt}
+          updatedAt={selectedPreScreen.updatedAt}
         />
       )}
     </div>

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { RefreshCw, Loader2 } from 'lucide-react';
 import { usePreScreening } from '@/hooks/usePreScreening';
 import PreScreeningResults from './PreScreeningResults';
+import { format } from 'date-fns';
 
 interface PreScreenFlag {
   type: 'employment_gap' | 'skill_mismatch' | 'education_verification' | 'experience_inconsistency' | 'other';
@@ -28,6 +29,8 @@ interface PreScreeningResultsModalProps {
   candidateName?: string;
   candidateId?: string;
   candidate?: any;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 const PreScreeningResultsModal: React.FC<PreScreeningResultsModalProps> = ({
@@ -37,7 +40,9 @@ const PreScreeningResultsModal: React.FC<PreScreeningResultsModalProps> = ({
   questions,
   candidateName = "Candidate",
   candidateId,
-  candidate
+  candidate,
+  createdAt,
+  updatedAt
 }) => {
   const { runPreScreening, isLoading } = usePreScreening();
 
@@ -60,12 +65,28 @@ const PreScreeningResultsModal: React.FC<PreScreeningResultsModalProps> = ({
   // Show regenerate button if we have the required data
   const canRegenerate = candidateId && candidate;
 
+  // Determine which date to show - prefer updated_at if it's different from created_at
+  const displayDate = updatedAt && updatedAt !== createdAt ? updatedAt : createdAt;
+  const isRegenerated = updatedAt && updatedAt !== createdAt;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
-            <span>Pre-Screening Report - {candidateName}</span>
+            <div className="flex flex-col">
+              <span>Pre-Screening Report - {candidateName}</span>
+              {displayDate && (
+                <div className="text-sm text-gray-600 font-normal mt-1">
+                  {isRegenerated ? 'Last updated' : 'Generated'}: {format(new Date(displayDate), 'MMM d, yyyy \'at\' HH:mm')}
+                  {isRegenerated && createdAt && (
+                    <span className="text-xs text-gray-500 ml-2">
+                      (Originally: {format(new Date(createdAt), 'MMM d, yyyy \'at\' HH:mm')})
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
             {canRegenerate && (
               <Button 
                 onClick={handleRegenerateReport}
