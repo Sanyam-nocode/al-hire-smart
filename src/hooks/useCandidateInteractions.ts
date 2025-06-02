@@ -48,15 +48,17 @@ export const useCandidateInteractions = () => {
       console.log('useCandidateInteractions: Query result:', { data, error });
 
       if (error) {
-        console.error('Error loading interactions:', error);
+        console.error('useCandidateInteractions: Error loading interactions:', error);
         toast.error('Failed to load interaction history');
         return;
       }
 
       // Type assertion since we know the database enforces the correct interaction_type values
-      setInteractions((data as CandidateInteraction[]) || []);
+      const loadedInteractions = (data as CandidateInteraction[]) || [];
+      console.log('useCandidateInteractions: Setting interactions:', loadedInteractions.length);
+      setInteractions(loadedInteractions);
     } catch (error) {
-      console.error('Unexpected error loading interactions:', error);
+      console.error('useCandidateInteractions: Unexpected error loading interactions:', error);
       toast.error('Failed to load interaction history');
     } finally {
       setIsLoading(false);
@@ -90,16 +92,18 @@ export const useCandidateInteractions = () => {
       console.log('useCandidateInteractions: Add interaction result:', { error });
 
       if (error) {
-        console.error('Error adding interaction:', error);
+        console.error('useCandidateInteractions: Error adding interaction:', error);
         toast.error('Failed to add interaction');
         return;
       }
 
+      console.log('useCandidateInteractions: Interaction added successfully, reloading...');
+      
       // Reload interactions to get the updated list
       await loadInteractions();
       toast.success('Interaction added successfully!');
     } catch (error) {
-      console.error('Unexpected error adding interaction:', error);
+      console.error('useCandidateInteractions: Unexpected error adding interaction:', error);
       toast.error('Failed to add interaction');
     }
   };

@@ -47,7 +47,7 @@ export const usePreScreening = (onInteractionAdded?: (candidateId: string, flags
       return null;
     }
 
-    console.log('Starting pre-screening for candidate:', candidateId);
+    console.log('usePreScreening: Starting pre-screening for candidate:', candidateId);
     setIsLoading(true);
 
     try {
@@ -60,27 +60,33 @@ export const usePreScreening = (onInteractionAdded?: (candidateId: string, flags
       });
 
       if (error) {
-        console.error('Pre-screening error:', error);
+        console.error('usePreScreening: Pre-screening error:', error);
         toast.error('Failed to run pre-screening analysis');
         return null;
       }
 
-      console.log('Pre-screening completed:', data);
+      console.log('usePreScreening: Pre-screening completed successfully:', data);
       toast.success('Pre-screening analysis completed successfully!');
       
       // Refresh the pre-screening results
       await loadPreScreenResults();
       
-      // Notify parent component about the interaction if callback is provided
+      // Call the interaction callback immediately after successful pre-screening
       if (onInteractionAdded && data) {
-        const flags = data.flags || [];
-        const questions = data.questions || [];
-        onInteractionAdded(candidateId, flags, questions);
+        const flags = Array.isArray(data.flags) ? data.flags : [];
+        const questions = Array.isArray(data.questions) ? data.questions : [];
+        
+        console.log('usePreScreening: Calling interaction callback with:', { candidateId, flags, questions });
+        
+        // Use setTimeout to ensure this runs after the current execution context
+        setTimeout(() => {
+          onInteractionAdded(candidateId, flags, questions);
+        }, 100);
       }
       
       return data;
     } catch (error) {
-      console.error('Unexpected error during pre-screening:', error);
+      console.error('usePreScreening: Unexpected error during pre-screening:', error);
       toast.error('Failed to run pre-screening analysis');
       return null;
     } finally {
@@ -94,7 +100,7 @@ export const usePreScreening = (onInteractionAdded?: (candidateId: string, flags
       return;
     }
 
-    console.log('Loading pre-screening results for recruiter:', recruiterProfile.id);
+    console.log('usePreScreening: Loading pre-screening results for recruiter:', recruiterProfile.id);
     
     try {
       const { data, error } = await supabase
@@ -104,7 +110,7 @@ export const usePreScreening = (onInteractionAdded?: (candidateId: string, flags
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error loading pre-screening results:', error);
+        console.error('usePreScreening: Error loading pre-screening results:', error);
         toast.error('Failed to load pre-screening results');
         return;
       }
@@ -121,9 +127,10 @@ export const usePreScreening = (onInteractionAdded?: (candidateId: string, flags
         updated_at: result.updated_at
       }));
 
+      console.log('usePreScreening: Loaded pre-screening results:', transformedResults.length);
       setPreScreenResults(transformedResults);
     } catch (error) {
-      console.error('Unexpected error loading pre-screening results:', error);
+      console.error('usePreScreening: Unexpected error loading pre-screening results:', error);
       toast.error('Failed to load pre-screening results');
     }
   };

@@ -34,29 +34,51 @@ interface ConversationHistoryTabProps {
 
 const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) => {
   const { user, recruiterProfile } = useAuth();
-  const { interactions, isLoading, addInteraction } = useCandidateInteractions();
+  const { interactions, isLoading, addInteraction, loadInteractions } = useCandidateInteractions();
   const { savedCandidateIds } = useSavedCandidates();
   const [candidatesMap, setCandidatesMap] = useState<Record<string, CandidateProfile>>({});
   const [loadingCandidates, setLoadingCandidates] = useState(false);
 
-  // Handle pre-screening interactions
+  // Handle pre-screening interactions - this callback will be passed to usePreScreening
   const handlePreScreeningInteraction = async (candidateId: string, flags: any[], questions: any[]) => {
+    console.log('ConversationHistoryTab: Pre-screening interaction callback triggered:', { candidateId, flags, questions });
+    
     const flagsCount = flags.length;
     const questionsCount = questions.length;
     const notes = `Pre-screening completed: ${flagsCount} flag(s) identified, ${questionsCount} question(s) generated`;
     const details = { flags, questions, flagsCount, questionsCount };
     
-    await addInteraction(candidateId, 'pre_screening_completed', notes, details);
+    try {
+      await addInteraction(candidateId, 'pre_screening_completed', notes, details);
+      console.log('ConversationHistoryTab: Pre-screening interaction added successfully');
+      
+      // Force reload the interactions to ensure the new one appears
+      await loadInteractions();
+    } catch (error) {
+      console.error('ConversationHistoryTab: Error adding pre-screening interaction:', error);
+    }
   };
 
-  // Initialize pre-screening hook with interaction callback
-  usePreScreening(handlePreScreeningInteraction);
+  // Initialize pre-screening hook with the interaction callback
+  const preScreeningHook = usePreScreening(handlePreScreeningInteraction);
+
+  // Listen for changes in pre-screen results to trigger interaction updates
+  useEffect(() => {
+    console.log('ConversationHistoryTab: Pre-screen results changed, checking for new interactions');
+    // When pre-screen results change, reload interactions
+    if (user && recruiterProfile) {
+      loadInteractions();
+    }
+  }, [preScreeningHook.preScreenResults, user, recruiterProfile]);
 
   // Memoize filtered interactions to prevent infinite re-renders
   const filteredInteractions = useMemo(() => {
-    return interactions.filter(interaction => 
+    console.log('ConversationHistoryTab: Filtering interactions. Total:', interactions.length, 'Saved candidates:', savedCandidateIds.size);
+    const filtered = interactions.filter(interaction => 
       savedCandidateIds.has(interaction.candidate_id)
     );
+    console.log('ConversationHistoryTab: Filtered interactions:', filtered.length);
+    return filtered;
   }, [interactions, savedCandidateIds]);
 
   // Memoize candidate IDs to prevent unnecessary re-fetching
