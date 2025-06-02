@@ -7,7 +7,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Loader2, Brain, FileSearch } from 'lucide-react';
+import { Loader2, Brain, FileSearch, RefreshCw } from 'lucide-react';
 import { usePreScreening } from '@/hooks/usePreScreening';
 import PreScreeningResults from './PreScreeningResults';
 
@@ -36,6 +36,22 @@ const PreScreeningModal: React.FC<PreScreeningModalProps> = ({
       candidate.id,
       candidate,
       candidate.resume_content || ''
+    );
+
+    if (result) {
+      setResults(result);
+      setHasRun(true);
+    }
+  };
+
+  const handleRegenerateReport = async () => {
+    console.log('Regenerating pre-screening for:', candidate);
+    
+    const result = await runPreScreening(
+      candidate.id,
+      candidate,
+      candidate.resume_content || '',
+      true // Pass regenerate flag
     );
 
     if (result) {
@@ -105,20 +121,54 @@ const PreScreeningModal: React.FC<PreScreeningModalProps> = ({
 
           {/* Show results if just ran */}
           {hasRun && results && (
-            <PreScreeningResults
-              flags={results.flags || []}
-              questions={results.questions || []}
-              candidateName={`${candidate.first_name} ${candidate.last_name}`}
-            />
+            <div>
+              <div className="flex justify-end mb-4">
+                <Button 
+                  onClick={handleRegenerateReport}
+                  disabled={isLoading}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  {isLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
+                  Regenerate Report
+                </Button>
+              </div>
+              <PreScreeningResults
+                flags={results.flags || []}
+                questions={results.questions || []}
+                candidateName={`${candidate.first_name} ${candidate.last_name}`}
+              />
+            </div>
           )}
 
           {/* Show existing results */}
           {!hasRun && existingPreScreen && (
             <div>
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
                 <p className="text-green-800 text-sm">
                   Pre-screening completed on {new Date(existingPreScreen.created_at).toLocaleDateString()}
                 </p>
+              </div>
+              <div className="flex justify-end mb-4">
+                <Button 
+                  onClick={handleRegenerateReport}
+                  disabled={isLoading}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  {isLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
+                  Regenerate Report
+                </Button>
               </div>
               <PreScreeningResults
                 flags={existingPreScreen.flags || []}

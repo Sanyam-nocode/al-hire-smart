@@ -40,47 +40,71 @@ export const usePreScreening = () => {
     }
   }, [user, recruiterProfile]);
 
-  const savePreScreeningToDatabase = async (candidateId: string, flags: PreScreenFlag[], questions: PreScreenQuestion[]) => {
+  const savePreScreeningToDatabase = async (candidateId: string, flags: PreScreenFlag[], questions: PreScreenQuestion[], isRegeneration = false) => {
     if (!user || !recruiterProfile) {
       console.log('usePreScreening: No user or recruiter profile for saving to database');
       return null;
     }
 
-    console.log('usePreScreening: Saving pre-screening to database for candidate:', candidateId);
+    console.log('usePreScreening: Saving pre-screening to database for candidate:', candidateId, 'Regeneration:', isRegeneration);
     
     try {
-      const { data, error } = await supabase
-        .from('pre_screens')
-        .insert({
-          candidate_id: candidateId,
-          recruiter_id: recruiterProfile.id,
-          flags: JSON.parse(JSON.stringify(flags)),
-          questions: JSON.parse(JSON.stringify(questions)),
-          status: 'completed'
-        })
-        .select()
-        .single();
+      if (isRegeneration) {
+        // Update existing pre-screening record
+        const { data, error } = await supabase
+          .from('pre_screens')
+          .update({
+            flags: JSON.parse(JSON.stringify(flags)),
+            questions: JSON.parse(JSON.stringify(questions)),
+            updated_at: new Date().toISOString()
+          })
+          .eq('candidate_id', candidateId)
+          .eq('recruiter_id', recruiterProfile.id)
+          .select()
+          .single();
 
-      if (error) {
-        console.error('usePreScreening: Error saving pre-screening to database:', error);
-        return null;
+        if (error) {
+          console.error('usePreScreening: Error updating pre-screening in database:', error);
+          return null;
+        }
+
+        console.log('usePreScreening: Pre-screening updated in database successfully:', data);
+        return data;
+      } else {
+        // Insert new pre-screening record
+        const { data, error } = await supabase
+          .from('pre_screens')
+          .insert({
+            candidate_id: candidateId,
+            recruiter_id: recruiterProfile.id,
+            flags: JSON.parse(JSON.stringify(flags)),
+            questions: JSON.parse(JSON.stringify(questions)),
+            status: 'completed'
+          })
+          .select()
+          .single();
+
+        if (error) {
+          console.error('usePreScreening: Error saving pre-screening to database:', error);
+          return null;
+        }
+
+        console.log('usePreScreening: Pre-screening saved to database successfully:', data);
+        return data;
       }
-
-      console.log('usePreScreening: Pre-screening saved to database successfully:', data);
-      return data;
     } catch (error) {
       console.error('usePreScreening: Unexpected error saving pre-screening to database:', error);
       return null;
     }
   };
 
-  const addPreScreeningInteraction = async (candidateId: string, flags: PreScreenFlag[], questions: PreScreenQuestion[]) => {
+  const addPreScreeningInteraction = async (candidateId: string, flags: PreScreenFlag[], questions: PreScreenQuestion[], isRegeneration = false) => {
     if (!user || !recruiterProfile) {
       console.log('usePreScreening: No user or recruiter profile for interaction');
       return false;
     }
 
-    console.log('usePreScreening: Adding pre-screening interaction for candidate:', candidateId);
+    console.log('usePreScreening: Adding pre-screening interaction for candidate:', candidateId, 'Regeneration:', isRegeneration);
     
     const flagsCount = flags.length;
     const questionsCount = questions.length;
@@ -88,12 +112,15 @@ export const usePreScreening = () => {
     const mediumSeverityFlags = flags.filter(flag => flag.severity === 'medium').length;
     const lowSeverityFlags = flags.filter(flag => flag.severity === 'low').length;
     
-    const notes = `Pre-screening analysis completed: ${flagsCount} flag(s) identified (${highSeverityFlags} high, ${mediumSeverityFlags} medium, ${lowSeverityFlags} low severity), ${questionsCount} interview question(s) generated`;
+    const notes = isRegeneration 
+      ? `Pre-screening analysis regenerated: ${flagsCount} flag(s) identified (${highSeverityFlags} high, ${mediumSeverityFlags} medium, ${lowSeverityFlags} low severity), ${questionsCount} interview question(s) generated`
+      : `Pre-screening analysis completed: ${flagsCount} flag(s) identified (${highSeverityFlags} high, ${mediumSeverityFlags} medium, ${lowSeverityFlags} low severity), ${questionsCount} interview question(s) generated`;
     
     // Create a comprehensive details object and properly serialize it for Json type
     const detailsObject = {
       flags: flags,
       questions: questions,
+      isRegeneration: isRegeneration,
       summary: {
         totalFlags: flagsCount,
         totalQuestions: questionsCount,
@@ -144,13 +171,13 @@ export const usePreScreening = () => {
     }
   };
 
-  const runPreScreening = async (candidateId: string, candidateProfile: any, resumeContent: string) => {
+  const runPreScreening = async (candidateId: string, candidateProfile: any, resumeContent: string, isRegeneration = false) => {
     if (!user || !recruiterProfile) {
       toast.error('You must be logged in as a recruiter to run pre-screening');
       return null;
     }
 
-    console.log('usePreScreening: Starting pre-screening for candidate:', candidateId);
+    console.log('usePreScreening: Starting pre-screening for candidate:', candidateId, 'Regeneration:', isRegeneration);
     setIsLoading(true);
 
     try {
@@ -158,7 +185,8 @@ export const usePreScreening = () => {
         body: {
           candidateId,
           resumeContent,
-          candidateProfile
+          candidateProfile,
+          isRegeneration
         }
       });
 
@@ -177,20 +205,20 @@ export const usePreScreening = () => {
         console.log('usePreScreening: Processing pre-screening results - flags:', flags.length, 'questions:', questions.length);
         
         // Save to pre_screens table
-        const savedPreScreen = await savePreScreeningToDatabase(candidateId, flags, questions);
+        const savedPreScreen = await savePreScreeningToDatabase(candidateId, flags, questions, isRegeneration);
         
         // Add interaction record
-        const interactionAdded = await addPreScreeningInteraction(candidateId, flags, questions);
+        const interactionAdded = await addPreScreeningInteraction(candidateId, flags, questions, isRegeneration);
         
         if (savedPreScreen && interactionAdded) {
           console.log('usePreScreening: Pre-screening saved and interaction added successfully');
-          toast.success('Pre-screening analysis completed and recorded!');
+          toast.success(isRegeneration ? 'Pre-screening report regenerated successfully!' : 'Pre-screening analysis completed and recorded!');
         } else if (interactionAdded) {
           console.log('usePreScreening: Interaction added but pre-screening save failed');
-          toast.success('Pre-screening analysis completed!');
+          toast.success(isRegeneration ? 'Pre-screening report regenerated!' : 'Pre-screening analysis completed!');
         } else {
           console.log('usePreScreening: Failed to save pre-screening or add interaction');
-          toast.success('Pre-screening analysis completed!');
+          toast.success(isRegeneration ? 'Pre-screening report regenerated!' : 'Pre-screening analysis completed!');
         }
         
         // Refresh the pre-screening results

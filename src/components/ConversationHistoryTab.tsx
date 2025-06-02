@@ -261,7 +261,9 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
       console.log('ConversationHistoryTab: Found pre-screen result:', preScreenResult);
       setSelectedPreScreen({
         flags: preScreenResult.flags || [],
-        questions: preScreenResult.questions || []
+        questions: preScreenResult.questions || [],
+        candidateId: candidateId,
+        candidate: candidate
       });
       setSelectedCandidateName(candidateName);
       setPreScreenModalOpen(true);
@@ -275,7 +277,9 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
         console.log('ConversationHistoryTab: Found pre-screen interaction:', preScreenInteraction);
         setSelectedPreScreen({
           flags: preScreenInteraction.details.flags || [],
-          questions: preScreenInteraction.details.questions || []
+          questions: preScreenInteraction.details.questions || [],
+          candidateId: candidateId,
+          candidate: candidate
         });
         setSelectedCandidateName(candidateName);
         setPreScreenModalOpen(true);
@@ -459,6 +463,8 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
           flags={selectedPreScreen.flags}
           questions={selectedPreScreen.questions}
           candidateName={selectedCandidateName}
+          candidateId={selectedPreScreen.candidateId}
+          candidate={selectedPreScreen.candidate}
         />
       )}
     </div>
