@@ -17,6 +17,7 @@ import { useResumeExtraction } from "@/hooks/useResumeExtraction";
 import ProfileReviewDialog from "@/components/ProfileReviewDialog";
 import ProfileCompletionBanner from "@/components/ProfileCompletionBanner";
 import { validateCandidateProfile } from "@/utils/profileValidation";
+import FreeTrialBanner from "@/components/FreeTrialBanner";
 import {
   Dialog,
   DialogContent,
@@ -553,6 +554,9 @@ const CandidateProfile = () => {
       </header>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Free Trial Banner */}
+        <FreeTrialBanner userType="candidate" />
+
         {/* Profile Completion Banner */}
         <div className="mb-6">
           <ProfileCompletionBanner 
