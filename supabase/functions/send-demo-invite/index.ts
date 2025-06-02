@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
@@ -22,12 +21,24 @@ interface DemoInviteRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  console.log("=== Demo invite function called ===");
+  console.log("Request method:", req.method);
+  console.log("Request headers:", Object.fromEntries(req.headers.entries()));
+
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
+    console.log("Handling CORS preflight request");
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    console.log("Parsing request body...");
+    const requestBody = await req.text();
+    console.log("Raw request body:", requestBody);
+    
+    const parsedBody = JSON.parse(requestBody);
+    console.log("Parsed request body:", parsedBody);
+
     const { 
       bookingId, 
       firstName, 
@@ -37,14 +48,34 @@ const handler = async (req: Request): Promise<Response> => {
       demoDate, 
       demoTime, 
       timezone 
-    }: DemoInviteRequest = await req.json();
+    }: DemoInviteRequest = parsedBody;
+
+    console.log("=== Demo invite data ===");
+    console.log("Booking ID:", bookingId);
+    console.log("Name:", firstName, lastName);
+    console.log("Email:", email);
+    console.log("Company:", company);
+    console.log("Demo Date:", demoDate);
+    console.log("Demo Time:", demoTime);
+    console.log("Timezone:", timezone);
+
+    // Check if RESEND_API_KEY is available
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    console.log("RESEND_API_KEY available:", !!resendApiKey);
+    if (resendApiKey) {
+      console.log("RESEND_API_KEY length:", resendApiKey.length);
+    }
 
     // Generate meeting URL (using a placeholder for now - you can integrate with Zoom, Google Meet, etc.)
     const meetingUrl = `https://meet.google.com/demo-${bookingId.substring(0, 8)}`;
+    console.log("Generated meeting URL:", meetingUrl);
 
     // Create calendar event in ICS format
+    console.log("Creating calendar event...");
     const startDateTime = new Date(`${demoDate}T${convertTo24Hour(demoTime)}`);
     const endDateTime = new Date(startDateTime.getTime() + 30 * 60000); // 30 minutes
+    console.log("Start date time:", startDateTime.toISOString());
+    console.log("End date time:", endDateTime.toISOString());
 
     const icsContent = createICSContent({
       startDateTime,
@@ -56,25 +87,37 @@ const handler = async (req: Request): Promise<Response> => {
       attendeeName: `${firstName} ${lastName}`
     });
 
+    console.log("ICS content created, length:", icsContent.length);
+
     // Convert ICS content to base64 using Deno's built-in btoa
     const encoder = new TextEncoder();
     const data = encoder.encode(icsContent);
     const base64ICS = btoa(String.fromCharCode(...data));
+    console.log("Base64 ICS created, length:", base64ICS.length);
+
+    // Create email HTML
+    const emailHTML = createEmailHTML({
+      firstName,
+      lastName,
+      company,
+      demoDate,
+      demoTime,
+      timezone,
+      meetingUrl
+    });
+    console.log("Email HTML created, length:", emailHTML.length);
 
     // Send confirmation email with calendar invite
+    console.log("=== Sending email via Resend ===");
+    console.log("From: Hire Al <demo@hireal.ai>");
+    console.log("To:", [email]);
+    console.log("Subject: Your Hire Al Demo is Confirmed -", formatDate(demoDate), "at", demoTime, timezone);
+
     const emailResponse = await resend.emails.send({
       from: "Hire Al <demo@hireal.ai>",
       to: [email],
       subject: `Your Hire Al Demo is Confirmed - ${formatDate(demoDate)} at ${demoTime} ${timezone}`,
-      html: createEmailHTML({
-        firstName,
-        lastName,
-        company,
-        demoDate,
-        demoTime,
-        timezone,
-        meetingUrl
-      }),
+      html: emailHTML,
       attachments: [
         {
           filename: "demo-invite.ics",
@@ -84,12 +127,22 @@ const handler = async (req: Request): Promise<Response> => {
       ],
     });
 
-    console.log("Demo invite sent successfully:", emailResponse);
+    console.log("=== Email response from Resend ===");
+    console.log("Email response:", JSON.stringify(emailResponse, null, 2));
+
+    if (emailResponse.error) {
+      console.error("❌ Email sending failed:", emailResponse.error);
+      throw new Error(`Email sending failed: ${emailResponse.error.message}`);
+    }
+
+    console.log("✅ Demo invite sent successfully!");
+    console.log("Email ID:", emailResponse.data?.id);
 
     return new Response(JSON.stringify({ 
       success: true, 
       meetingUrl,
-      emailId: emailResponse.data?.id 
+      emailId: emailResponse.data?.id,
+      message: "Demo invite sent successfully"
     }), {
       status: 200,
       headers: {
@@ -98,9 +151,15 @@ const handler = async (req: Request): Promise<Response> => {
       },
     });
   } catch (error: any) {
-    console.error("Error in send-demo-invite function:", error);
+    console.error("❌ Error in send-demo-invite function:", error);
+    console.error("Error message:", error.message);
+    console.error("Error stack:", error.stack);
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        details: "Check server logs for more information"
+      }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
