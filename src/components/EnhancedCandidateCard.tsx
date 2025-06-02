@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -61,6 +62,11 @@ const EnhancedCandidateCard = ({ candidate, onViewProfile, onContact }: Enhanced
     if (rank === 2) return 'text-gray-600 bg-gray-50 border-gray-200';
     if (rank === 3) return 'text-orange-600 bg-orange-50 border-orange-200';
     return 'text-blue-600 bg-blue-50 border-blue-200';
+  };
+
+  const handlePreScreening = () => {
+    console.log('Pre-screening button clicked for candidate:', candidate.id);
+    setPreScreeningModalOpen(true);
   };
 
   return (
@@ -168,48 +174,52 @@ const EnhancedCandidateCard = ({ candidate, onViewProfile, onContact }: Enhanced
             </div>
           )}
 
-          <div className="flex flex-wrap gap-2 mb-4">
-            {candidate.linkedin_url && (
-              <Button variant="outline" size="sm" asChild>
-                <a href={candidate.linkedin_url} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-3 w-3 mr-1" />
-                  LinkedIn
-                </a>
-              </Button>
-            )}
-            {candidate.github_url && (
-              <Button variant="outline" size="sm" asChild>
-                <a href={candidate.github_url} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-3 w-3 mr-1" />
-                  GitHub
-                </a>
-              </Button>
-            )}
-            {candidate.portfolio_url && (
-              <Button variant="outline" size="sm" asChild>
-                <a href={candidate.portfolio_url} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-3 w-3 mr-1" />
-                  Portfolio
-                </a>
-              </Button>
-            )}
-          </div>
+          {candidate.linkedin_url || candidate.github_url || candidate.portfolio_url ? (
+            <div className="flex flex-wrap gap-2 mb-4">
+              {candidate.linkedin_url && (
+                <Button variant="outline" size="sm" asChild>
+                  <a href={candidate.linkedin_url} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-3 w-3 mr-1" />
+                    LinkedIn
+                  </a>
+                </Button>
+              )}
+              {candidate.github_url && (
+                <Button variant="outline" size="sm" asChild>
+                  <a href={candidate.github_url} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-3 w-3 mr-1" />
+                    GitHub
+                  </a>
+                </Button>
+              )}
+              {candidate.portfolio_url && (
+                <Button variant="outline" size="sm" asChild>
+                  <a href={candidate.portfolio_url} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-3 w-3 mr-1" />
+                    Portfolio
+                  </a>
+                </Button>
+              )}
+            </div>
+          ) : null}
 
-          <div className="flex gap-2">
-            <Button size="sm" className="flex-1" onClick={() => onViewProfile(candidate)}>
-              View Full Profile
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => onContact(candidate)}>
-              Contact
-            </Button>
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2">
+              <Button size="sm" className="flex-1" onClick={() => onViewProfile(candidate)}>
+                View Full Profile
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => onContact(candidate)}>
+                Contact
+              </Button>
+            </div>
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={() => setPreScreeningModalOpen(true)}
-              className="flex items-center gap-1"
+              onClick={handlePreScreening}
+              className="w-full flex items-center justify-center gap-2 bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"
             >
-              <Brain className="h-3 w-3" />
-              Pre-Screen
+              <Brain className="h-4 w-4" />
+              AI Pre-Screen Analysis
             </Button>
           </div>
         </CardContent>
