@@ -130,15 +130,15 @@ const RecruiterDashboard = () => {
         {/* Free Trial Banner */}
         <FreeTrialBanner userType="recruiter" />
 
-        <Tabs defaultValue="search" className="space-y-6">
+        <Tabs defaultValue="insights" className="space-y-6">
           <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="search">
-              <Sparkles className="h-4 w-4 mr-2" />
-              AI Candidate Search
-            </TabsTrigger>
             <TabsTrigger value="insights">
               <BarChart3 className="h-4 w-4 mr-2" />
               Talent Pool Insights
+            </TabsTrigger>
+            <TabsTrigger value="search">
+              <Sparkles className="h-4 w-4 mr-2" />
+              AI Candidate Search
             </TabsTrigger>
             <TabsTrigger value="saved">
               <UserCheck className="h-4 w-4 mr-2" />
@@ -154,12 +154,12 @@ const RecruiterDashboard = () => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="search" className="space-y-6">
-            <AISearchComponent onViewProfile={handleViewProfile} onContact={handleContact} />
-          </TabsContent>
-
           <TabsContent value="insights">
             <TalentPoolInsightsTab />
+          </TabsContent>
+
+          <TabsContent value="search" className="space-y-6">
+            <AISearchComponent onViewProfile={handleViewProfile} onContact={handleContact} />
           </TabsContent>
 
           <TabsContent value="saved">
