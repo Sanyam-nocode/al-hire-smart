@@ -50,6 +50,7 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
     console.log('ConversationHistoryTab: Total interactions:', interactions.length);
     console.log('ConversationHistoryTab: Saved candidates:', savedCandidateIds.size);
     console.log('ConversationHistoryTab: All interactions:', interactions);
+    console.log('ConversationHistoryTab: Email sent interactions:', interactions.filter(i => i.interaction_type === 'email_sent'));
     console.log('ConversationHistoryTab: Pre-screening interactions:', interactions.filter(i => i.interaction_type === 'pre_screening_completed'));
     console.log('ConversationHistoryTab: Pre-screen results:', preScreenResults.length);
   }, [interactions, savedCandidateIds, preScreenResults]);
@@ -98,6 +99,24 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
     };
   }, [user, recruiterProfile, loadInteractions]);
 
+  // Listen for custom email sent events to trigger immediate refresh
+  useEffect(() => {
+    const handleEmailSent = (event: CustomEvent) => {
+      console.log('ConversationHistoryTab: Email sent event received:', event.detail);
+      // Force reload interactions when email is sent
+      setTimeout(() => {
+        console.log('ConversationHistoryTab: Refreshing after email sent');
+        loadInteractions();
+      }, 500); // Small delay to ensure database transaction is committed
+    };
+
+    window.addEventListener('emailSent', handleEmailSent as EventListener);
+
+    return () => {
+      window.removeEventListener('emailSent', handleEmailSent as EventListener);
+    };
+  }, [loadInteractions]);
+
   // Memoize filtered interactions to prevent infinite re-renders
   const filteredInteractions = useMemo(() => {
     console.log('ConversationHistoryTab: Filtering interactions. Total:', interactions.length, 'Saved candidates:', savedCandidateIds.size);
@@ -124,15 +143,15 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
 
     // For each candidate, select the most important interaction
     const prioritizedInteractions = Object.entries(grouped).map(([candidateId, candidateInteractions]) => {
-      // Sort by priority: pre_screening_completed > other types, then by date (newest first)
+      // Sort by priority: email_sent > pre_screening_completed > other types, then by date (newest first)
       const sortedInteractions = candidateInteractions.sort((a, b) => {
-        // Priority order
+        // Priority order - email_sent should be high priority to show recent communications
         const priorityOrder = {
-          'pre_screening_completed': 0,
+          'email_sent': 0,
           'hired': 1,
           'interview_scheduled': 2,
           'response_received': 3,
-          'email_sent': 4,
+          'pre_screening_completed': 4,
           'rejected': 5,
           'saved': 6
         };
@@ -152,6 +171,10 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
     });
 
     console.log('ConversationHistoryTab: Grouped and prioritized interactions:', prioritizedInteractions.length);
+    console.log('ConversationHistoryTab: Priority interactions by type:', prioritizedInteractions.reduce((acc, i) => {
+      acc[i.interaction_type] = (acc[i.interaction_type] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>));
     return prioritizedInteractions;
   }, [filteredInteractions]);
 
@@ -384,6 +407,7 @@ const ConversationHistoryTab = ({ onViewProfile }: ConversationHistoryTabProps) 
             </p>
             <div className="mt-4 text-sm text-gray-500 text-center">
               <p>Debug info: Total interactions: {interactions.length}, Saved candidates: {savedCandidateIds.size}</p>
+              <p>Email sent interactions: {interactions.filter(i => i.interaction_type === 'email_sent').length}</p>
               <p>Pre-screening interactions: {interactions.filter(i => i.interaction_type === 'pre_screening_completed').length}</p>
             </div>
           </CardContent>

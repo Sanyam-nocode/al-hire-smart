@@ -117,6 +117,16 @@ Best regards,`);
         }
       );
 
+      // Dispatch custom event to notify other components
+      console.log("Dispatching emailSent event for immediate UI update");
+      window.dispatchEvent(new CustomEvent('emailSent', {
+        detail: {
+          candidateId: candidate.id,
+          subject: subject,
+          timestamp: new Date().toISOString()
+        }
+      }));
+
       onOpenChange(false);
       
       // Reset form
