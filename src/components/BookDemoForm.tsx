@@ -153,7 +153,12 @@ const BookDemoForm = () => {
 
       console.log("n8n workflow result:", workflowResult);
 
-      // Send calendar invite and confirmation email
+      // Check if n8n workflow was successful before showing success message
+      if (!workflowResult.success) {
+        throw new Error('Failed to trigger notification workflow');
+      }
+
+      // Call the edge function to generate meeting URL (but don't rely on it for success message)
       const { error: emailError } = await supabase.functions.invoke('send-demo-invite', {
         body: {
           bookingId: booking.id,
@@ -168,17 +173,14 @@ const BookDemoForm = () => {
       });
 
       if (emailError) {
-        console.error('Error sending email:', emailError);
-        toast({
-          title: "Booking Saved",
-          description: "Your demo has been scheduled, but there was an issue sending the confirmation email. We'll contact you shortly.",
-        });
-      } else {
-        toast({
-          title: "Demo Booked Successfully!",
-          description: `Your demo is scheduled for ${format(selectedDate, "MMMM d, yyyy")} at ${selectedTime}. Check your email for confirmation and calendar invite.`,
-        });
+        console.error('Error calling demo invite function:', emailError);
       }
+
+      // Show success message only after n8n workflow is triggered successfully
+      toast({
+        title: "Demo Booked Successfully!",
+        description: `Your demo is scheduled for ${format(selectedDate, "MMMM d, yyyy")} at ${selectedTime}. Check your email for confirmation and calendar invite.`,
+      });
       
       // Reset form
       setFormData({
