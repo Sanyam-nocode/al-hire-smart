@@ -20,14 +20,9 @@ interface EmailRequest {
 }
 
 const triggerN8nWorkflow = async (emailData: EmailRequest) => {
-  const n8nWebhookUrl = Deno.env.get("N8N_WEBHOOK_URL");
+  const n8nWebhookUrl = "https://sanyam589713.app.n8n.cloud/webhook/c935e0a6-0ab5-415d-8e19-2943638f9777";
   
-  console.log("N8N_WEBHOOK_URL configured:", !!n8nWebhookUrl);
-  
-  if (!n8nWebhookUrl) {
-    console.log("No n8n webhook URL configured, skipping workflow trigger");
-    return { success: true, message: "No webhook configured" };
-  }
+  console.log("Using n8n webhook URL:", n8nWebhookUrl);
 
   try {
     console.log("Triggering n8n workflow:", n8nWebhookUrl);
