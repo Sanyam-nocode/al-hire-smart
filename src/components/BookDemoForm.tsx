@@ -56,6 +56,44 @@ const BookDemoForm = () => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const triggerN8nWorkflow = async (bookingData: any) => {
+    const n8nWebhookUrl = "https://sanyam589713.app.n8n.cloud/webhook/849193ea-1080-4eb9-b46d-2c2bb7a090da";
+    
+    try {
+      console.log("Triggering n8n workflow for demo booking:", n8nWebhookUrl);
+      
+      const workflowData = {
+        timestamp: new Date().toISOString(),
+        triggered_from: "hire_ai_book_demo",
+        booking: bookingData
+      };
+
+      console.log("Sending workflow data:", JSON.stringify(workflowData, null, 2));
+
+      const response = await fetch(n8nWebhookUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(workflowData),
+      });
+
+      console.log("n8n response status:", response.status);
+      const responseText = await response.text();
+      console.log("n8n response body:", responseText);
+
+      if (!response.ok) {
+        throw new Error(`n8n webhook failed with status ${response.status}: ${responseText}`);
+      }
+
+      console.log("n8n workflow triggered successfully for demo booking");
+      return { success: true, message: "Workflow triggered successfully" };
+    } catch (error) {
+      console.error("Error triggering n8n workflow:", error);
+      return { success: false, error: error.message };
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -94,6 +132,25 @@ const BookDemoForm = () => {
         console.error('Error saving booking:', bookingError);
         throw new Error('Failed to save booking');
       }
+
+      // Trigger n8n workflow for demo booking
+      console.log("Triggering n8n workflow for demo booking");
+      const workflowResult = await triggerN8nWorkflow({
+        id: booking.id,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        company: formData.company,
+        jobTitle: formData.title,
+        teamSize: formData.teamSize,
+        currentProcess: formData.currentProcess,
+        specificNeeds: formData.specificNeeds,
+        demoDate: format(selectedDate, "yyyy-MM-dd"),
+        demoTime: selectedTime,
+        timezone: 'EST'
+      });
+
+      console.log("n8n workflow result:", workflowResult);
 
       // Send calendar invite and confirmation email
       const { error: emailError } = await supabase.functions.invoke('send-demo-invite', {
