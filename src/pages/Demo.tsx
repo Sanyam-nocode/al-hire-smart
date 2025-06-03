@@ -105,9 +105,10 @@ const Demo = () => {
           <div className="relative bg-white rounded-lg overflow-hidden shadow-lg">
             <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0 }}>
               <iframe 
-                src="https://www.loom.com/embed/4bd953e305c0493a9010d3f5cc734b3c?sid=ccd6d60c-5573-4a36-b578-fd3094e168a9" 
+                src="https://www.loom.com/embed/4bd953e305c0493a9010d3f5cc734b3c" 
                 frameBorder="0" 
                 allowFullScreen 
+                allow="autoplay; fullscreen"
                 style={{ 
                   position: 'absolute', 
                   top: 0, 
