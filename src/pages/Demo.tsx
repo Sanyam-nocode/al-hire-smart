@@ -1,3 +1,4 @@
+
 import { Play, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -101,14 +102,21 @@ const Demo = () => {
             </p>
           </div>
           
-          <div className="relative bg-gray-900 rounded-lg overflow-hidden aspect-video">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center">
-                <div className="w-20 h-20 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4 mx-auto">
-                  <Play className="h-10 w-10 text-white ml-1" />
-                </div>
-                <p className="text-white text-lg">Demo Video Coming Soon</p>
-              </div>
+          <div className="relative bg-white rounded-lg overflow-hidden shadow-lg">
+            <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0 }}>
+              <iframe 
+                src="https://www.loom.com/embed/4bd953e305c0493a9010d3f5cc734b3c?sid=ccd6d60c-5573-4a36-b578-fd3094e168a9" 
+                frameBorder="0" 
+                allowFullScreen 
+                style={{ 
+                  position: 'absolute', 
+                  top: 0, 
+                  left: 0, 
+                  width: '100%', 
+                  height: '100%' 
+                }}
+                title="Hire Al Product Demo"
+              />
             </div>
           </div>
         </div>
