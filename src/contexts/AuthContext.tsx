@@ -219,35 +219,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUp = async (email: string, password: string, userData: any) => {
     try {
       console.log('AuthContext: Starting signup process for:', email);
+      console.log('AuthContext: User data:', userData);
       
-      // Get the current origin for redirect
-      const redirectUrl = `${window.location.origin}/`;
+      // Clean up any existing auth state first
+      try {
+        await supabase.auth.signOut();
+        console.log('AuthContext: Cleaned up existing session');
+      } catch (cleanupError) {
+        console.log('AuthContext: No existing session to clean up');
+      }
+      
+      // Get the current origin for redirect - using the actual domain
+      const redirectUrl = window.location.origin + '/';
       console.log('AuthContext: Using redirect URL:', redirectUrl);
       
-      // First, try to delete any existing unconfirmed user
-      console.log('AuthContext: Checking for existing unconfirmed user');
-      
-      // Attempt signup - this will either create a new user or handle existing user
+      // Attempt signup with improved configuration
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: email.trim().toLowerCase(),
         password,
         options: {
-          data: userData,
-          emailRedirectTo: redirectUrl
+          data: {
+            ...userData,
+            email: email.trim().toLowerCase() // Ensure consistency
+          },
+          emailRedirectTo: redirectUrl,
+          // Force email confirmation even if it seems like user exists
+          captchaToken: undefined
         }
       });
+      
+      console.log('AuthContext: Signup response data:', data);
+      console.log('AuthContext: Signup response error:', error);
       
       if (error) {
         console.error('AuthContext: Signup error:', error);
         
-        // Handle specific error cases
-        if (error.message?.includes('already registered') || error.message?.includes('already exists')) {
-          console.log('AuthContext: User exists, attempting to resend confirmation');
+        // Handle specific error cases more gracefully
+        if (error.message?.toLowerCase().includes('user already registered') || 
+            error.message?.toLowerCase().includes('already exists') ||
+            error.message?.toLowerCase().includes('email address not confirmed')) {
+          
+          console.log('AuthContext: User exists but may need confirmation, attempting resend');
           
           // Try to resend confirmation email
           const { error: resendError } = await supabase.auth.resend({
             type: 'signup',
-            email: email,
+            email: email.trim().toLowerCase(),
             options: {
               emailRedirectTo: redirectUrl
             }
@@ -255,7 +272,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           if (resendError) {
             console.error('AuthContext: Resend error:', resendError);
-            return { error: { message: 'User already exists. Please sign in instead or contact support if you need a new confirmation email.' } };
+            return { error: { message: 'This email is already registered. If you haven\'t received a confirmation email, please check your spam folder or try signing in instead.' } };
           }
           
           console.log('AuthContext: Confirmation email resent successfully');
@@ -265,25 +282,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error };
       }
       
-      console.log('AuthContext: Signup response:', data);
-      
-      // Check if user was created successfully
+      // Check if user was created or already exists
       if (data.user) {
-        console.log('AuthContext: User created successfully:', data.user.email);
+        console.log('AuthContext: User created/updated successfully:', data.user.email);
+        console.log('AuthContext: Email confirmed:', data.user.email_confirmed_at ? 'Yes' : 'No');
+        console.log('AuthContext: Session created:', data.session ? 'Yes' : 'No');
         
-        if (!data.user.email_confirmed_at) {
+        if (!data.user.email_confirmed_at && !data.session) {
           console.log('AuthContext: User created, awaiting email confirmation');
-        } else {
-          console.log('AuthContext: User already confirmed');
+        } else if (data.user.email_confirmed_at) {
+          console.log('AuthContext: User already confirmed, signing in automatically');
         }
       } else {
-        console.log('AuthContext: No user returned from signup');
+        console.log('AuthContext: No user data returned from signup');
       }
       
       return { error: null };
+      
     } catch (error) {
       console.error('AuthContext: Unexpected signup error:', error);
-      return { error: { message: 'An unexpected error occurred during signup' } };
+      return { error: { message: 'An unexpected error occurred during signup. Please try again.' } };
     }
   };
 

@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Brain, Users, Search, CheckCircle, Mail, AlertCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -40,24 +40,37 @@ const SignupModal = ({ open, onOpenChange }: SignupModalProps) => {
     setLoading(true);
 
     try {
+      // Validate required fields
+      if (!formData.firstName || !formData.lastName || !formData.email || !formData.password) {
+        toast.error("Please fill in all required fields");
+        return;
+      }
+
+      if (activeTab === "recruiter" && !formData.company) {
+        toast.error("Company name is required for recruiter accounts");
+        return;
+      }
+
       const userData = {
-        first_name: formData.firstName,
-        last_name: formData.lastName,
-        company: activeTab === "recruiter" ? formData.company : null,
-        location: activeTab === "candidate" ? formData.location : null,
+        first_name: formData.firstName.trim(),
+        last_name: formData.lastName.trim(),
+        email: formData.email.trim().toLowerCase(),
+        company: activeTab === "recruiter" ? formData.company.trim() : null,
+        location: activeTab === "candidate" ? formData.location?.trim() || null : null,
         user_type: activeTab
       };
 
-      console.log("Attempting to sign up user with email:", formData.email);
+      console.log("SignupModal: Attempting to sign up user with:", userData);
+      
       const { error } = await signUp(formData.email, formData.password, userData);
       
       if (error) {
-        console.error("Signup error:", error);
+        console.error("SignupModal: Signup error:", error);
         toast.error(error.message || "Failed to create account");
       } else {
-        console.log("Signup successful, showing email confirmation");
+        console.log("SignupModal: Signup successful, showing email confirmation");
         setShowEmailConfirmation(true);
-        toast.success("Please check your email to confirm your account.");
+        toast.success("Account created! Please check your email to confirm your account.");
         
         // Reset form
         setFormData({
@@ -70,8 +83,8 @@ const SignupModal = ({ open, onOpenChange }: SignupModalProps) => {
         });
       }
     } catch (error: any) {
-      console.error("Unexpected signup error:", error);
-      toast.error("An unexpected error occurred");
+      console.error("SignupModal: Unexpected signup error:", error);
+      toast.error("An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -96,53 +109,52 @@ const SignupModal = ({ open, onOpenChange }: SignupModalProps) => {
                 Confirm Your Account
               </h2>
             </DialogTitle>
-          </DialogHeader>
-          
-          <div className="text-center space-y-4">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-              <Mail className="h-8 w-8 text-green-600" />
-            </div>
-            
-            <div>
-              <p className="text-gray-600 mb-2">
-                We've sent a confirmation email to:
-              </p>
-              <p className="font-semibold text-gray-900">{formData.email}</p>
-            </div>
-            
-            <div className="bg-blue-50 rounded-lg p-4 text-sm text-blue-800">
-              <p className="font-medium mb-2">Next steps:</p>
-              <ol className="list-decimal list-inside space-y-1">
-                <li>Check your email inbox (and spam folder)</li>
-                <li>Click the confirmation link in the email</li>
-                <li>Return to this page to sign in</li>
-              </ol>
-            </div>
+            <DialogDescription className="text-center space-y-4">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                <Mail className="h-8 w-8 text-green-600" />
+              </div>
+              
+              <div>
+                <p className="text-gray-600 mb-2">
+                  We've sent a confirmation email to:
+                </p>
+                <p className="font-semibold text-gray-900">{formData.email}</p>
+              </div>
+              
+              <div className="bg-blue-50 rounded-lg p-4 text-sm text-blue-800">
+                <p className="font-medium mb-2">Next steps:</p>
+                <ol className="list-decimal list-inside space-y-1">
+                  <li>Check your email inbox (and spam folder)</li>
+                  <li>Click the confirmation link in the email</li>
+                  <li>Return to this page to sign in</li>
+                </ol>
+              </div>
 
-            <div className="bg-amber-50 rounded-lg p-4 text-sm text-amber-800">
-              <div className="flex items-start space-x-2">
-                <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                <div className="text-left">
-                  <p className="font-medium">Email not arriving?</p>
-                  <ul className="mt-1 space-y-1">
-                    <li>• Check your spam/junk folder</li>
-                    <li>• Make sure the email address is correct</li>
-                    <li>• Wait a few minutes for delivery</li>
-                    <li>• Contact support if issues persist</li>
-                  </ul>
+              <div className="bg-amber-50 rounded-lg p-4 text-sm text-amber-800">
+                <div className="flex items-start space-x-2">
+                  <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-left">
+                    <p className="font-medium">Email not arriving?</p>
+                    <ul className="mt-1 space-y-1">
+                      <li>• Check your spam/junk folder</li>
+                      <li>• Make sure the email address is correct</li>
+                      <li>• Wait a few minutes for delivery</li>
+                      <li>• Contact support if issues persist</li>
+                    </ul>
+                  </div>
                 </div>
               </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Button onClick={handleCloseModal} className="w-full">
-                Got it, I'll check my email
-              </Button>
-              <p className="text-xs text-gray-500">
-                If you don't receive the email within 10 minutes, try signing up again.
-              </p>
-            </div>
-          </div>
+              
+              <div className="space-y-2">
+                <Button onClick={handleCloseModal} className="w-full">
+                  Got it, I'll check my email
+                </Button>
+                <p className="text-xs text-gray-500">
+                  If you don't receive the email within 10 minutes, try signing up again.
+                </p>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
         </DialogContent>
       </Dialog>
     );
@@ -160,10 +172,10 @@ const SignupModal = ({ open, onOpenChange }: SignupModalProps) => {
             <h2 className="text-2xl font-bold text-gray-900">
               Get Started with Hire Al
             </h2>
-            <p className="text-gray-600 mt-2">
-              Choose your account type and start transforming your hiring process today
-            </p>
           </DialogTitle>
+          <DialogDescription className="text-center">
+            Choose your account type and start transforming your hiring process today
+          </DialogDescription>
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -270,7 +282,7 @@ const SignupModal = ({ open, onOpenChange }: SignupModalProps) => {
                     <form onSubmit={handleSubmit} className="space-y-4">
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-2">
-                          <Label htmlFor="firstName" className="text-sm">First Name</Label>
+                          <Label htmlFor="firstName" className="text-sm">First Name *</Label>
                           <Input 
                             id="firstName" 
                             placeholder="John"
@@ -281,7 +293,7 @@ const SignupModal = ({ open, onOpenChange }: SignupModalProps) => {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="lastName" className="text-sm">Last Name</Label>
+                          <Label htmlFor="lastName" className="text-sm">Last Name *</Label>
                           <Input 
                             id="lastName" 
                             placeholder="Doe"
@@ -293,7 +305,7 @@ const SignupModal = ({ open, onOpenChange }: SignupModalProps) => {
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="email" className="text-sm">Work Email</Label>
+                        <Label htmlFor="email" className="text-sm">Work Email *</Label>
                         <Input 
                           id="email" 
                           type="email" 
@@ -305,7 +317,7 @@ const SignupModal = ({ open, onOpenChange }: SignupModalProps) => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="company" className="text-sm">Company</Label>
+                        <Label htmlFor="company" className="text-sm">Company *</Label>
                         <Input 
                           id="company" 
                           placeholder="Company Name"
@@ -316,14 +328,16 @@ const SignupModal = ({ open, onOpenChange }: SignupModalProps) => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="password" className="text-sm">Password</Label>
+                        <Label htmlFor="password" className="text-sm">Password *</Label>
                         <Input 
                           id="password" 
                           type="password"
+                          placeholder="Choose a strong password"
                           value={formData.password}
                           onChange={(e) => handleInputChange("password", e.target.value)}
                           required
                           className="h-9"
+                          minLength={6}
                         />
                       </div>
                       <Button 
@@ -350,7 +364,7 @@ const SignupModal = ({ open, onOpenChange }: SignupModalProps) => {
                     <form onSubmit={handleSubmit} className="space-y-4">
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-2">
-                          <Label htmlFor="candidateFirstName" className="text-sm">First Name</Label>
+                          <Label htmlFor="candidateFirstName" className="text-sm">First Name *</Label>
                           <Input 
                             id="candidateFirstName" 
                             placeholder="Jane"
@@ -361,7 +375,7 @@ const SignupModal = ({ open, onOpenChange }: SignupModalProps) => {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="candidateLastName" className="text-sm">Last Name</Label>
+                          <Label htmlFor="candidateLastName" className="text-sm">Last Name *</Label>
                           <Input 
                             id="candidateLastName" 
                             placeholder="Smith"
@@ -373,7 +387,7 @@ const SignupModal = ({ open, onOpenChange }: SignupModalProps) => {
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="candidateEmail" className="text-sm">Email</Label>
+                        <Label htmlFor="candidateEmail" className="text-sm">Email *</Label>
                         <Input 
                           id="candidateEmail" 
                           type="email" 
@@ -395,14 +409,16 @@ const SignupModal = ({ open, onOpenChange }: SignupModalProps) => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="candidatePassword" className="text-sm">Password</Label>
+                        <Label htmlFor="candidatePassword" className="text-sm">Password *</Label>
                         <Input 
                           id="candidatePassword" 
                           type="password"
+                          placeholder="Choose a strong password"
                           value={formData.password}
                           onChange={(e) => handleInputChange("password", e.target.value)}
                           required
                           className="h-9"
+                          minLength={6}
                         />
                       </div>
                       <Button 
