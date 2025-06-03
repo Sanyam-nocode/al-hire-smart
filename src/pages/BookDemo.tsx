@@ -2,6 +2,7 @@
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import BookDemoForm from "@/components/BookDemoForm";
+import N8nWorkflowTrigger from "@/components/N8nWorkflowTrigger";
 
 const BookDemo = () => {
   return (
@@ -18,7 +19,14 @@ const BookDemo = () => {
           </p>
         </div>
         
-        <BookDemoForm />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div>
+            <BookDemoForm />
+          </div>
+          <div>
+            <N8nWorkflowTrigger />
+          </div>
+        </div>
       </div>
 
       <Footer />
