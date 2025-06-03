@@ -55,6 +55,19 @@ Best regards,`);
     setIsSending(true);
     
     try {
+      console.log("Calling send-candidate-email function with data:", {
+        candidate: {
+          id: candidate.id,
+          name: `${candidate.first_name} ${candidate.last_name}`,
+          email: candidate.email,
+          title: candidate.title
+        },
+        email: {
+          subject: subject,
+          message: message
+        }
+      });
+
       // Call backend function to handle email sending and n8n workflow
       const { data, error } = await supabase.functions.invoke('send-candidate-email', {
         body: {
@@ -71,17 +84,25 @@ Best regards,`);
         }
       });
 
+      console.log("Edge function response:", { data, error });
+
       if (error) {
         console.error('Error calling send-candidate-email function:', error);
-        toast.error("Failed to process email. Please try again.");
+        toast.error(`Failed to process email: ${error.message || 'Unknown error'}`);
         return;
       }
 
-      // Create mailto link for now
+      if (data?.error) {
+        console.error('Edge function returned error:', data.error);
+        toast.error(`Failed to process email: ${data.error}`);
+        return;
+      }
+
+      // Create mailto link as backup
       const mailtoLink = `mailto:${candidate.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;
       window.open(mailtoLink, '_blank');
       
-      toast.success(`Message sent to ${candidate.first_name} ${candidate.last_name}`);
+      toast.success(`Message processed for ${candidate.first_name} ${candidate.last_name}. Check your email client to send.`);
       onOpenChange(false);
       
       // Reset form
@@ -90,7 +111,7 @@ Best regards,`);
       
     } catch (error) {
       console.error('Error sending message:', error);
-      toast.error("Failed to send message. Please try again.");
+      toast.error(`Failed to send message: ${error.message || 'Please try again'}`);
     } finally {
       setIsSending(false);
     }
@@ -147,7 +168,7 @@ Best regards,`);
               className="flex-1"
             >
               <Send className="h-4 w-4 mr-2" />
-              {isSending ? 'Sending...' : 'Send Message'}
+              {isSending ? 'Processing...' : 'Send Message'}
             </Button>
             <Button 
               variant="outline" 
