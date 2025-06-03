@@ -1,73 +1,29 @@
-# Welcome to your Lovable project
+**URL**: [https://lovable.dev/projects/6c7e948a-20cd-4655-96d3-44a6407bc84b](https://al-hire-smart.lovable.app/)
 
-## Project info
+Hire Al: Talent Matchmaking
 
-**URL**: https://lovable.dev/projects/6c7e948a-20cd-4655-96d3-44a6407bc84b
+Problem
 
-## How can I edit this code?
+Al companies and enterprises struggle to fill specialized roles quickly. Scarcity of qualified candidates, manual sourcing, inefficient screening, and bias stretch the average time to hire past 60 days and push costs sky-high. An LLM-driven, natural language search engine that understands skills, projects, and context promises to compress this cycle from weeks to minutes
 
-There are several ways of editing your application.
+Solution
 
-**Use Lovable**
+Build an end-to-end hiring copilot that lets recruiters type a plain-English request
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/6c7e948a-20cd-4655-96d3-44a6407bc84b) and start prompting.
+(e.g., "Find senior Gen-Al engineers with Lang Chain RAG experience in Europe, open to contract work") and instantly returns relevant candidates, auto-screens them, and sends personalized outreach
 
-Changes made via Lovable will be committed automatically to this repo.
+Scope
 
-**Use your preferred IDE**
+•	Natural-language multi-source talent search (“People GPT”)
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+•	Auto-resume parsing & skill extraction
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+•	Talent-pool insights dashboards (charts)
 
-Follow these steps:
+•	Candidate Ranking: Automatically ranks, scores, and organizes candidate profiles based on recruiter criteria, eliminating manual screening
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+•	Background Checking and Pre-Screening
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+	Uses Al to verify candidate information and generate screening Q&A for assessment
 
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/6c7e948a-20cd-4655-96d3-44a6407bc84b) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+•	Sends personalized outreach
