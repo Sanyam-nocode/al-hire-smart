@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,6 +28,7 @@ const BookDemoForm = () => {
     specificNeeds: ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isBookingComplete, setIsBookingComplete] = useState(false);
   const { toast } = useToast();
 
   const timeSlots = [
@@ -176,7 +176,8 @@ const BookDemoForm = () => {
         console.error('Error calling demo invite function:', emailError);
       }
 
-      // Show success message only after n8n workflow is triggered successfully
+      // Mark booking as complete and show success message only after n8n workflow is triggered successfully
+      setIsBookingComplete(true);
       toast({
         title: "Demo Booked Successfully!",
         description: `Your demo is scheduled for ${format(selectedDate, "MMMM d, yyyy")} at ${selectedTime}. Check your email for confirmation and calendar invite.`,
@@ -437,7 +438,7 @@ const BookDemoForm = () => {
               </div>
             )}
 
-            {selectedDate && selectedTime && (
+            {isBookingComplete && selectedDate && selectedTime && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                 <p className="text-sm font-medium text-green-800">
                   Demo Scheduled for:
