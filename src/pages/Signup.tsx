@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Brain, Users, Search, CheckCircle } from "lucide-react";
+import { Brain, Users, Search, CheckCircle, Mail, AlertCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
@@ -21,7 +21,8 @@ const Signup = () => {
     password: ""
   });
   const [loading, setLoading] = useState(false);
-  const { signUp, user, checkEmailExists } = useAuth();
+  const [showEmailConfirmation, setShowEmailConfirmation] = useState(false);
+  const { signUp, user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -42,21 +43,6 @@ const Signup = () => {
     setLoading(true);
 
     try {
-      // Check if email already exists
-      const { exists, profileType } = await checkEmailExists(formData.email, activeTab as 'candidate' | 'recruiter');
-      
-      if (exists) {
-        console.log(`Email ${formData.email} already exists with ${profileType} profile`);
-        
-        if (profileType === activeTab) {
-          toast.error(`A ${activeTab} profile already exists with this email address. Please sign in instead or use a different email.`);
-        } else {
-          toast.error(`This email is already registered as a ${profileType}. Please use a different email address or sign in with the correct account type.`);
-        }
-        setLoading(false);
-        return;
-      }
-
       const userData = {
         first_name: formData.firstName,
         last_name: formData.lastName,
@@ -64,19 +50,109 @@ const Signup = () => {
         user_type: activeTab
       };
 
+      console.log("Attempting to sign up user with email:", formData.email);
       const { error } = await signUp(formData.email, formData.password, userData);
       
       if (error) {
-        toast.error(error.message);
+        console.error("Signup error:", error);
+        toast.error(error.message || "Failed to create account");
       } else {
-        toast.success("Account created successfully! Please check your email to confirm your account.");
+        console.log("Signup successful, showing email confirmation");
+        setShowEmailConfirmation(true);
+        toast.success("Please check your email to confirm your account.");
+        
+        // Reset form
+        setFormData({
+          firstName: "",
+          lastName: "",
+          email: "",
+          company: "",
+          location: "",
+          password: ""
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Unexpected signup error:", error);
       toast.error("An unexpected error occurred");
     } finally {
       setLoading(false);
     }
   };
+
+  if (showEmailConfirmation) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+        <Navbar />
+        
+        <div className="container mx-auto px-4 py-16">
+          <div className="max-w-md mx-auto">
+            <Card className="border-0 shadow-lg">
+              <CardHeader className="text-center">
+                <div className="inline-flex items-center px-4 py-2 bg-green-100 rounded-full text-green-700 text-sm font-medium mb-4 mx-auto">
+                  <Mail className="h-4 w-4 mr-2" />
+                  Check Your Email
+                </div>
+                <CardTitle className="text-2xl font-bold text-gray-900">
+                  Confirm Your Account
+                </CardTitle>
+              </CardHeader>
+              
+              <CardContent className="text-center space-y-4">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                  <Mail className="h-8 w-8 text-green-600" />
+                </div>
+                
+                <div>
+                  <p className="text-gray-600 mb-2">
+                    We've sent a confirmation email to:
+                  </p>
+                  <p className="font-semibold text-gray-900">{formData.email}</p>
+                </div>
+                
+                <div className="bg-blue-50 rounded-lg p-4 text-sm text-blue-800">
+                  <p className="font-medium mb-2">Next steps:</p>
+                  <ol className="list-decimal list-inside space-y-1 text-left">
+                    <li>Check your email inbox (and spam folder)</li>
+                    <li>Click the confirmation link in the email</li>
+                    <li>Return to this page to sign in</li>
+                  </ol>
+                </div>
+
+                <div className="bg-amber-50 rounded-lg p-4 text-sm text-amber-800">
+                  <div className="flex items-start space-x-2">
+                    <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-left">
+                      <p className="font-medium">Email not arriving?</p>
+                      <ul className="mt-1 space-y-1">
+                        <li>• Check your spam/junk folder</li>
+                        <li>• Make sure the email address is correct</li>
+                        <li>• Wait a few minutes for delivery</li>
+                        <li>• Try signing up again if needed</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Button 
+                    onClick={() => setShowEmailConfirmation(false)} 
+                    className="w-full"
+                  >
+                    Try Again
+                  </Button>
+                  <Link to="/login">
+                    <Button variant="outline" className="w-full">
+                      Go to Sign In
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
