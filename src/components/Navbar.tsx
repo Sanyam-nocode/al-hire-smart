@@ -36,32 +36,16 @@ const Navbar = () => {
 
   return (
     <>
-      <nav className="bg-white shadow-sm border-b">
+      <nav className="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <Link to="/" className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">H</span>
-                </div>
-                <span className="text-xl font-bold text-gray-900">Hire Al</span>
-              </Link>
-              
-              <div className="hidden md:flex ml-10 space-x-8">
-                <Link to="/features" className="text-gray-500 hover:text-gray-900 px-3 py-2 text-sm font-medium">
-                  Features
-                </Link>
-                <Link to="/pricing" className="text-gray-500 hover:text-gray-900 px-3 py-2 text-sm font-medium">
-                  Pricing
-                </Link>
-                <Link to="/about" className="text-gray-500 hover:text-gray-900 px-3 py-2 text-sm font-medium">
-                  About
-                </Link>
-                <Link to="/email-workflows" className="text-gray-500 hover:text-gray-900 px-3 py-2 text-sm font-medium">
-                  Email Workflows
-                </Link>
+          <div className="flex justify-between items-center h-16">
+            {/* Logo */}
+            <Link to="/" className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                <Brain className="h-5 w-5 text-white" />
               </div>
-            </div>
+              <span className="text-xl font-bold text-gray-900">Hire Al</span>
+            </Link>
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-8">
