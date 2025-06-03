@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Brain, Users, Search, CheckCircle, Mail, AlertCircle } from "lucide-react";
+import { Brain, Users, Search, CheckCircle, Mail, AlertCircle, RefreshCw } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
@@ -21,8 +21,10 @@ const Signup = () => {
     password: ""
   });
   const [loading, setLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
   const [showEmailConfirmation, setShowEmailConfirmation] = useState(false);
-  const { signUp, user } = useAuth();
+  const [submittedEmail, setSubmittedEmail] = useState("");
+  const { signUp, resendConfirmation, user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -36,6 +38,23 @@ const Signup = () => {
       ...prev,
       [field]: value
     }));
+  };
+
+  const handleResendConfirmation = async () => {
+    setResendLoading(true);
+    try {
+      const { error } = await resendConfirmation(submittedEmail);
+      if (error) {
+        toast.error(error.message || "Failed to resend confirmation email");
+      } else {
+        toast.success("Confirmation email has been resent! Please check your inbox and spam folder.");
+      }
+    } catch (error: any) {
+      console.error("Resend confirmation error:", error);
+      toast.error("An unexpected error occurred while resending email");
+    } finally {
+      setResendLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -59,6 +78,7 @@ const Signup = () => {
         toast.error(error.message || "Failed to create account");
       } else {
         console.log("Signup successful, showing email confirmation");
+        setSubmittedEmail(formData.email);
         setShowEmailConfirmation(true);
         toast.success("Please check your email to confirm your account.");
         
@@ -107,7 +127,7 @@ const Signup = () => {
                   <p className="text-gray-600 mb-2">
                     We've sent a confirmation email to:
                   </p>
-                  <p className="font-semibold text-gray-900">{formData.email}</p>
+                  <p className="font-semibold text-gray-900">{submittedEmail}</p>
                 </div>
                 
                 <div className="bg-blue-50 rounded-lg p-4 text-sm text-blue-800">
@@ -128,7 +148,7 @@ const Signup = () => {
                         <li>• Check your spam/junk folder</li>
                         <li>• Make sure the email address is correct</li>
                         <li>• Wait a few minutes for delivery</li>
-                        <li>• Try signing up again if needed</li>
+                        <li>• Use the resend button below if needed</li>
                       </ul>
                     </div>
                   </div>
@@ -136,11 +156,31 @@ const Signup = () => {
                 
                 <div className="space-y-2">
                   <Button 
+                    onClick={handleResendConfirmation}
+                    disabled={resendLoading}
+                    className="w-full"
+                    variant="outline"
+                  >
+                    {resendLoading ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        Resending...
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="h-4 w-4 mr-2" />
+                        Resend Confirmation Email
+                      </>
+                    )}
+                  </Button>
+                  
+                  <Button 
                     onClick={() => setShowEmailConfirmation(false)} 
                     className="w-full"
                   >
-                    Try Again
+                    Try Again with Different Email
                   </Button>
+                  
                   <Link to="/login">
                     <Button variant="outline" className="w-full">
                       Go to Sign In
