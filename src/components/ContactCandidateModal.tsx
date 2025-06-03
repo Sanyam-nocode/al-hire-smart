@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -98,11 +97,8 @@ Best regards,`);
         return;
       }
 
-      // Create mailto link as backup
-      const mailtoLink = `mailto:${candidate.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;
-      window.open(mailtoLink, '_blank');
-      
-      toast.success(`Message processed for ${candidate.first_name} ${candidate.last_name}. Check your email client to send.`);
+      // Success - email is being handled by n8n workflow
+      toast.success(`Email sent successfully to ${candidate.first_name} ${candidate.last_name} via workflow.`);
       onOpenChange(false);
       
       // Reset form
