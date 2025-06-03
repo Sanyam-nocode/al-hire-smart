@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Brain, Users, Search, CheckCircle } from "lucide-react";
+import { Brain, Users, Search, CheckCircle, Mail } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
@@ -26,6 +26,7 @@ const SignupModal = ({ open, onOpenChange }: SignupModalProps) => {
     password: ""
   });
   const [loading, setLoading] = useState(false);
+  const [showEmailConfirmation, setShowEmailConfirmation] = useState(false);
   const { signUp } = useAuth();
 
   const handleInputChange = (field: string, value: string) => {
@@ -47,20 +48,90 @@ const SignupModal = ({ open, onOpenChange }: SignupModalProps) => {
         user_type: activeTab
       };
 
+      console.log("Attempting to sign up user with email:", formData.email);
       const { error } = await signUp(formData.email, formData.password, userData);
       
       if (error) {
-        toast.error(error.message);
+        console.error("Signup error:", error);
+        toast.error(error.message || "Failed to create account");
       } else {
-        toast.success("Account created successfully! Please check your email to confirm your account.");
-        onOpenChange(false);
+        console.log("Signup successful, showing email confirmation");
+        setShowEmailConfirmation(true);
+        toast.success("Account created! Please check your email to confirm your account.");
+        
+        // Reset form
+        setFormData({
+          firstName: "",
+          lastName: "",
+          email: "",
+          company: "",
+          location: "",
+          password: ""
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Unexpected signup error:", error);
       toast.error("An unexpected error occurred");
     } finally {
       setLoading(false);
     }
   };
+
+  const handleCloseModal = () => {
+    setShowEmailConfirmation(false);
+    onOpenChange(false);
+  };
+
+  if (showEmailConfirmation) {
+    return (
+      <Dialog open={open} onOpenChange={handleCloseModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center">
+              <div className="inline-flex items-center px-4 py-2 bg-green-100 rounded-full text-green-700 text-sm font-medium mb-4">
+                <Mail className="h-4 w-4 mr-2" />
+                Check Your Email
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900">
+                Confirm Your Account
+              </h2>
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="text-center space-y-4">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+              <Mail className="h-8 w-8 text-green-600" />
+            </div>
+            
+            <div>
+              <p className="text-gray-600 mb-2">
+                We've sent a confirmation email to:
+              </p>
+              <p className="font-semibold text-gray-900">{formData.email}</p>
+            </div>
+            
+            <div className="bg-blue-50 rounded-lg p-4 text-sm text-blue-800">
+              <p className="font-medium mb-2">Next steps:</p>
+              <ol className="list-decimal list-inside space-y-1">
+                <li>Check your email inbox (and spam folder)</li>
+                <li>Click the confirmation link in the email</li>
+                <li>Return to this page to sign in</li>
+              </ol>
+            </div>
+            
+            <div className="space-y-2">
+              <Button onClick={handleCloseModal} className="w-full">
+                Got it, I'll check my email
+              </Button>
+              <p className="text-xs text-gray-500">
+                Didn't receive an email? Check your spam folder or try signing up again.
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

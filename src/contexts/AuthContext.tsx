@@ -177,16 +177,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUp = async (email: string, password: string, userData: any) => {
     try {
+      console.log('AuthContext: Starting signup process for:', email);
+      
+      // Get the current origin for redirect
+      const redirectUrl = `${window.location.origin}/`;
+      console.log('AuthContext: Using redirect URL:', redirectUrl);
+      
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: userData,
-          emailRedirectTo: `${window.location.origin}/`
+          emailRedirectTo: redirectUrl
         }
       });
-      return { error };
+      
+      if (error) {
+        console.error('AuthContext: Signup error:', error);
+        return { error };
+      }
+      
+      console.log('AuthContext: Signup successful, confirmation email should be sent');
+      return { error: null };
     } catch (error) {
+      console.error('AuthContext: Unexpected signup error:', error);
       return { error };
     }
   };

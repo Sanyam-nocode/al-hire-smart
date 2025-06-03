@@ -60,14 +60,43 @@ const handler = async (req: Request): Promise<Response> => {
     const meetingUrl = `https://meet.google.com/demo-${bookingId.substring(0, 8)}`;
     console.log("Generated meeting URL:", meetingUrl);
 
+    // Create calendar event details
+    const eventStart = new Date(`${demoDate}T${convertTo24Hour(demoTime)}`);
+    const eventEnd = new Date(eventStart.getTime() + 30 * 60000); // 30 minutes later
+    
+    console.log("Event start time:", eventStart.toISOString());
+    console.log("Event end time:", eventEnd.toISOString());
+
+    // In a real implementation, you would send an actual email here
+    // For now, we'll just log the email content that would be sent
+    const emailContent = {
+      to: email,
+      subject: `Demo Scheduled - ${company}`,
+      html: `
+        <h2>Your Demo is Scheduled!</h2>
+        <p>Hi ${firstName},</p>
+        <p>Thank you for booking a demo with Hire AI. Your personalized demo is scheduled for:</p>
+        <ul>
+          <li><strong>Date:</strong> ${demoDate}</li>
+          <li><strong>Time:</strong> ${demoTime} ${timezone}</li>
+          <li><strong>Duration:</strong> 30 minutes</li>
+        </ul>
+        <p><strong>Meeting Link:</strong> <a href="${meetingUrl}">${meetingUrl}</a></p>
+        <p>We're excited to show you how Hire AI can transform your recruitment process!</p>
+        <p>Best regards,<br>The Hire AI Team</p>
+      `
+    };
+
+    console.log("Email content that would be sent:", emailContent);
     console.log("✅ Demo invite processed successfully!");
     console.log("Meeting URL generated:", meetingUrl);
-    console.log("Email sending will be handled by n8n workflow");
+    console.log("Email content prepared (actual sending handled by n8n workflow)");
 
     return new Response(JSON.stringify({ 
       success: true, 
       meetingUrl,
-      message: "Demo invite processed successfully - email will be sent via n8n workflow"
+      message: "Demo invite processed successfully - email will be sent via n8n workflow",
+      emailPreview: emailContent
     }), {
       status: 200,
       headers: {
@@ -92,5 +121,21 @@ const handler = async (req: Request): Promise<Response> => {
     );
   }
 };
+
+// Helper function to convert time to 24-hour format
+function convertTo24Hour(time12h: string): string {
+  const [time, modifier] = time12h.split(' ');
+  let [hours, minutes] = time.split(':');
+  
+  if (hours === '12') {
+    hours = '00';
+  }
+  
+  if (modifier === 'PM') {
+    hours = String(parseInt(hours, 10) + 12);
+  }
+  
+  return `${hours.padStart(2, '0')}:${minutes}:00`;
+}
 
 serve(handler);
