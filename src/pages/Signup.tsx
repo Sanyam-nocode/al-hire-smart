@@ -47,6 +47,7 @@ const Signup = () => {
         first_name: formData.firstName,
         last_name: formData.lastName,
         company: activeTab === "recruiter" ? formData.company : null,
+        location: activeTab === "candidate" ? formData.location : null,
         user_type: activeTab
       };
 

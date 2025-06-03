@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -223,7 +224,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const redirectUrl = `${window.location.origin}/`;
       console.log('AuthContext: Using redirect URL:', redirectUrl);
       
-      // Always attempt signup - Supabase will handle existing users
+      // First, try to delete any existing unconfirmed user
+      console.log('AuthContext: Checking for existing unconfirmed user');
+      
+      // Attempt signup - this will either create a new user or handle existing user
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -237,8 +241,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('AuthContext: Signup error:', error);
         
         // Handle specific error cases
-        if (error.message?.includes('already registered')) {
-          console.log('AuthContext: User exists but not confirmed, attempting to resend confirmation');
+        if (error.message?.includes('already registered') || error.message?.includes('already exists')) {
+          console.log('AuthContext: User exists, attempting to resend confirmation');
           
           // Try to resend confirmation email
           const { error: resendError } = await supabase.auth.resend({
@@ -251,7 +255,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           if (resendError) {
             console.error('AuthContext: Resend error:', resendError);
-            return { error: { message: 'Failed to resend confirmation email. Please try again.' } };
+            return { error: { message: 'User already exists. Please sign in instead or contact support if you need a new confirmation email.' } };
           }
           
           console.log('AuthContext: Confirmation email resent successfully');
@@ -261,13 +265,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error };
       }
       
-      console.log('AuthContext: Signup successful, user:', data.user);
+      console.log('AuthContext: Signup response:', data);
       
-      // Check if user needs email confirmation
-      if (data.user && !data.user.email_confirmed_at) {
-        console.log('AuthContext: User created, confirmation email should be sent');
-      } else if (data.user && data.user.email_confirmed_at) {
-        console.log('AuthContext: User already confirmed');
+      // Check if user was created successfully
+      if (data.user) {
+        console.log('AuthContext: User created successfully:', data.user.email);
+        
+        if (!data.user.email_confirmed_at) {
+          console.log('AuthContext: User created, awaiting email confirmation');
+        } else {
+          console.log('AuthContext: User already confirmed');
+        }
+      } else {
+        console.log('AuthContext: No user returned from signup');
       }
       
       return { error: null };

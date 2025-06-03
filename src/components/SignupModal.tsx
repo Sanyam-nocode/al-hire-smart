@@ -26,7 +26,7 @@ const SignupModal = ({ open, onOpenChange }: SignupModalProps) => {
   });
   const [loading, setLoading] = useState(false);
   const [showEmailConfirmation, setShowEmailConfirmation] = useState(false);
-  const { signUp, checkEmailExists } = useAuth();
+  const { signUp } = useAuth();
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -40,25 +40,11 @@ const SignupModal = ({ open, onOpenChange }: SignupModalProps) => {
     setLoading(true);
 
     try {
-      // Check if email already exists
-      const { exists, profileType } = await checkEmailExists(formData.email, activeTab as 'candidate' | 'recruiter');
-      
-      if (exists) {
-        console.log(`Email ${formData.email} already exists with ${profileType} profile`);
-        
-        if (profileType === activeTab) {
-          toast.error(`A ${activeTab} profile already exists with this email address. Please sign in instead or use a different email.`);
-        } else {
-          toast.error(`This email is already registered as a ${profileType}. Please use a different email address or sign in with the correct account type.`);
-        }
-        setLoading(false);
-        return;
-      }
-
       const userData = {
         first_name: formData.firstName,
         last_name: formData.lastName,
         company: activeTab === "recruiter" ? formData.company : null,
+        location: activeTab === "candidate" ? formData.location : null,
         user_type: activeTab
       };
 
@@ -67,11 +53,7 @@ const SignupModal = ({ open, onOpenChange }: SignupModalProps) => {
       
       if (error) {
         console.error("Signup error:", error);
-        if (error.message?.includes('already exists')) {
-          toast.error("An account with this email already exists. Please sign in instead.");
-        } else {
-          toast.error(error.message || "Failed to create account");
-        }
+        toast.error(error.message || "Failed to create account");
       } else {
         console.log("Signup successful, showing email confirmation");
         setShowEmailConfirmation(true);
