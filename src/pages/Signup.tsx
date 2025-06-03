@@ -21,7 +21,7 @@ const Signup = () => {
     password: ""
   });
   const [loading, setLoading] = useState(false);
-  const { signUp, user } = useAuth();
+  const { signUp, user, checkEmailExists } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -42,6 +42,21 @@ const Signup = () => {
     setLoading(true);
 
     try {
+      // Check if email already exists
+      const { exists, profileType } = await checkEmailExists(formData.email, activeTab as 'candidate' | 'recruiter');
+      
+      if (exists) {
+        console.log(`Email ${formData.email} already exists with ${profileType} profile`);
+        
+        if (profileType === activeTab) {
+          toast.error(`A ${activeTab} profile already exists with this email address. Please sign in instead or use a different email.`);
+        } else {
+          toast.error(`This email is already registered as a ${profileType}. Please use a different email address or sign in with the correct account type.`);
+        }
+        setLoading(false);
+        return;
+      }
+
       const userData = {
         first_name: formData.firstName,
         last_name: formData.lastName,

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,7 +26,7 @@ const SignupModal = ({ open, onOpenChange }: SignupModalProps) => {
   });
   const [loading, setLoading] = useState(false);
   const [showEmailConfirmation, setShowEmailConfirmation] = useState(false);
-  const { signUp } = useAuth();
+  const { signUp, checkEmailExists } = useAuth();
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -41,6 +40,21 @@ const SignupModal = ({ open, onOpenChange }: SignupModalProps) => {
     setLoading(true);
 
     try {
+      // Check if email already exists
+      const { exists, profileType } = await checkEmailExists(formData.email, activeTab as 'candidate' | 'recruiter');
+      
+      if (exists) {
+        console.log(`Email ${formData.email} already exists with ${profileType} profile`);
+        
+        if (profileType === activeTab) {
+          toast.error(`A ${activeTab} profile already exists with this email address. Please sign in instead or use a different email.`);
+        } else {
+          toast.error(`This email is already registered as a ${profileType}. Please use a different email address or sign in with the correct account type.`);
+        }
+        setLoading(false);
+        return;
+      }
+
       const userData = {
         first_name: formData.firstName,
         last_name: formData.lastName,

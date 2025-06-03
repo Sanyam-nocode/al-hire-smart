@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -56,6 +55,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, userData: any) => Promise<{ error: any }>;
   signOut: () => Promise<{ error: any }>;
   refreshProfile: () => Promise<void>;
+  checkEmailExists: (email: string, userType: 'candidate' | 'recruiter') => Promise<{ exists: boolean; profileType?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -73,6 +73,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [candidateProfile, setCandidateProfile] = useState<CandidateProfile | null>(null);
   const [recruiterProfile, setRecruiterProfile] = useState<RecruiterProfile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const checkEmailExists = async (email: string, userType: 'candidate' | 'recruiter') => {
+    try {
+      console.log(`Checking if email ${email} exists for ${userType} profile`);
+      
+      // Check candidate profiles
+      const { data: candidateData, error: candidateError } = await supabase
+        .from('candidate_profiles')
+        .select('email')
+        .eq('email', email.toLowerCase())
+        .maybeSingle();
+
+      if (candidateError && candidateError.code !== 'PGRST116') {
+        console.error('Error checking candidate profile:', candidateError);
+      }
+
+      // Check recruiter profiles
+      const { data: recruiterData, error: recruiterError } = await supabase
+        .from('recruiter_profiles')
+        .select('email')
+        .eq('email', email.toLowerCase())
+        .maybeSingle();
+
+      if (recruiterError && recruiterError.code !== 'PGRST116') {
+        console.error('Error checking recruiter profile:', recruiterError);
+      }
+
+      // Determine if email exists and return appropriate profile type
+      if (candidateData) {
+        return { exists: true, profileType: 'candidate' };
+      } else if (recruiterData) {
+        return { exists: true, profileType: 'recruiter' };
+      } else {
+        return { exists: false };
+      }
+    } catch (error) {
+      console.error('Error in checkEmailExists:', error);
+      return { exists: false };
+    }
+  };
 
   const fetchProfiles = async (user: User) => {
     console.log('Fetching profiles for user:', user.id);
@@ -328,6 +368,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signUp,
     signOut,
     refreshProfile,
+    checkEmailExists,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
