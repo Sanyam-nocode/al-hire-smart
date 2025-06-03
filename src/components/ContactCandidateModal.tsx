@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Mail, Send, X } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CandidateProfile {
   id: string;
@@ -26,7 +27,6 @@ const ContactCandidateModal = ({ candidate, open, onOpenChange }: ContactCandida
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
-  const [n8nWebhookUrl, setN8nWebhookUrl] = useState("");
 
   // Set default subject when candidate changes
   useEffect(() => {
@@ -46,46 +46,6 @@ Best regards,`);
     }
   }, [candidate]);
 
-  const triggerN8nWorkflow = async (candidateData: CandidateProfile, subject: string, message: string) => {
-    if (!n8nWebhookUrl) {
-      console.log("No n8n webhook URL provided, skipping workflow trigger");
-      return;
-    }
-
-    try {
-      console.log("Triggering n8n workflow:", n8nWebhookUrl);
-      
-      const workflowData = {
-        timestamp: new Date().toISOString(),
-        triggered_from: "hire_ai_contact_candidate",
-        candidate: {
-          id: candidateData.id,
-          name: `${candidateData.first_name} ${candidateData.last_name}`,
-          email: candidateData.email,
-          title: candidateData.title
-        },
-        email: {
-          subject: subject,
-          message: message
-        }
-      };
-
-      await fetch(n8nWebhookUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        mode: "no-cors",
-        body: JSON.stringify(workflowData),
-      });
-
-      console.log("n8n workflow triggered successfully");
-    } catch (error) {
-      console.error("Error triggering n8n workflow:", error);
-      // Don't show error to user as this is a background process
-    }
-  };
-
   const handleSendMessage = async () => {
     if (!candidate || !subject.trim() || !message.trim()) {
       toast.error("Please fill in all fields");
@@ -95,12 +55,28 @@ Best regards,`);
     setIsSending(true);
     
     try {
-      // Simulate sending message (replace with actual email service integration)
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Trigger n8n workflow in the background
-      await triggerN8nWorkflow(candidate, subject, message);
-      
+      // Call backend function to handle email sending and n8n workflow
+      const { data, error } = await supabase.functions.invoke('send-candidate-email', {
+        body: {
+          candidate: {
+            id: candidate.id,
+            name: `${candidate.first_name} ${candidate.last_name}`,
+            email: candidate.email,
+            title: candidate.title
+          },
+          email: {
+            subject: subject,
+            message: message
+          }
+        }
+      });
+
+      if (error) {
+        console.error('Error calling send-candidate-email function:', error);
+        toast.error("Failed to process email. Please try again.");
+        return;
+      }
+
       // Create mailto link for now
       const mailtoLink = `mailto:${candidate.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;
       window.open(mailtoLink, '_blank');
@@ -133,20 +109,6 @@ Best regards,`);
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="n8n-webhook">n8n Webhook URL (Optional):</Label>
-            <Input 
-              id="n8n-webhook"
-              value={n8nWebhookUrl}
-              onChange={(e) => setN8nWebhookUrl(e.target.value)}
-              placeholder="https://your-n8n-instance.com/webhook/your-webhook-id"
-              className="text-sm"
-            />
-            <p className="text-xs text-gray-500">
-              Enter your n8n webhook URL to trigger a workflow when sending the message
-            </p>
-          </div>
-
           <div className="space-y-2">
             <Label htmlFor="to">To:</Label>
             <Input 
