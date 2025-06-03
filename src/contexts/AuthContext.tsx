@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -262,24 +261,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const redirectUrl = `${window.location.origin}/`;
       console.log('AuthContext: Using redirect URL:', redirectUrl);
       
-      // First, try to resend confirmation for existing user
-      console.log('AuthContext: Attempting to resend confirmation for potentially existing user');
-      const { error: resendError } = await supabase.auth.resend({
-        type: 'signup',
-        email: email.trim().toLowerCase(),
-        options: {
-          emailRedirectTo: redirectUrl
-        }
-      });
-      
-      if (!resendError) {
-        console.log('AuthContext: Confirmation email resent successfully for existing user');
-        return { error: null };
-      }
-      
-      console.log('AuthContext: Resend failed, attempting new signup. Error:', resendError);
-      
-      // If resend fails, try creating new account
+      // First, try to sign up the user
+      console.log('AuthContext: Attempting to create new user account');
       const { data, error } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
         password,
@@ -298,12 +281,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) {
         console.error('AuthContext: Signup error:', error);
         
-        // Handle specific error cases
+        // Handle specific error cases for existing users
         if (error.message?.toLowerCase().includes('user already registered') || 
-            error.message?.toLowerCase().includes('already exists')) {
+            error.message?.toLowerCase().includes('already exists') ||
+            error.message?.toLowerCase().includes('email address is already registered')) {
           
-          console.log('AuthContext: User exists, trying to resend confirmation again');
-          const { error: secondResendError } = await supabase.auth.resend({
+          console.log('AuthContext: User already exists, attempting to resend confirmation');
+          
+          // Try to resend confirmation for existing user
+          const { error: resendError } = await supabase.auth.resend({
             type: 'signup',
             email: email.trim().toLowerCase(),
             options: {
@@ -311,22 +297,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           });
           
-          if (secondResendError) {
-            console.error('AuthContext: Second resend error:', secondResendError);
+          if (resendError) {
+            console.error('AuthContext: Resend error:', resendError);
             return { error: { message: 'This email is already registered. Please check your email (including spam folder) for the confirmation link, or try signing in instead.' } };
           }
           
-          console.log('AuthContext: Second confirmation email sent successfully');
+          console.log('AuthContext: Confirmation email resent successfully for existing user');
           return { error: null };
         }
         
         return { error };
       }
       
+      // If we get here, either a new user was created or the user already exists but needs confirmation
       if (data.user) {
-        console.log('AuthContext: User created/updated successfully:', data.user.email);
+        console.log('AuthContext: User created/found successfully:', data.user.email);
         console.log('AuthContext: Email confirmed:', data.user.email_confirmed_at ? 'Yes' : 'No');
         console.log('AuthContext: Session created:', data.session ? 'Yes' : 'No');
+        
+        // If user exists but is not confirmed, the session will be null
+        if (!data.session && data.user && !data.user.email_confirmed_at) {
+          console.log('AuthContext: User exists but not confirmed, this is expected');
+        }
       }
       
       return { error: null };

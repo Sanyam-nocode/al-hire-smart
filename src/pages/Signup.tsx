@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -62,25 +63,47 @@ const Signup = () => {
     setLoading(true);
 
     try {
+      // Validate required fields
+      if (!formData.firstName || !formData.lastName || !formData.email || !formData.password) {
+        toast.error("Please fill in all required fields");
+        return;
+      }
+
+      if (activeTab === "recruiter" && !formData.company) {
+        toast.error("Company name is required for recruiter accounts");
+        return;
+      }
+
       const userData = {
-        first_name: formData.firstName,
-        last_name: formData.lastName,
-        company: activeTab === "recruiter" ? formData.company : null,
-        location: activeTab === "candidate" ? formData.location : null,
+        first_name: formData.firstName.trim(),
+        last_name: formData.lastName.trim(),
+        email: formData.email.trim().toLowerCase(),
+        company: activeTab === "recruiter" ? formData.company.trim() : null,
+        location: activeTab === "candidate" ? formData.location?.trim() || null : null,
         user_type: activeTab
       };
 
-      console.log("Attempting to sign up user with email:", formData.email);
+      console.log("Signup: Attempting to sign up user with email:", formData.email);
       const { error } = await signUp(formData.email, formData.password, userData);
       
       if (error) {
         console.error("Signup error:", error);
-        toast.error(error.message || "Failed to create account");
+        
+        // Check if this is a specific case where we should show the email confirmation screen
+        if (error.message?.toLowerCase().includes('email') && 
+            error.message?.toLowerCase().includes('already')) {
+          // Show email confirmation screen even for existing users
+          setSubmittedEmail(formData.email);
+          setShowEmailConfirmation(true);
+          toast.success("A confirmation email has been sent! Please check your inbox and spam folder.");
+        } else {
+          toast.error(error.message || "Failed to create account");
+        }
       } else {
         console.log("Signup successful, showing email confirmation");
         setSubmittedEmail(formData.email);
         setShowEmailConfirmation(true);
-        toast.success("Please check your email to confirm your account.");
+        toast.success("Account created! Please check your email to confirm your account.");
         
         // Reset form
         setFormData({
