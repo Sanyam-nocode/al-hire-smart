@@ -179,11 +179,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('AuthContext: Starting signup process for:', email);
       
+      // Check if user already exists first
+      const { data: existingUser } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (existingUser.user) {
+        console.log('AuthContext: User already exists and is confirmed');
+        return { error: { message: 'User already exists with this email. Please sign in instead.' } };
+      }
+
       // Get the current origin for redirect
       const redirectUrl = `${window.location.origin}/`;
       console.log('AuthContext: Using redirect URL:', redirectUrl);
       
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -193,6 +204,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       
       if (error) {
+        // If user already registered but not confirmed, resend confirmation
+        if (error.message?.includes('already registered')) {
+          console.log('AuthContext: User exists but not confirmed, attempting to resend confirmation');
+          const { error: resendError } = await supabase.auth.resend({
+            type: 'signup',
+            email: email,
+            options: {
+              emailRedirectTo: redirectUrl
+            }
+          });
+          
+          if (resendError) {
+            console.error('AuthContext: Resend error:', resendError);
+            return { error: resendError };
+          }
+          
+          console.log('AuthContext: Confirmation email resent successfully');
+          return { error: null };
+        }
+        
         console.error('AuthContext: Signup error:', error);
         return { error };
       }
@@ -201,7 +232,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { error: null };
     } catch (error) {
       console.error('AuthContext: Unexpected signup error:', error);
-      return { error };
+      // If sign in attempt failed, proceed with signup
+      try {
+        const redirectUrl = `${window.location.origin}/`;
+        const { error: signupError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: userData,
+            emailRedirectTo: redirectUrl
+          }
+        });
+        
+        if (signupError) {
+          return { error: signupError };
+        }
+        
+        return { error: null };
+      } catch (finalError) {
+        console.error('AuthContext: Final signup error:', finalError);
+        return { error: finalError };
+      }
     }
   };
 

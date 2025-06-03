@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Brain, Users, Search, CheckCircle, Mail } from "lucide-react";
+import { Brain, Users, Search, CheckCircle, Mail, AlertCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
@@ -53,11 +53,15 @@ const SignupModal = ({ open, onOpenChange }: SignupModalProps) => {
       
       if (error) {
         console.error("Signup error:", error);
-        toast.error(error.message || "Failed to create account");
+        if (error.message?.includes('already exists')) {
+          toast.error("An account with this email already exists. Please sign in instead.");
+        } else {
+          toast.error(error.message || "Failed to create account");
+        }
       } else {
         console.log("Signup successful, showing email confirmation");
         setShowEmailConfirmation(true);
-        toast.success("Account created! Please check your email to confirm your account.");
+        toast.success("Please check your email to confirm your account.");
         
         // Reset form
         setFormData({
@@ -118,13 +122,28 @@ const SignupModal = ({ open, onOpenChange }: SignupModalProps) => {
                 <li>Return to this page to sign in</li>
               </ol>
             </div>
+
+            <div className="bg-amber-50 rounded-lg p-4 text-sm text-amber-800">
+              <div className="flex items-start space-x-2">
+                <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                <div className="text-left">
+                  <p className="font-medium">Email not arriving?</p>
+                  <ul className="mt-1 space-y-1">
+                    <li>• Check your spam/junk folder</li>
+                    <li>• Make sure the email address is correct</li>
+                    <li>• Wait a few minutes for delivery</li>
+                    <li>• Contact support if issues persist</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
             
             <div className="space-y-2">
               <Button onClick={handleCloseModal} className="w-full">
                 Got it, I'll check my email
               </Button>
               <p className="text-xs text-gray-500">
-                Didn't receive an email? Check your spam folder or try signing up again.
+                If you don't receive the email within 10 minutes, try signing up again.
               </p>
             </div>
           </div>
