@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Mail, Send, X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useCandidateInteractions } from "@/hooks/useCandidateInteractions";
 
 interface CandidateProfile {
   id: string;
@@ -26,6 +28,7 @@ const ContactCandidateModal = ({ candidate, open, onOpenChange }: ContactCandida
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const { addInteraction } = useCandidateInteractions();
 
   // Set default subject when candidate changes
   useEffect(() => {
@@ -99,6 +102,21 @@ Best regards,`);
 
       // Success - email is being handled by n8n workflow
       toast.success(`Email sent successfully to ${candidate.first_name} ${candidate.last_name} via workflow.`);
+      
+      // Add interaction record for email sent
+      console.log("Adding email_sent interaction for candidate:", candidate.id);
+      await addInteraction(
+        candidate.id,
+        'email_sent',
+        `Email sent: "${subject}"`,
+        {
+          subject: subject,
+          message: message,
+          sentAt: new Date().toISOString(),
+          emailMethod: 'n8n_workflow'
+        }
+      );
+
       onOpenChange(false);
       
       // Reset form
